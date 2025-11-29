@@ -51,6 +51,16 @@ import print from 'vue3-print-nb' // 打印插件
 const setupAll = async () => {
   const app = createApp(App)
 
+  // 配置警告处理器：过滤 UmoEditor 内部组件的警告
+  app.config.warnHandler = (msg, instance, trace) => {
+    // 过滤掉 TConfigProvider 的非 props 属性警告
+    if (msg.includes('Extraneous non-props attributes') && msg.includes('TConfigProvider')) {
+      return
+    }
+    // 其他警告正常输出到控制台
+    console.warn(`[Vue warn]: ${msg}${trace}`)
+  }
+
   await setupI18n(app)
 
   setupStore(app)

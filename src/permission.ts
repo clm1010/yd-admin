@@ -60,6 +60,13 @@ const whiteList = [
 router.beforeEach(async (to, from, next) => {
   start()
   loadStart()
+
+  // ===== 临时跳过登录验证（开发调试用） =====
+  // 如果需要恢复登录验证，请删除或注释掉下面这两行代码
+  next()
+  return
+  // =========================================
+
   if (getAccessToken()) {
     if (to.path === '/login') {
       next({ path: '/' })

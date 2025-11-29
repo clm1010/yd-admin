@@ -53,7 +53,7 @@ const remainingRouter: AppRouteRecordRaw[] = [
   {
     path: '/',
     component: Layout,
-    redirect: '/index',
+    redirect: '/training/performance', // 修改：初始直接打开演训方案页面
     name: 'Home',
     meta: {},
     children: [
@@ -89,19 +89,19 @@ const remainingRouter: AppRouteRecordRaw[] = [
           icon: 'ep:user',
           title: t('common.profile')
         }
-      },
-      {
-        path: 'notify-message',
-        component: () => import('@/views/system/notify/my/index.vue'),
-        name: 'MyNotifyMessage',
-        meta: {
-          canTo: true,
-          hidden: true,
-          noTagsView: false,
-          icon: 'ep:message',
-          title: '我的站内信'
-        }
       }
+      // {
+      //   path: 'notify-message',
+      //   component: () => import('@/views/system/notify/my/index.vue'),
+      //   name: 'MyNotifyMessage',
+      //   meta: {
+      //     canTo: true,
+      //     hidden: true,
+      //     noTagsView: false,
+      //     icon: 'ep:message',
+      //     title: '我的站内信'
+      //   }
+      // }
     ]
   },
   {
@@ -341,6 +341,26 @@ const remainingRouter: AppRouteRecordRaw[] = [
           canTo: true,
           title: '修改流程',
           activeMenu: '/bpm/manager/model'
+        }
+      }
+    ]
+  },
+  {
+    path: '/training',
+    component: Layout,
+    name: 'Training',
+    meta: {
+      title: '演训',
+      icon: 'ep:monitor'
+    },
+    children: [
+      {
+        path: 'performance',
+        component: () => import('@/views/training/performance/index.vue'),
+        name: 'TrainingPerformance',
+        meta: {
+          title: '演训方案',
+          icon: 'ep:document'
         }
       }
     ]
@@ -744,6 +764,24 @@ const remainingRouter: AppRouteRecordRaw[] = [
           activeMenu: '/iot/operation/ota/firmware'
         },
         component: () => import('@/views/iot/ota/firmware/detail/index.vue')
+      }
+    ]
+  },
+  {
+    path: '/document',
+    component: Layout,
+    name: 'Document',
+    meta: { hidden: true },
+    children: [
+      {
+        path: 'edit/:id',
+        component: () => import('@/views/document/UmoCollaborativeEditor.vue'),
+        name: 'DocumentEdit',
+        meta: {
+          title: '协同编辑',
+          hidden: true,
+          noCache: true
+        }
       }
     ]
   }
