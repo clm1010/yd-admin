@@ -59,15 +59,8 @@ export const generateRandomUsername = (): string => {
   return `${adj}${noun}${Math.floor(Math.random() * 100)}`
 }
 
-// Umo Editor 默认配置
+// Umo Editor 默认配置（最小化配置，避免不支持的 key 错误）
 export const defaultEditorOptions = {
-  // 页面配置
-  page: {
-    defaultOrientation: 'portrait' as const,
-    defaultBackground: '#ffffff',
-    showLineNumber: false,
-    showToc: true
-  },
   // 文档配置
   document: {
     placeholder: '开始输入内容...'

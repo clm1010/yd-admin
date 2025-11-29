@@ -14,12 +14,7 @@
 
     <!-- 编辑器容器 -->
     <div class="editor-wrapper">
-      <UmoEditor
-        v-bind="editorOptions"
-        :height="'calc(100vh - 100px)'"
-        @changed="handleChanged"
-        @saved="handleSaved"
-      />
+      <UmoEditor v-bind="editorOptions" @changed="handleChanged" @saved="handleSaved" />
     </div>
 
     <!-- 右侧协同面板 -->
@@ -122,7 +117,7 @@ const statusTagType = computed(() => {
   return 'info'
 })
 
-// Umo Editor 配置
+// Umo Editor 配置（最小化配置，避免 Unexpected key 错误）
 const editorOptions = computed(() => ({
   ...defaultEditorOptions
 }))
@@ -285,39 +280,51 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="scss">
-.umo-collaborative-editor {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  width: 100%;
-  background-color: #f5f7fa;
+// .umo-collaborative-editor {
+//   display: flex;
+//   flex-direction: column;
+//   height: 100vh;
+//   width: 100%;
+//   background-color: #f5f7fa;
+//   overflow: hidden;
 
-  .status-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    background-color: white;
-    border-bottom: 1px solid #e4e7ed;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+//   .status-bar {
+//     display: flex;
+//     justify-content: space-between;
+//     align-items: center;
+//     padding: 12px 16px;
+//     background-color: white;
+//     border-bottom: 1px solid #e4e7ed;
+//     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+//     flex-shrink: 0;
 
-    .status-info {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-  }
+//     .status-info {
+//       display: flex;
+//       align-items: center;
+//       gap: 8px;
+//     }
+//   }
 
-  .editor-wrapper {
-    flex: 1;
-    overflow: hidden;
-    padding: 16px;
+//   .editor-wrapper {
+//     flex: 1;
+//     overflow: auto;
+//     padding: 16px;
+//     display: flex;
+//     flex-direction: column;
 
-    :deep(.umo-editor) {
-      height: 100%;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-  }
-}
+//     :deep(.umo-editor) {
+//       flex: 1;
+//       border-radius: 8px;
+//       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+//       background: white;
+//       overflow: auto;
+//     }
+
+//     // 确保编辑器内容区域正确显示
+//     :deep(.ProseMirror) {
+//       min-height: 100%;
+//       padding: 20px;
+//     }
+//   }
+// }
 </style>
