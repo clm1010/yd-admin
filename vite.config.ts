@@ -62,11 +62,17 @@ export default ({command, mode}: ConfigEnv): UserConfig => {
                 }
             ]
         },
+        define: {
+            'import.meta.env.VITE_BASE_URL': JSON.stringify(env.VITE_BASE_URL || 'http://localhost:3001'),
+            'import.meta.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL || '/api'),
+            'import.meta.env.VITE_WS_URL': JSON.stringify(env.VITE_WS_URL || 'ws://localhost:3001')
+        },
         build: {
             minify: 'terser',
             outDir: env.VITE_OUT_DIR || 'dist',
             sourcemap: env.VITE_SOURCEMAP === 'true' ? 'inline' : false,
             // brotliSize: false,
+            chunkSizeWarningLimit: 1500, // 提高 chunk 大小警告限制
             terserOptions: {
                 compress: {
                     drop_debugger: env.VITE_DROP_DEBUGGER === 'true',
@@ -74,14 +80,8 @@ export default ({command, mode}: ConfigEnv): UserConfig => {
                 }
             },
             rollupOptions: {
-                output: {
-                    manualChunks: {
-                      echarts: ['echarts'], // 将 echarts 单独打包，参考 https://gitee.com/yudaocode/yudao-ui-admin-vue3/issues/IAB1SX 讨论
-                      'form-create': ['@form-create/element-ui'], // 参考 https://github.com/yudaocode/yudao-ui-admin-vue3/issues/148 讨论
-                      'form-designer': ['@form-create/designer'],
-                    }
-                },
-            },
+              // 移除 manualChunks，使用 Vite 默认分包策略避免循环依赖问题
+            }
         },
         optimizeDeps: {include, exclude}
     }
