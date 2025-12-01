@@ -59,10 +59,18 @@ export const generateRandomUsername = (): string => {
   return `${adj}${noun}${Math.floor(Math.random() * 100)}`
 }
 
-// Umo Editor 默认配置（最小化配置，避免不支持的 key 错误）
+// Umo Editor 默认配置
 export const defaultEditorOptions = {
   // 文档配置
   document: {
-    placeholder: '开始输入内容...'
-  }
+    placeholder: '开始输入内容...',
+    enableSpellcheck: false
+  },
+  // 工具栏配置
+  toolbar: {
+    defaultMode: 'classic',
+    disableMenuItems: ['preview']
+  },
+  // CDN 配置 - 使用本地资源而不是 unpkg.com
+  cdnUrl: '/editor-external'
 }

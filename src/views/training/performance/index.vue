@@ -589,7 +589,11 @@ const handleSelectionChange = (val: PerformanceApi.TrainingPerformanceVO[]) => {
 // 写作
 const handleEdit = (row: any) => {
   console.log('写作:', row)
-  router.push({ name: 'DocumentEdit', params: { id: row.id } })
+  router.push({
+    name: 'DocumentEdit',
+    params: { id: row.id },
+    query: { title: row.name } // 传递方案名称作为标题
+  })
 }
 
 // 提交审核
