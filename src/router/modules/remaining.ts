@@ -782,6 +782,16 @@ const remainingRouter: AppRouteRecordRaw[] = [
           hidden: true,
           noCache: true
         }
+      },
+      {
+        path: 'tiptap/:id',
+        component: () => import('@/views/document/TiptapCollaborativeEditor.vue'),
+        name: 'TiptapDocumentEdit',
+        meta: {
+          title: 'Tiptap 协同编辑',
+          hidden: true,
+          noCache: true
+        }
       }
     ]
   }

@@ -68,8 +68,7 @@ export const defaultEditorOptions = {
   },
   // 工具栏配置
   toolbar: {
-    defaultMode: 'classic',
-    disableMenuItems: ['preview']
+    defaultMode: 'classic'
   },
   // CDN 配置 - 使用本地资源而不是 unpkg.com
   cdnUrl: '/editor-external'

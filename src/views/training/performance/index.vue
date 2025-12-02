@@ -590,7 +590,7 @@ const handleSelectionChange = (val: PerformanceApi.TrainingPerformanceVO[]) => {
 const handleEdit = (row: any) => {
   console.log('写作:', row)
   router.push({
-    name: 'DocumentEdit',
+    name: 'TiptapDocumentEdit',
     params: { id: row.id },
     query: { title: row.name } // 传递方案名称作为标题
   })

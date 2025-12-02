@@ -1,5 +1,5 @@
 <template>
-  <div class="umo-collaborative-editor flex flex-col h-screen overflow-hidden bg-gray-100">
+  <div class="tiptap-collaborative-editor flex flex-col h-screen overflow-hidden bg-gray-100">
     <!-- 顶部状态栏 -->
     <div
       class="h-14 bg-white border-b flex items-center justify-between px-4 shadow-sm z-20 flex-shrink-0"
@@ -10,6 +10,10 @@
         </el-button>
         <!-- 文档标题 -->
         <div class="text-lg font-bold text-gray-800">{{ documentTitle }}</div>
+        <el-tag type="success" size="small" v-if="isCollaborationReady">
+          <Icon icon="mdi:cursor-default-click" class="mr-1" />
+          协同光标已启用
+        </el-tag>
       </div>
       <div class="flex items-center gap-3">
         <!-- 连接状态 -->
@@ -26,7 +30,9 @@
         </div>
         <el-button type="primary" plain size="default">提交审核</el-button>
         <el-button plain size="default">发布</el-button>
-        <el-button type="primary" size="default" @click="handleSave">保存</el-button>
+        <el-button type="primary" size="default" @click="handleSave" :loading="isSaving">
+          保存
+        </el-button>
       </div>
     </div>
 
@@ -35,15 +41,25 @@
       <!-- 编辑器容器 -->
       <div class="flex-1 flex flex-col overflow-hidden bg-gray-100 p-4">
         <div class="flex-1 bg-white rounded-lg shadow-sm overflow-hidden flex flex-col">
-          <UmoEditor v-bind="editorOptions" @changed="handleChanged" @saved="handleSaved" />
+          <TiptapEditor
+            v-if="isCollaborationReady"
+            ref="tiptapEditorRef"
+            :ydoc="ydoc!"
+            :provider="provider!"
+            :user="currentUser"
+            :title="documentTitle"
+            :placeholder="'开始编写 ' + documentTitle + '...'"
+            @update="handleContentUpdate"
+            @ready="handleEditorReady"
+          />
+          <div v-else class="flex-1 flex items-center justify-center">
+            <div class="text-center">
+              <Icon icon="eos-icons:loading" class="text-4xl text-blue-500 animate-spin mb-4" />
+              <p class="text-gray-500">正在初始化协同编辑...</p>
+            </div>
+          </div>
         </div>
       </div>
-      <!-- <UmoViewer
-        v-bind="viewerOptions"
-        :visible="viewerVisible"
-        :file="viewerFile"
-        @close="viewerVisible = false"
-      /> -->
 
       <!-- 右侧协同面板 (固定) -->
       <div class="w-[300px] flex-shrink-0 border-l border-gray-200 bg-white h-full z-10 shadow-sm">
@@ -88,22 +104,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
-import { UmoEditor } from '@umoteam/editor'
-// import { UmoViewer } from '@umoteam/viewer'
-// import '@umoteam/editor/style'
+import { Icon } from '@/components/Icon'
 import CollaborationPanel from './components/CollaborationPanel.vue'
+import TiptapEditor from './components/TiptapEditor.vue'
+import { useUserStore } from '@/store/modules/user'
+import { getRandomUserColor, defaultCollaborationConfig } from './config/editorConfig'
 import {
-  getRandomUserColor,
-  generateRandomUsername,
-  defaultEditorOptions,
-  defaultCollaborationConfig
-} from './config/editorConfig'
+  getDocument,
+  saveDocument,
+  getReferenceMaterials,
+  type DocumentInfo
+} from './api/documentApi'
 
 // Props
 interface Props {
@@ -115,11 +132,23 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const router = useRouter()
-// 获取路由参数
 const route = useRoute()
-// 优先从路由参数获取标题，如果没有则使用默认值
+const userStore = useUserStore()
+
+// 获取当前登录用户信息
+const currentUser = reactive({
+  id: userStore.getUser.id || Date.now(),
+  name: userStore.getUser.nickname || '匿名用户',
+  avatar: userStore.getUser.avatar || '',
+  color: getRandomUserColor(),
+  role: '编辑者',
+  joinTime: Date.now()
+})
+
+// 文档信息
+const documentInfo = ref<DocumentInfo | null>(null)
 const documentTitle = computed(() => {
-  return (route.query.title as string) || '产品需求文档 V1'
+  return (route.query.title as string) || documentInfo.value?.title || '协同文档'
 })
 
 // Emits
@@ -129,87 +158,45 @@ const emit = defineEmits<{
 }>()
 
 // 状态
-const content = ref('<p>欢迎使用协同文档编辑器！</p>')
 const connectionStatus = ref('未连接')
 const collaborators = ref<any[]>([])
-const operations = ref<any[]>([]) // 保留但不显示在面板中
-// const showPanel = ref(true) // 不再需要，面板固定
+const isCollaborationReady = ref(false)
+const isSaving = ref(false)
+const tiptapEditorRef = ref<InstanceType<typeof TiptapEditor> | null>(null)
+const editorInstance = ref<any>(null)
 let isComponentDestroyed = false // 标记组件是否已销毁
 
-// const viewerOptions = ref({
-//   lang: 'zh-CN',
-//   mode: ['html', 'pdf'],
-//   showHeader: true
-// })
+// 参考素材
+const referenceMaterials = ref<any[]>([])
 
-// const viewerVisible = ref(false)
-// const viewerFile = ref({
-//   content: '',
-//   title: '',
-//   fileType: 'html'
-// })
-
-// const onPreview = () => {
-//   viewerVisible.value = true
-//   viewerFile.value = {
-//     content: content.value,
-//     title: documentTitle.value,
-//     fileType: 'html'
-//   }
-// }
-
-// 模拟数据
-const referenceMaterials = ref([
-  {
-    id: 1,
-    title: '文档名称1.doc',
-    date: '2025-11-12 12:00',
-    author: '张三/李四/王五',
-    content:
-      '<p>这是文档名称1的参考内容。您可以复制这段文字并粘贴到编辑器中。</p><p><strong>要点：</strong></p><ul><li>用户注册登录功能</li><li>文档创建和编辑功能</li></ul>'
-  },
-  {
-    id: 2,
-    title: '需求分析报告.pdf',
-    date: '2025-11-10 09:30',
-    author: '李四',
-    content:
-      '<p>这里是需求分析报告的摘要内容。</p><ol><li>性能需求：响应时间 < 1s</li><li>安全需求：数据加密存储</li></ol>'
-  },
-  {
-    id: 3,
-    title: '竞品分析.pptx',
-    date: '2025-11-08 15:45',
-    author: '王五',
-    content: '<p>竞品分析结论：</p><p>我们的优势在于<strong>协同编辑</strong>的实时性和流畅度。</p>'
-  },
-  {
-    id: 4,
-    title: '技术架构图.png',
-    date: '2025-11-05 11:20',
-    author: '张三',
-    content: '<p>技术架构说明：前端使用 Vue3 + Tiptap，后端使用 Node.js + Yjs。</p>'
-  }
-])
-
-const docProperties = ref({
-  createTime: '2024-01-15 10:00',
-  updateTime: dayjs().format('YYYY-MM-DD HH:mm'),
-  version: 'V2',
-  tags: ['产品', '需求']
-})
+// 文档属性
+const docProperties = computed(() => ({
+  createTime: documentInfo.value?.createTime
+    ? dayjs(documentInfo.value.createTime).format('YYYY-MM-DD HH:mm')
+    : '-',
+  updateTime: documentInfo.value?.updateTime
+    ? dayjs(documentInfo.value.updateTime).format('YYYY-MM-DD HH:mm')
+    : dayjs().format('YYYY-MM-DD HH:mm'),
+  version: documentInfo.value?.version || 'V1.0',
+  tags: documentInfo.value?.tags || []
+}))
 
 // 抽屉状态
 const drawerVisible = ref(false)
 const currentMaterial = ref<any>(null)
 
+// Yjs 和 WebSocket Provider
+let ydoc: Y.Doc | null = null
+let provider: WebsocketProvider | null = null
+
+// 处理素材点击
 const handleMaterialClick = (item: any) => {
   currentMaterial.value = item
   drawerVisible.value = true
 }
 
+// 复制内容
 const copyContent = (html: string) => {
-  // 简单复制文本内容
   const tempDiv = document.createElement('div')
   tempDiv.innerHTML = html
   const text = tempDiv.innerText || tempDiv.textContent || ''
@@ -224,81 +211,70 @@ const copyContent = (html: string) => {
     })
 }
 
+// 返回
 const goBack = () => {
   router.back()
 }
 
-// Yjs 和 WebSocket Provider
-let ydoc: Y.Doc | null = null
-let provider: WebsocketProvider | null = null
+// 内容更新回调
+const handleContentUpdate = (_content: string) => {
+  // 可以在这里做自动保存等操作
+  // console.log('文档内容更新')
+}
 
-// 内容变化回调（官方 @changed 事件）
-const handleChanged = ({ editor }: any) => {
-  // 如果组件已销毁，不执行任何操作
-  if (isComponentDestroyed) return
+// 编辑器就绪回调
+const handleEditorReady = (editor: any) => {
+  editorInstance.value = editor
+  console.log('Tiptap 编辑器已就绪')
+}
 
-  // 获取最新的 HTML 内容
-  const html = editor.getHTML()
+// 保存文档
+const handleSave = async () => {
+  if (!editorInstance.value) {
+    ElMessage.warning('编辑器未就绪')
+    return
+  }
 
-  // 同步到 Yjs
-  if (ydoc && provider && provider.wsconnected) {
-    const yText = ydoc.getText('content')
-    const currentText = yText.toString()
-    if (currentText !== html) {
-      yText.delete(0, yText.length)
-      yText.insert(0, html)
+  isSaving.value = true
+  try {
+    const content = editorInstance.value.getHTML()
+    await saveDocument({
+      id: props.docId,
+      title: documentTitle.value,
+      content
+    })
+    ElMessage.success('文档已保存')
+
+    // 更新文档信息
+    if (documentInfo.value) {
+      documentInfo.value.updateTime = new Date().toISOString()
     }
+  } catch (error) {
+    ElMessage.error('保存失败: ' + (error as Error).message)
+  } finally {
+    isSaving.value = false
   }
 }
-
-// 保存回调（官方 @saved 事件）
-const handleSaved = () => {
-  console.log('文档已保存')
-
-  ElMessage.success('文档已保存')
-
-  // 更新最后更新时间
-  docProperties.value.updateTime = dayjs().format('YYYY-MM-DD HH:mm')
-
-  // 添加操作记录
-  operations.value.unshift({
-    user: currentUser.name,
-    action: '保存了文档',
-    time: dayjs().format('HH:mm')
-  })
-}
-
-const handleSave = () => {
-  handleSaved()
-}
-
-// 当前用户信息
-const currentUser = {
-  name: generateRandomUsername(),
-  color: getRandomUserColor(),
-  role: '编辑者',
-  joinTime: Date.now()
-}
-
-// Umo Editor 配置
-const editorOptions = computed(() => {
-  return {
-    ...defaultEditorOptions
-  }
-})
 
 // 初始化协同编辑
 const initCollaboration = () => {
   try {
-    console.log('初始化协同编辑...')
+    console.log('初始化 Tiptap 协同编辑...')
 
     // 初始化 Y.Doc
     ydoc = new Y.Doc()
 
+    // 构建 WebSocket URL
+    const baseWsUrl = defaultCollaborationConfig.wsUrl
+
     // 初始化 WebSocket Provider
-    const wsUrl = defaultCollaborationConfig.wsUrl
-    provider = new WebsocketProvider(wsUrl, props.docId, ydoc, {
-      connect: true
+    provider = new WebsocketProvider(baseWsUrl, props.docId, ydoc, {
+      connect: true,
+      params: {
+        userId: String(currentUser.id),
+        userName: currentUser.name,
+        userColor: currentUser.color
+      }
     })
 
     // 监听连接状态
@@ -329,6 +305,8 @@ const initCollaboration = () => {
       console.log('同步状态:', synced)
       if (synced) {
         console.log('文档已同步')
+        // 同步完成后标记协同编辑就绪
+        isCollaborationReady.value = true
       }
     })
 
@@ -339,25 +317,25 @@ const initCollaboration = () => {
       updateCollaborators()
     })
 
-    // 设置当前用户状态
+    // 设置当前用户状态到 awareness
     provider.awareness.setLocalStateField('user', {
+      id: currentUser.id,
       name: currentUser.name,
       color: currentUser.color,
+      avatar: currentUser.avatar,
       role: currentUser.role,
       joinTime: currentUser.joinTime
     })
 
-    // 监听文档更新
-    const yText = ydoc.getText('content')
-    yText.observe(() => {
+    // 如果连接已建立但还没有收到 sync 事件，设置超时
+    setTimeout(() => {
       // 如果组件已销毁，不执行任何操作
       if (isComponentDestroyed) return
 
-      const text = yText.toString()
-      if (text && text !== content.value) {
-        content.value = text
+      if (!isCollaborationReady.value && provider?.wsconnected) {
+        isCollaborationReady.value = true
       }
-    })
+    }, 2000)
 
     console.log('协同编辑初始化成功')
   } catch (error) {
@@ -379,7 +357,8 @@ const updateCollaborators = () => {
       users.push({
         clientId,
         ...state.user,
-        isSelf: clientId === provider!.awareness.clientID
+        isSelf: clientId === provider!.awareness.clientID,
+        isOwner: state.user.id === documentInfo.value?.creatorId
       })
     }
   })
@@ -391,35 +370,19 @@ const updateCollaborators = () => {
     return 0
   })
 
-  const previousCount = collaborators.value.length
   collaborators.value = users
   emit('collaboratorsChange', users)
-
-  // 添加操作记录
-  if (users.length > previousCount && users.length > 0) {
-    const newUser = users[users.length - 1]
-    operations.value.unshift({
-      user: newUser.name,
-      action: '加入了文档',
-      time: dayjs().format('HH:mm')
-    })
-  }
 }
 
-// 定位操作记录 (保留方法但暂不使用)
-// const handleLocateOperation = (record: any) => {
-//   ElMessage.info(`定位到: ${record.action}`)
-// }
-
-// 初始化操作记录
-const initOperations = () => {
-  operations.value = [
-    {
-      user: currentUser.name,
-      action: '打开了文档',
-      time: dayjs().format('HH:mm')
-    }
-  ]
+// 加载文档数据
+const loadDocument = async () => {
+  try {
+    documentInfo.value = await getDocument(props.docId)
+    referenceMaterials.value = await getReferenceMaterials(props.docId)
+  } catch (error) {
+    console.error('加载文档失败:', error)
+    ElMessage.error('加载文档失败')
+  }
 }
 
 // 监听文档ID变化
@@ -433,76 +396,63 @@ watch(
     if (ydoc) {
       ydoc.destroy()
     }
+    isCollaborationReady.value = false
+    loadDocument()
     initCollaboration()
   }
 )
 
 // 组件挂载
 onMounted(() => {
+  loadDocument()
   initCollaboration()
-  initOperations()
 })
 
-// 组件卸载
+// 组件卸载 - 完善的内存泄漏防护
 onBeforeUnmount(() => {
   // 标记组件已销毁，防止异步回调继续执行
   isComponentDestroyed = true
 
+  // 清理编辑器实例引用
+  editorInstance.value = null
+  tiptapEditorRef.value = null
+
+  // 销毁 WebSocket Provider
   if (provider) {
-    // 移除用户状态
     try {
+      // 移除所有事件监听器
+      provider.awareness.off('change', updateCollaborators)
+      // 移除用户状态
       provider.awareness.setLocalStateField('user', null)
     } catch (e) {
       // 忽略销毁时的错误
+      console.warn('清理 provider 时出错:', e)
     }
     provider.destroy()
     provider = null
   }
+
+  // 销毁 Y.Doc
   if (ydoc) {
-    ydoc.destroy()
+    try {
+      ydoc.destroy()
+    } catch (e) {
+      console.warn('清理 ydoc 时出错:', e)
+    }
     ydoc = null
   }
+
+  // 清理其他响应式引用
+  collaborators.value = []
+  referenceMaterials.value = []
+  documentInfo.value = null
+  currentMaterial.value = null
+
+  console.log('协同编辑组件已清理')
 })
 </script>
 
 <style scoped lang="scss">
-// 协同光标样式
-:deep(.collaboration-cursor__caret) {
-  position: relative;
-  margin-left: -1px;
-  margin-right: -1px;
-  border-left: 1px solid #0d0d0d;
-  border-right: 1px solid #0d0d0d;
-  word-break: normal;
-  pointer-events: none;
-}
-
-:deep(.collaboration-cursor__label) {
-  position: absolute;
-  top: -1.4em;
-  left: -1px;
-  font-size: 12px;
-  font-style: normal;
-  font-weight: 600;
-  line-height: normal;
-  user-select: none;
-  color: #fff;
-  padding: 2px 6px;
-  border-radius: 3px;
-  border-bottom-left-radius: 0;
-  white-space: nowrap;
-  z-index: 10;
-}
-
-// 为不同用户的光标设置颜色（使用动态颜色）
-:deep(.collaboration-cursor__caret) {
-  border-color: var(--cursor-color, #0d0d0d);
-}
-
-:deep(.collaboration-cursor__label) {
-  background-color: var(--cursor-color, #0d0d0d);
-}
-
 // 抽屉动画
 :deep(.material-drawer) {
   box-shadow: -2px 0 8px rgba(0, 0, 0, 0.05);
