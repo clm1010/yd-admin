@@ -1,228 +1,7 @@
 <template>
   <div class="tiptap-editor-wrapper">
     <!-- 工具栏 -->
-    <div class="tiptap-toolbar" v-if="editor">
-      <!-- 格式按钮组 -->
-      <div class="toolbar-group">
-        <button
-          class="toolbar-btn"
-          :class="{ active: editor.isActive('bold') }"
-          @click="editor.chain().focus().toggleBold().run()"
-          title="加粗"
-        >
-          <Icon icon="ep:bold" />
-        </button>
-        <button
-          class="toolbar-btn"
-          :class="{ active: editor.isActive('italic') }"
-          @click="editor.chain().focus().toggleItalic().run()"
-          title="斜体"
-        >
-          <Icon icon="mdi:format-italic" />
-        </button>
-        <button
-          class="toolbar-btn"
-          :class="{ active: editor.isActive('underline') }"
-          @click="editor.chain().focus().toggleUnderline().run()"
-          title="下划线"
-        >
-          <Icon icon="mdi:format-underline" />
-        </button>
-        <button
-          class="toolbar-btn"
-          :class="{ active: editor.isActive('strike') }"
-          @click="editor.chain().focus().toggleStrike().run()"
-          title="删除线"
-        >
-          <Icon icon="mdi:format-strikethrough" />
-        </button>
-      </div>
-
-      <div class="toolbar-divider"></div>
-
-      <!-- 标题按钮组 -->
-      <div class="toolbar-group">
-        <button
-          class="toolbar-btn"
-          :class="{ active: editor.isActive('heading', { level: 1 }) }"
-          @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
-          title="标题1"
-        >
-          H1
-        </button>
-        <button
-          class="toolbar-btn"
-          :class="{ active: editor.isActive('heading', { level: 2 }) }"
-          @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
-          title="标题2"
-        >
-          H2
-        </button>
-        <button
-          class="toolbar-btn"
-          :class="{ active: editor.isActive('heading', { level: 3 }) }"
-          @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
-          title="标题3"
-        >
-          H3
-        </button>
-      </div>
-
-      <div class="toolbar-divider"></div>
-
-      <!-- 列表按钮组 -->
-      <div class="toolbar-group">
-        <button
-          class="toolbar-btn"
-          :class="{ active: editor.isActive('bulletList') }"
-          @click="editor.chain().focus().toggleBulletList().run()"
-          title="无序列表"
-        >
-          <Icon icon="mdi:format-list-bulleted" />
-        </button>
-        <button
-          class="toolbar-btn"
-          :class="{ active: editor.isActive('orderedList') }"
-          @click="editor.chain().focus().toggleOrderedList().run()"
-          title="有序列表"
-        >
-          <Icon icon="mdi:format-list-numbered" />
-        </button>
-        <button
-          class="toolbar-btn"
-          :class="{ active: editor.isActive('taskList') }"
-          @click="editor.chain().focus().toggleTaskList().run()"
-          title="任务列表"
-        >
-          <Icon icon="mdi:checkbox-marked-outline" />
-        </button>
-      </div>
-
-      <div class="toolbar-divider"></div>
-
-      <!-- 对齐按钮组 -->
-      <div class="toolbar-group">
-        <button
-          class="toolbar-btn"
-          :class="{ active: editor.isActive({ textAlign: 'left' }) }"
-          @click="editor.chain().focus().setTextAlign('left').run()"
-          title="左对齐"
-        >
-          <Icon icon="mdi:format-align-left" />
-        </button>
-        <button
-          class="toolbar-btn"
-          :class="{ active: editor.isActive({ textAlign: 'center' }) }"
-          @click="editor.chain().focus().setTextAlign('center').run()"
-          title="居中"
-        >
-          <Icon icon="mdi:format-align-center" />
-        </button>
-        <button
-          class="toolbar-btn"
-          :class="{ active: editor.isActive({ textAlign: 'right' }) }"
-          @click="editor.chain().focus().setTextAlign('right').run()"
-          title="右对齐"
-        >
-          <Icon icon="mdi:format-align-right" />
-        </button>
-      </div>
-
-      <div class="toolbar-divider"></div>
-
-      <!-- 引用和代码 -->
-      <div class="toolbar-group">
-        <button
-          class="toolbar-btn"
-          :class="{ active: editor.isActive('blockquote') }"
-          @click="editor.chain().focus().toggleBlockquote().run()"
-          title="引用"
-        >
-          <Icon icon="mdi:format-quote-close" />
-        </button>
-        <button
-          class="toolbar-btn"
-          :class="{ active: editor.isActive('code') }"
-          @click="editor.chain().focus().toggleCode().run()"
-          title="行内代码"
-        >
-          <Icon icon="mdi:code-tags" />
-        </button>
-        <button
-          class="toolbar-btn"
-          :class="{ active: editor.isActive('codeBlock') }"
-          @click="editor.chain().focus().toggleCodeBlock().run()"
-          title="代码块"
-        >
-          <Icon icon="mdi:code-braces-box" />
-        </button>
-      </div>
-
-      <div class="toolbar-divider"></div>
-
-      <!-- 高亮和链接 -->
-      <div class="toolbar-group">
-        <button
-          class="toolbar-btn"
-          :class="{ active: editor.isActive('highlight') }"
-          @click="editor.chain().focus().toggleHighlight().run()"
-          title="高亮"
-        >
-          <Icon icon="mdi:marker" />
-        </button>
-        <button
-          class="toolbar-btn"
-          :class="{ active: editor.isActive('link') }"
-          @click="setLink"
-          title="链接"
-        >
-          <Icon icon="mdi:link" />
-        </button>
-      </div>
-
-      <div class="toolbar-divider"></div>
-
-      <!-- 表格 -->
-      <div class="toolbar-group">
-        <button class="toolbar-btn" @click="insertTable" title="插入表格">
-          <Icon icon="mdi:table" />
-        </button>
-      </div>
-
-      <div class="toolbar-divider"></div>
-
-      <!-- 撤销/重做 -->
-      <div class="toolbar-group">
-        <button
-          class="toolbar-btn"
-          @click="editor.chain().focus().undo().run()"
-          :disabled="!editor.can().undo()"
-          title="撤销"
-        >
-          <Icon icon="mdi:undo" />
-        </button>
-        <button
-          class="toolbar-btn"
-          @click="editor.chain().focus().redo().run()"
-          :disabled="!editor.can().redo()"
-          title="重做"
-        >
-          <Icon icon="mdi:redo" />
-        </button>
-      </div>
-
-      <div class="toolbar-divider"></div>
-
-      <!-- 预览功能 -->
-      <div class="toolbar-group">
-        <button class="toolbar-btn" @click="previewHtml" title="预览 HTML">
-          <Icon icon="mdi:eye" />
-        </button>
-        <button class="toolbar-btn" @click="previewPdf" title="导出 PDF">
-          <Icon icon="mdi:file-pdf-box" />
-        </button>
-      </div>
-    </div>
+    <EditorToolbar v-if="editor" :editor="editor" :save-status="saveStatus" />
 
     <!-- 编辑器内容 -->
     <div class="tiptap-content-wrapper">
@@ -291,7 +70,7 @@
 
 <script setup lang="ts">
 // @ts-nocheck - 忽略 Tiptap 版本不兼容导致的类型问题
-import { ref, onBeforeUnmount, watch, computed } from 'vue'
+import { ref, onBeforeUnmount, watch, computed, provide } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
@@ -308,10 +87,18 @@ import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
+import TextStyle from '@tiptap/extension-text-style'
+import FontFamily from '@tiptap/extension-font-family'
+import Color from '@tiptap/extension-color'
+import Subscript from '@tiptap/extension-subscript'
+import Superscript from '@tiptap/extension-superscript'
+import { DragHandle } from './toolbar/extensions/DragHandle'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 import { Icon } from '@/components/Icon'
 import { ElMessage } from 'element-plus'
+import { EditorToolbar } from './toolbar'
+import { EditorKey } from './toolbar/types'
 
 // Props
 interface Props {
@@ -340,6 +127,9 @@ const emit = defineEmits<{
 // 标记组件是否已销毁，防止异步回调导致内存泄漏
 let isComponentDestroyed = false
 
+// 保存状态
+const saveStatus = ref<'saved' | 'saving' | 'unsaved'>('saved')
+
 // 预览相关状态
 const htmlPreviewVisible = ref(false)
 const pdfExportVisible = ref(false)
@@ -358,6 +148,42 @@ const formattedHtml = computed(() => {
     .split('\n')
     .filter((line) => line.trim())
     .join('\n')
+})
+
+// 自定义 FontSize 扩展
+const FontSize = TextStyle.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      fontSize: {
+        default: null,
+        parseHTML: (element) => element.style.fontSize || null,
+        renderHTML: (attributes) => {
+          if (!attributes.fontSize) {
+            return {}
+          }
+          return {
+            style: `font-size: ${attributes.fontSize}`
+          }
+        }
+      }
+    }
+  },
+  addCommands() {
+    return {
+      ...this.parent?.(),
+      setFontSize:
+        (fontSize: string) =>
+        ({ chain }: any) => {
+          return chain().setMark('textStyle', { fontSize }).run()
+        },
+      unsetFontSize:
+        () =>
+        ({ chain }: any) => {
+          return chain().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run()
+        }
+    }
+  }
 })
 
 // 编辑器实例
@@ -414,11 +240,28 @@ const editor = useEditor({
     TaskList,
     TaskItem.configure({
       nested: true
-    })
+    }),
+    // 文本样式
+    FontSize,
+    // 字体
+    FontFamily.configure({
+      types: ['textStyle']
+    }),
+    // 文字颜色
+    Color.configure({
+      types: ['textStyle']
+    }),
+    // 上标
+    Superscript,
+    // 下标
+    Subscript,
+    // 拖动手柄
+    DragHandle
   ],
   onUpdate: ({ editor }) => {
     // 防止组件销毁后触发回调
     if (isComponentDestroyed) return
+    saveStatus.value = 'unsaved'
     emit('update', editor.getHTML())
   },
   onCreate: ({ editor }) => {
@@ -428,30 +271,8 @@ const editor = useEditor({
   }
 })
 
-// 设置链接
-const setLink = () => {
-  if (!editor.value) return
-
-  const previousUrl = editor.value.getAttributes('link').href
-  const url = window.prompt('输入链接地址', previousUrl)
-
-  if (url === null) {
-    return
-  }
-
-  if (url === '') {
-    editor.value.chain().focus().extendMarkRange('link').unsetLink().run()
-    return
-  }
-
-  editor.value.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
-}
-
-// 插入表格
-const insertTable = () => {
-  if (!editor.value) return
-  editor.value.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
-}
+// 提供编辑器实例给工具栏组件 - 直接提供 editor ref
+provide(EditorKey, editor)
 
 // ==================== 预览功能 ====================
 
@@ -705,61 +526,6 @@ defineExpose({
   background: #fff;
   border-radius: 8px;
   overflow: hidden;
-}
-
-.tiptap-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 12px;
-  background: #fafafa;
-  border-bottom: 1px solid #e5e7eb;
-  flex-wrap: wrap;
-}
-
-.toolbar-group {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.toolbar-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  border-radius: 4px;
-  cursor: pointer;
-  color: #374151;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.15s ease;
-
-  &:hover:not(:disabled) {
-    background: #e5e7eb;
-    color: #111827;
-  }
-
-  &.active {
-    background: #dbeafe;
-    color: #2563eb;
-  }
-
-  &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-}
-
-.toolbar-divider {
-  width: 1px;
-  height: 20px;
-  background: #d1d5db;
-  margin: 0 6px;
 }
 
 .tiptap-content-wrapper {
@@ -1144,5 +910,71 @@ defineExpose({
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+// 拖动手柄样式
+:global(.drag-handle) {
+  position: fixed !important;
+  width: 20px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  color: #999;
+  border-radius: 4px;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+  z-index: 50;
+
+  &:hover {
+    background: #f0f0f0;
+    color: #666;
+  }
+
+  &:active {
+    cursor: grabbing;
+    background: #e0e0e0;
+    color: #333;
+  }
+
+  svg {
+    width: 10px;
+    height: 14px;
+  }
+}
+
+// 拖动中的元素样式
+:deep(.dragging) {
+  opacity: 0.5;
+  background: #f0f7ff;
+  outline: 2px dashed #2563eb;
+  outline-offset: 2px;
+}
+
+// 块级元素悬停时的样式
+.tiptap-content :deep(.tiptap) {
+  > p,
+  > h1,
+  > h2,
+  > h3,
+  > h4,
+  > h5,
+  > h6,
+  > blockquote,
+  > pre,
+  > ul,
+  > ol,
+  > table,
+  > div {
+    position: relative;
+    transition: background 0.15s ease;
+
+    &:hover {
+      background: rgba(37, 99, 235, 0.02);
+    }
+  }
 }
 </style>

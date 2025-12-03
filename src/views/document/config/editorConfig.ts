@@ -22,6 +22,7 @@ export interface CollaborationConfig {
 // 默认配置
 export const defaultCollaborationConfig: CollaborationConfig = {
   wsUrl: import.meta.env.VITE_WS_URL || 'ws://localhost:3001',
+  // wsUrl: 'ws://192.168.8.104:8080/ws',
   enabled: true,
   reconnect: {
     maxAttempts: 10,
