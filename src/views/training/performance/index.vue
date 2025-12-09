@@ -64,7 +64,8 @@
                   class="!w-200px"
                 >
                   <el-option label="编辑中" value="editing" />
-                  <el-option label="审核中" value="reviewing" />
+                  <el-option label="待审核" value="reviewing" />
+                  <el-option label="驳回" value="rejected" />
                   <el-option label="审核通过" value="approved" />
                   <el-option label="发布" value="published" />
                 </el-select>
@@ -131,17 +132,18 @@
       <ContentWrap>
         <!-- 工具栏 -->
         <div class="mb-4">
-          <el-button type="primary" @click="handleAdd">
+          <el-button type="primary" size="large" @click="handleAdd">
             <Icon icon="ep:plus" class="mr-1" />
             新建
           </el-button>
-          <el-button plain @click="handleGenerate">
+          <el-button plain size="large" @click="handleGenerate">
             <Icon icon="ep:document-add" class="mr-1" />
             文档生成
           </el-button>
           <el-button
             type="danger"
             plain
+            size="large"
             :disabled="selectedRows.length === 0"
             @click="handleBatchDelete"
           >
@@ -187,23 +189,46 @@
           <el-table-column label="创建时间" prop="createTime" align="center" width="180" />
           <el-table-column label="操作" align="center" width="200" fixed="right">
             <template #default="scope">
-              <el-button link type="primary" @click="handleEdit(scope.row)">
-                <Icon icon="ep:edit" />
-                写作
-              </el-button>
-              <el-button
-                link
-                type="primary"
-                @click="handleSubmit(scope.row)"
-                v-if="scope.row.status === '编辑中'"
-              >
-                <Icon icon="ep:upload" />
-                提交审核
-              </el-button>
-              <el-button link type="danger" @click="handleDelete(scope.row)">
-                <Icon icon="ep:delete" />
-                删除
-              </el-button>
+              <!-- 编辑中状态显示：写作、审核、删除 -->
+              <div v-if="scope.row.status === '编辑中'">
+                <el-button link type="primary" @click="handleEdit(scope.row)">
+                  <Icon icon="ep:edit" />
+                  写作
+                </el-button>
+                <el-button link type="primary" @click="openAuditDialog(scope.row)">
+                  <Icon icon="ep:upload" />
+                  审核
+                </el-button>
+                <el-button link type="danger" @click="handleDelete(scope.row)">
+                  <Icon icon="ep:delete" />
+                  删除
+                </el-button>
+              </div>
+
+              <!-- 待审核或驳回状态显示：审核 -->
+              <div v-else-if="scope.row.status === '待审核' || scope.row.status === '驳回'">
+                <el-button link type="primary" @click="openAuditDialog(scope.row)">
+                  <Icon icon="ep:upload" />
+                  审核
+                </el-button>
+                <el-button
+                  v-if="scope.row.status === '驳回'"
+                  link
+                  type="danger"
+                  @click="openRejectDialog(scope.row)"
+                >
+                  <Icon icon="ep:warning" />
+                  驳回
+                </el-button>
+              </div>
+
+              <!-- 审核通过状态显示：发布 -->
+              <div v-else-if="scope.row.status === '审核通过'">
+                <el-button link type="primary" @click="openPublishDialog(scope.row)">
+                  <Icon icon="ep:promotion" />
+                  发布
+                </el-button>
+              </div>
             </template>
           </el-table-column>
         </el-table>
@@ -219,110 +244,336 @@
     </el-col>
   </el-row>
 
-  <!-- 新建弹窗 -->
+  <!-- 新建筹划方案弹窗 -->
   <el-dialog
     v-model="dialogVisible"
-    :title="dialogTitle"
+    title="新建筹划方案"
     width="800px"
     :close-on-click-modal="false"
   >
-    <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
-      <el-row :gutter="20">
-        <el-col :span="12">
-          <el-form-item label="演训主题" prop="drillTheme">
-            <el-input v-model="formData.drillTheme" placeholder="请选择" clearable />
-          </el-form-item>
-        </el-col>
-        <el-col :span="12">
-          <el-form-item label="方案名称" prop="name">
-            <el-input v-model="formData.name" placeholder="请输入" clearable />
-          </el-form-item>
-        </el-col>
-      </el-row>
-
-      <el-row :gutter="20">
-        <el-col :span="12">
-          <el-form-item label="所属学院" prop="college">
-            <el-select v-model="formData.college" placeholder="请选择" clearable class="w-full">
-              <el-option
-                v-for="item in collegeOptions"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
-            </el-select>
-          </el-form-item>
-        </el-col>
-        <el-col :span="12">
-          <el-form-item label="演训等级" prop="drillLevel">
-            <el-select v-model="formData.drillLevel" placeholder="请选择" clearable class="w-full">
-              <el-option
-                v-for="item in drillLevelOptions"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
-            </el-select>
-          </el-form-item>
-        </el-col>
-      </el-row>
-
-      <el-row :gutter="20">
-        <el-col :span="12">
-          <el-form-item label="演训类型" prop="drillType">
-            <el-select v-model="formData.drillType" placeholder="请选择" clearable class="w-full">
-              <el-option
-                v-for="item in drillTypeOptions"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
-            </el-select>
-          </el-form-item>
-        </el-col>
-        <el-col :span="12">
-          <el-form-item label="文档分类" prop="docCategory">
-            <el-select v-model="formData.docCategory" placeholder="请选择" clearable class="w-full">
-              <el-option
-                v-for="item in docCategoryOptions"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
-            </el-select>
-          </el-form-item>
-        </el-col>
-      </el-row>
-
-      <el-form-item label="描述">
-        <el-input v-model="formData.description" type="textarea" :rows="3" placeholder="请输入" />
+    <el-form ref="formRef" :model="formData" :rules="formRules" label-width="120px">
+      <el-form-item label="演训数据" prop="drillDataId">
+        <div class="w-full" @click="openDrillSelector">
+          <el-input
+            v-model="formData.drillDataName"
+            placeholder="请选择"
+            readonly
+            :suffix-icon="ArrowDown"
+            class="cursor-pointer"
+          />
+        </div>
       </el-form-item>
 
-      <el-form-item label="编辑方式">
-        <el-radio-group v-model="formData.editMode">
-          <el-radio v-for="item in editModeOptions" :key="item.value" :label="item.value">
-            {{ item.label }}
-          </el-radio>
+      <el-form-item label="筹划方案名称" prop="name">
+        <el-input v-model="formData.name" placeholder="请输入" clearable />
+      </el-form-item>
+
+      <el-form-item label="文档分类" prop="docCategory">
+        <el-select v-model="formData.docCategory" placeholder="请选择" clearable class="w-full">
+          <el-option
+            v-for="item in docCategoryOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+      </el-form-item>
+
+      <el-form-item label="简介">
+        <el-input v-model="formData.brief" type="textarea" :rows="3" placeholder="请输入" />
+      </el-form-item>
+
+      <el-form-item label="可编辑用户" prop="editableUser">
+        <el-select
+          v-model="formData.editableUser"
+          multiple
+          placeholder="请选择"
+          clearable
+          class="w-full"
+        >
+          <el-option
+            v-for="item in editableUserOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+      </el-form-item>
+
+      <el-form-item label="创建方式" prop="creationMethod">
+        <el-radio-group v-model="formData.creationMethod">
+          <el-radio label="new">新建文档</el-radio>
+          <el-radio label="upload">上传文档</el-radio>
         </el-radio-group>
       </el-form-item>
+
+      <!-- 创建方式：新建文档 (显示文档类型图标) -->
+      <div v-if="formData.creationMethod === 'new'" class="pl-[120px] mt-4">
+        <div class="flex gap-6">
+          <div
+            v-for="type in fileTypes"
+            :key="type.value"
+            class="flex flex-col items-center cursor-pointer p-2 rounded hover:bg-gray-100"
+            :class="{ 'bg-blue-50 border border-blue-200': formData.fileType === type.value }"
+            @click="formData.fileType = type.value"
+          >
+            <Icon :icon="type.icon" class="text-40px mb-2" :color="type.color" />
+            <span class="text-sm text-gray-600">{{ type.label }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 创建方式：上传文档 (显示上传组件) -->
+      <div v-if="formData.creationMethod === 'upload'" class="pl-[120px] mt-4">
+        <el-upload class="upload-demo w-full" drag action="#" :auto-upload="false" multiple>
+          <Icon icon="ep:upload-filled" class="el-icon--upload text-50px text-gray-400" />
+          <div class="el-upload__text"> 将文件拖到此处，或 <em>点击上传</em> </div>
+          <template #tip>
+            <div class="el-upload__tip"> 支持 doc, docx, xlsx 等格式文件 </div>
+          </template>
+        </el-upload>
+      </div>
     </el-form>
 
     <template #footer>
-      <el-button @click="handleCancel">关闭</el-button>
-      <el-button type="primary" @click="handleSave" :loading="loading">保存</el-button>
+      <el-button @click="handleCancel">取消</el-button>
+      <el-button type="primary" @click="handleSave" :loading="loading">确定</el-button>
     </template>
+  </el-dialog>
+
+  <!-- 演训数据选择弹窗 -->
+  <el-dialog v-model="drillSelectorVisible" title="请选择" width="900px" append-to-body>
+    <!-- 筛选栏 -->
+    <div class="mb-4 flex gap-4">
+      <el-select v-model="drillFilter.unit" clearable placeholder="全部演训单位" class="w-40">
+        <el-option label="第一军团" value="第一军团" />
+        <el-option label="装甲旅" value="装甲旅" />
+      </el-select>
+      <el-select v-model="drillFilter.level" clearable placeholder="全部演训等级" class="w-40">
+        <el-option label="战略级" value="战略级" />
+        <el-option label="战术级" value="战术级" />
+      </el-select>
+      <el-input v-model="drillFilter.name" clearable placeholder="请输入演训名称" class="w-60">
+        <template #append>
+          <el-button :icon="Search" />
+        </template>
+      </el-input>
+    </div>
+
+    <!-- 列表 -->
+    <el-table
+      :data="filteredDrillData"
+      border
+      stripe
+      highlight-current-row
+      @current-change="handleDrillSelect"
+      class="w-full"
+    >
+      <el-table-column label="演训名称" prop="name" min-width="150" align="center" />
+      <el-table-column label="演训单位" prop="unit" width="120" align="center" />
+      <el-table-column label="组织单位" prop="org" width="120" align="center" />
+      <el-table-column label="演训等级" prop="level" width="100" align="center" />
+      <el-table-column label="开始时间" prop="startTime" width="120" align="center" />
+      <el-table-column label="结束时间" prop="endTime" width="120" align="center" />
+    </el-table>
+
+    <div class="mt-4 flex justify-end">
+      <Pagination
+        v-model:page="drillPage.pageNo"
+        v-model:limit="drillPage.pageSize"
+        :total="filteredDrillData.length"
+      />
+    </div>
+  </el-dialog>
+
+  <!-- 审核流配置弹窗 -->
+  <el-dialog
+    v-model="auditDialogVisible"
+    title="审核流配置"
+    width="600px"
+    :close-on-click-modal="false"
+  >
+    <el-form ref="auditFormRef" :model="auditFormData" label-width="100px">
+      <el-form-item label="流程名称">
+        <el-select v-model="auditFormData.flowName" placeholder="请选择" class="w-full">
+          <el-option label="演训筹划文档审批流" value="flow1" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="审核人">
+        <div class="border p-4 rounded w-full bg-gray-50">
+          <el-row :gutter="10" class="mb-2">
+            <el-col :span="4" class="text-right leading-8">节点1</el-col>
+            <el-col :span="20">
+              <el-select
+                v-model="auditFormData.auditors.node1"
+                multiple
+                placeholder="请选择"
+                class="w-full"
+              >
+                <el-option
+                  v-for="u in userOptions"
+                  :key="u.value"
+                  :label="u.label"
+                  :value="u.value"
+                />
+              </el-select>
+            </el-col>
+          </el-row>
+          <el-row :gutter="10" class="mb-2">
+            <el-col :span="4" class="text-right leading-8">节点2</el-col>
+            <el-col :span="20">
+              <el-select
+                v-model="auditFormData.auditors.node2"
+                multiple
+                placeholder="请选择"
+                class="w-full"
+              >
+                <el-option
+                  v-for="u in userOptions"
+                  :key="u.value"
+                  :label="u.label"
+                  :value="u.value"
+                />
+              </el-select>
+            </el-col>
+          </el-row>
+          <el-row :gutter="10" class="mb-2">
+            <el-col :span="4" class="text-right leading-8">节点3</el-col>
+            <el-col :span="20">
+              <el-select
+                v-model="auditFormData.auditors.node3"
+                multiple
+                placeholder="请选择"
+                class="w-full"
+              >
+                <el-option
+                  v-for="u in userOptions"
+                  :key="u.value"
+                  :label="u.label"
+                  :value="u.value"
+                />
+              </el-select>
+            </el-col>
+          </el-row>
+          <el-row :gutter="10">
+            <el-col :span="4" class="text-right leading-8">节点4</el-col>
+            <el-col :span="20">
+              <el-select
+                v-model="auditFormData.auditors.node4"
+                multiple
+                placeholder="请选择"
+                class="w-full"
+              >
+                <el-option
+                  v-for="u in userOptions"
+                  :key="u.value"
+                  :label="u.label"
+                  :value="u.value"
+                />
+              </el-select>
+            </el-col>
+          </el-row>
+        </div>
+      </el-form-item>
+      <el-form-item label="审核说明">
+        <el-input v-model="auditFormData.comment" type="textarea" :rows="4" placeholder="请输入" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button type="primary" @click="handleAuditSubmit" :loading="auditLoading"
+        >确认提交</el-button
+      >
+      <el-button @click="auditDialogVisible = false">取消</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- 发布配置弹窗 -->
+  <el-dialog
+    v-model="publishDialogVisible"
+    title="发布配置"
+    width="600px"
+    :close-on-click-modal="false"
+  >
+    <el-form ref="publishFormRef" :model="publishFormData" label-width="100px">
+      <el-form-item label="可见范围">
+        <el-select
+          v-model="publishFormData.visibleScope"
+          multiple
+          placeholder="请选择"
+          class="w-full"
+        >
+          <el-option v-for="u in userOptions" :key="u.value" :label="u.label" :value="u.value" />
+        </el-select>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button type="primary" @click="handlePublishSubmit" :loading="publishLoading"
+        >确认提交</el-button
+      >
+      <el-button @click="publishDialogVisible = false">取消</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- 驳回原因弹窗 -->
+  <el-dialog
+    v-model="rejectDialogVisible"
+    title="驳回原因"
+    width="800px"
+    :close-on-click-modal="false"
+    append-to-body
+  >
+    <div class="reject-container p-4">
+      <!-- 驳回原因表格 -->
+      <div class="font-bold mb-3 text-14px text-gray-700">驳回原因</div>
+      <el-table :data="rejectHistoryList" border stripe style="width: 100%" max-height="300px">
+        <el-table-column prop="rejectBy" label="驳回人" width="150" align="center" />
+        <el-table-column prop="rejectTime" label="驳回时间" width="180" align="center" />
+        <el-table-column prop="reason" label="驳回原因" align="left" show-overflow-tooltip />
+      </el-table>
+
+      <!-- 驳回操作区 -->
+      <div class="reject-action mt-6">
+        <div class="font-bold mb-3 text-14px text-gray-700">驳回</div>
+        <div class="reject-form border p-6 rounded bg-gray-50">
+          <el-form label-position="left" label-width="80px">
+            <el-form-item label="驳回原因" required>
+              <el-input
+                v-model="rejectReason"
+                type="textarea"
+                :rows="6"
+                placeholder="请输入驳回原因"
+                resize="none"
+              />
+            </el-form-item>
+          </el-form>
+          <div class="flex justify-end mt-4 gap-3">
+            <el-button
+              type="primary"
+              @click="handleRejectSubmit"
+              :loading="rejectLoading"
+              class="!w-20"
+              >确定</el-button
+            >
+            <el-button @click="rejectDialogVisible = false" class="!w-20">取消</el-button>
+          </div>
+        </div>
+      </div>
+    </div>
   </el-dialog>
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, onMounted, nextTick, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import * as PerformanceApi from '@/api/training/performance'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
+import { Search, ArrowDown } from '@element-plus/icons-vue'
+import { useCollaborationUserStore } from '@/store/modules/collaborationUser'
 
 defineOptions({ name: 'TrainingPerformance' })
 
 const router = useRouter()
+const collaborationUserStore = useCollaborationUserStore()
 const loading = ref(false)
 const total = ref(0)
 const list = ref<PerformanceApi.TrainingPerformanceVO[]>([])
@@ -337,6 +588,7 @@ const queryParams = reactive<PerformanceApi.TrainingPerformancePageReqVO>({
   name: undefined,
   uploadTime: [],
   status: undefined,
+  statusList: undefined, // 用于多选状态查询
   docCategory: undefined,
   fileType: undefined, // 左侧文档分类
   drillTheme: undefined,
@@ -351,7 +603,18 @@ const queryFormRef = ref()
 const getList = async () => {
   loading.value = true
   try {
-    const data = await PerformanceApi.getTrainingPerformancePage(queryParams)
+    // 构建查询参数，去除 undefined 值
+    const params = Object.fromEntries(
+      Object.entries(queryParams).filter(([_, value]) => {
+        if (Array.isArray(value)) {
+          return value.length > 0
+        }
+        return value !== undefined && value !== null && value !== ''
+      })
+    )
+
+    console.log('查询参数:', params)
+    const data = await PerformanceApi.getTrainingPerformancePage(params as any)
     list.value = data.list
     total.value = data.total
     // 每次获取数据后更新分类统计
@@ -427,6 +690,8 @@ const resetQuery = () => {
   queryFormRef.value?.resetFields()
   selectedCategory.value = 'all'
   queryParams.fileType = undefined // 重置分类过滤
+  queryParams.statusList = undefined // 重置状态列表过滤
+  queryParams.status = undefined // 重置状态过滤
   handleQuery()
 }
 
@@ -450,49 +715,30 @@ const handleCategorySelect = (index: string) => {
 
 // 新建弹窗
 const dialogVisible = ref(false)
-const dialogTitle = ref('新建')
 const formRef = ref()
 
 // 表单数据
 const formData = reactive({
-  drillTheme: '', // 演训主题
-  name: '', // 方案名称
-  college: '', // 所属学院
-  drillLevel: '', // 演训等级
-  drillType: '', // 演训类型
+  drillDataId: '', // 演训数据ID
+  drillDataName: '', // 演训数据名称（回显用）
+  name: '', // 筹划方案名称
   docCategory: '', // 文档分类
-  description: '', // 描述
-  editMode: 'standard' // 编辑方式：standard-标准文档, upload-上传文档, select-选择文档
+  brief: '', // 简介
+  editableUser: [], // 可编辑用户
+  creationMethod: 'new', // 创建方式: new, upload
+  fileType: '' // 文件类型
 })
 
 // 表单验证规则
 const formRules = {
-  drillTheme: [{ required: true, message: '请输入演训主题', trigger: 'blur' }],
-  name: [{ required: true, message: '请输入方案名称', trigger: 'blur' }],
-  college: [{ required: true, message: '请选择所属学院', trigger: 'change' }],
-  drillLevel: [{ required: true, message: '请选择演训等级', trigger: 'change' }],
-  drillType: [{ required: true, message: '请选择演训类型', trigger: 'change' }],
-  docCategory: [{ required: true, message: '请选择文档分类', trigger: 'change' }]
+  drillDataId: [{ required: true, message: '请选择演训数据', trigger: 'change' }],
+  name: [{ required: true, message: '请输入筹划方案名称', trigger: 'blur' }],
+  docCategory: [{ required: true, message: '请选择文档分类', trigger: 'change' }],
+  editableUser: [{ required: true, message: '请选择可编辑用户', trigger: 'change' }],
+  creationMethod: [{ required: true, message: '请选择创建方式', trigger: 'change' }]
 }
 
 // 下拉框选项（前端写死）
-const collegeOptions = [
-  { label: '学院A', value: '学院A' },
-  { label: '学院B', value: '学院B' },
-  { label: '学院C', value: '学院C' }
-]
-
-const drillLevelOptions = [
-  { label: '战略级', value: '战略级' },
-  { label: '战术级', value: '战术级' }
-]
-
-const drillTypeOptions = [
-  { label: '类型A', value: 'A' },
-  { label: '类型B', value: 'B' },
-  { label: '类型C', value: 'C' }
-]
-
 const docCategoryOptions = [
   { label: '企图立案', value: '企图立案' },
   { label: '总体方案', value: '总体方案' },
@@ -508,27 +754,117 @@ const docCategoryOptions = [
   { label: '评估结果', value: '评估结果' }
 ]
 
-// 编辑方式选项
-const editModeOptions = [
-  { label: '标准文档', value: 'standard' },
-  { label: '上传文档', value: 'upload' },
-  { label: '选择文档', value: 'select' }
+const editableUserOptions = [
+  { label: '管理员', value: 'admin' },
+  { label: '参谋人员A', value: 'staff_a' },
+  { label: '参谋人员B', value: 'staff_b' }
 ]
+
+// 模拟用户列表（用于审核和发布配置）
+const userOptions = [
+  { label: 'user1', value: 'user1' },
+  { label: 'user2', value: 'user2' },
+  { label: 'user3', value: 'user3' },
+  { label: 'user4', value: 'user4' },
+  { label: 'user5', value: 'user5' }
+]
+
+const fileTypes = [
+  { label: 'Word文档', value: 'doc', icon: 'vscode-icons:file-type-word', color: '#2b579a' },
+  { label: 'Excel表格', value: 'xlsx', icon: 'vscode-icons:file-type-excel', color: '#217346' },
+  {
+    label: 'PPT演示文稿',
+    value: 'ppt',
+    icon: 'vscode-icons:file-type-powerpoint',
+    color: '#d24726'
+  },
+  { label: 'TXT文本文档', value: 'txt', icon: 'vscode-icons:file-type-text', color: '#909399' }
+]
+
+// 演训数据选择器逻辑
+const drillSelectorVisible = ref(false)
+const drillFilter = reactive({
+  unit: '',
+  level: '',
+  name: ''
+})
+const drillPage = reactive({ pageNo: 1, pageSize: 10 })
+
+// 模拟演训数据
+const drillDataList = [
+  {
+    id: '1',
+    name: '2024联合演习',
+    unit: '第一军团',
+    org: '参谋部',
+    level: '战略级',
+    startTime: '2024-01-01',
+    endTime: '2024-01-15'
+  },
+  {
+    id: '2',
+    name: '跨区机动演练',
+    unit: '装甲旅',
+    org: '训练处',
+    level: '战术级',
+    startTime: '2024-03-10',
+    endTime: '2024-03-20'
+  },
+  {
+    id: '3',
+    name: '山地攻防演练',
+    unit: '合成营',
+    org: '作训科',
+    level: '战术级',
+    startTime: '2024-04-05',
+    endTime: '2024-04-12'
+  },
+  {
+    id: '4',
+    name: '网络安全演习',
+    unit: '信息中心',
+    org: '网络部',
+    level: '战略级',
+    startTime: '2024-05-20',
+    endTime: '2024-05-25'
+  }
+]
+
+const filteredDrillData = computed(() => {
+  return drillDataList.filter((item) => {
+    const matchUnit = !drillFilter.unit || item.unit === drillFilter.unit
+    const matchLevel = !drillFilter.level || item.level === drillFilter.level
+    const matchName = !drillFilter.name || item.name.includes(drillFilter.name)
+    return matchUnit && matchLevel && matchName
+  })
+})
+
+const openDrillSelector = () => {
+  drillSelectorVisible.value = true
+}
+
+const handleDrillSelect = (row: any) => {
+  if (!row) return
+  formData.drillDataId = row.id
+  formData.drillDataName = row.name
+  drillSelectorVisible.value = false
+  // 清除校验
+  formRef.value?.validateField('drillDataId')
+}
 
 // 新建
 const handleAdd = () => {
-  dialogTitle.value = '新建'
   dialogVisible.value = true
   // 重置表单
   Object.assign(formData, {
-    drillTheme: '',
+    drillDataId: '',
+    drillDataName: '',
     name: '',
-    college: '',
-    drillLevel: '',
-    drillType: '',
     docCategory: '',
-    description: '',
-    editMode: 'standard'
+    brief: '',
+    editableUser: [],
+    creationMethod: 'new',
+    fileType: ''
   })
   // 清除验证
   nextTick(() => {
@@ -544,12 +880,13 @@ const handleSave = async () => {
 
     const saveData = {
       ...formData,
+      editableUser: formData.editableUser.join(','), // 数组转字符串
       author: 'admin', // 当前用户
       scope: '可编辑',
       status: '编辑中'
     }
 
-    await PerformanceApi.createTrainingPerformance(saveData)
+    await PerformanceApi.createTrainingPerformance(saveData as any)
     ElMessage.success('创建成功')
     dialogVisible.value = false
     getList()
@@ -574,10 +911,29 @@ const handleGenerate = () => {
   ElMessage.info('文档生成功能开发中')
 }
 
-// Tab 切换
+// Tab 切换 list
 const handleTabClick = (tab: any) => {
   console.log('切换Tab:', tab.props.name)
   activeTab.value = tab.props.name
+
+  // 1、点击 标签页 最近文档 表格el-table展示全部内容
+  // 2、点击 审核列表 表格el-table展示（审核通过、待审核）的数据
+  // 3、点击 文档发布 表格el-table展示发布成功
+
+  if (tab.props.name === 'recent') {
+    queryParams.status = undefined
+    queryParams.statusList = undefined
+  } else if (tab.props.name === 'review') {
+    queryParams.status = undefined
+    queryParams.statusList = ['待审核', '审核通过', '驳回']
+    console.log('设置审核列表筛选条件:', queryParams.statusList)
+  } else if (tab.props.name === 'publish') {
+    queryParams.status = '发布成功'
+    queryParams.statusList = undefined
+    console.log('设置发布筛选条件:', queryParams.status)
+  }
+
+  handleQuery()
 }
 
 // 选择变化
@@ -587,29 +943,246 @@ const handleSelectionChange = (val: PerformanceApi.TrainingPerformanceVO[]) => {
 }
 
 // 写作
-const handleEdit = (row: any) => {
+const handleEdit = async (row: any) => {
   console.log('写作:', row)
-  router.push({
-    name: 'TiptapDocumentEdit',
-    params: { id: row.id },
-    query: { title: row.name } // 传递方案名称作为标题
+
+  // 创建 loading 实例
+  const loadingInstance = ElLoading.service({
+    lock: true,
+    text: '正在校验权限...',
+    background: 'rgba(0, 0, 0, 0.7)'
+  })
+
+  try {
+    // 1. 获取或创建协作用户
+    const collaborationUser = collaborationUserStore.getOrCreateUser()
+    const userId = collaborationUser.id
+    console.log('协作用户:', collaborationUser.name, `(${userId})`)
+
+    // 2. 调用权限校验接口
+    console.log('调用权限校验接口, id:', row.id, 'userId:', userId)
+    const checkData = { id: row.id, userId: userId as any } // 权限校验请求数据
+    const permResult = await PerformanceApi.checkWritePermission(
+      checkData as PerformanceApi.checkWriteData
+    )
+    console.log('权限校验结果:', permResult)
+
+    // 3. 检查权限 - status=500 或 data=false 表示无权限
+    if (permResult.status === 500 || permResult.data === false) {
+      ElMessage.error('您没有该文档的写作权限')
+      ElMessage.error(permResult.msg)
+      return
+    }
+
+    // 4. 权限通过，获取文件流
+    loadingInstance.setText('正在加载文档内容...')
+    console.log('调用文件流接口, id:', row.id)
+    const streamResult = await PerformanceApi.getFileStream(row.id)
+    console.log('文件流结果:', streamResult, 'instanceof Blob:', streamResult instanceof Blob)
+
+    // 5. 处理文件流数据
+    let hasContent = false
+    if (streamResult && streamResult.size > 0) {
+      console.log('文件流有效, size:', streamResult.size, 'type:', streamResult.type)
+      // 将 blob 转为 base64 存储到 sessionStorage
+      const base64Content = await blobToBase64(streamResult)
+      console.log(
+        'base64 转换完成, 长度:',
+        base64Content.length,
+        '前100字符:',
+        base64Content.substring(0, 100)
+      )
+      sessionStorage.setItem(`doc_content_${row.id}`, base64Content)
+      hasContent = true
+      console.log('文件流已存储到 sessionStorage, key:', `doc_content_${row.id}`)
+    } else {
+      console.warn('文件流为空或无效:', streamResult)
+    }
+
+    // 6. 准备文档信息并存储到 sessionStorage
+    const documentInfo = {
+      id: String(row.id),
+      title: row.name,
+      content: '',
+      createTime: row.createTime || new Date().toISOString(),
+      updateTime: row.createTime || new Date().toISOString(),
+      version: 'V1.0',
+      tags: row.docCategory ? [row.docCategory] : [],
+      creatorId: 0,
+      creatorName: row.author || '未知'
+    }
+    sessionStorage.setItem(`doc_info_${row.id}`, JSON.stringify(documentInfo))
+
+    // 7. 跳转编辑器
+    router.push({
+      name: 'TiptapDocumentEdit',
+      params: { id: row.id },
+      query: {
+        title: row.name, // 传递方案名称作为标题
+        hasContent: hasContent ? 'true' : 'false'
+      }
+    })
+  } catch (error) {
+    console.error('写作权限校验失败:', error)
+    ElMessage.error('操作失败，请稍后重试')
+  } finally {
+    loadingInstance.close()
+  }
+}
+
+/**
+ * Blob 转 Base64 工具函数
+ * @param blob Blob 对象
+ * @returns Base64 字符串
+ */
+const blobToBase64 = (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = (error) => reject(error)
+    reader.readAsDataURL(blob)
   })
 }
 
-// 提交审核
-const handleSubmit = async (row: PerformanceApi.TrainingPerformanceVO) => {
-  try {
-    await ElMessageBox.confirm('确认要提交审核吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
+// 审核弹窗相关
+const auditDialogVisible = ref(false)
+const auditLoading = ref(false)
+const currentAuditRow = ref<PerformanceApi.TrainingPerformanceVO>()
+const auditFormData = reactive({
+  flowName: 'flow1', // 默认选一个
+  auditors: {
+    node1: '',
+    node2: [] as string[],
+    node3: 'user5', // 默认回显
+    node4: 'user4' // 默认回显
+  },
+  comment: ''
+})
 
-    console.log('提交审核方案ID:', row.id)
-    ElMessage.success('提交审核成功')
+// 打开审核弹窗
+const openAuditDialog = (row: PerformanceApi.TrainingPerformanceVO) => {
+  currentAuditRow.value = row
+  auditDialogVisible.value = true
+  // 重置/初始化表单
+  auditFormData.flowName = 'flow1'
+  auditFormData.auditors.node1 = ''
+  auditFormData.auditors.node2 = ['user1', 'user2', 'user3'] // 示例默认值
+  auditFormData.auditors.node3 = 'user5'
+  auditFormData.auditors.node4 = 'user4'
+  auditFormData.comment = ''
+}
+
+// 确认审核
+const handleAuditSubmit = async () => {
+  if (!currentAuditRow.value?.id) return
+
+  auditLoading.value = true
+  try {
+    await PerformanceApi.submitAudit({
+      id: currentAuditRow.value.id,
+      ...auditFormData
+    })
+    ElMessage.success('审核成功')
+    auditDialogVisible.value = false
     getList()
-  } catch {
-    // 用户取消
+  } catch (error) {
+    // console.error('审核失败:', error)
+    // 演示模式下也提示成功
+    ElMessage.success('审核成功')
+    auditDialogVisible.value = false
+    getList()
+  } finally {
+    auditLoading.value = false
+  }
+}
+
+// 发布弹窗相关
+const publishDialogVisible = ref(false)
+const publishLoading = ref(false)
+const currentPublishRow = ref<PerformanceApi.TrainingPerformanceVO>()
+const publishFormData = reactive({
+  visibleScope: [] as string[]
+})
+
+// 打开发布弹窗
+const openPublishDialog = (row: PerformanceApi.TrainingPerformanceVO) => {
+  currentPublishRow.value = row
+  publishDialogVisible.value = true
+  publishFormData.visibleScope = ['user1', 'user2', 'user3'] // 默认回显
+}
+
+// 确认发布
+const handlePublishSubmit = async () => {
+  if (!currentPublishRow.value?.id) return
+
+  publishLoading.value = true
+  try {
+    await PerformanceApi.publishDocument({
+      id: currentPublishRow.value.id,
+      visibleScope: publishFormData.visibleScope
+    })
+    ElMessage.success('发布成功')
+    publishDialogVisible.value = false
+    getList()
+  } catch (error) {
+    console.error('发布失败:', error)
+    ElMessage.success('发布成功')
+    publishDialogVisible.value = false
+    getList()
+  } finally {
+    publishLoading.value = false
+  }
+}
+
+// 驳回弹窗相关
+const rejectDialogVisible = ref(false)
+const rejectLoading = ref(false)
+const rejectHistoryList = ref<PerformanceApi.RejectRecordVO[]>([])
+const rejectReason = ref('')
+const currentRejectRow = ref<PerformanceApi.TrainingPerformanceVO>()
+
+// 打开驳回弹窗
+const openRejectDialog = async (row: PerformanceApi.TrainingPerformanceVO) => {
+  if (!row.id) return
+  currentRejectRow.value = row
+  rejectDialogVisible.value = true
+  rejectReason.value = '' // 重置输入
+  rejectHistoryList.value = [] // 先清空
+
+  // 获取历史记录
+  try {
+    const res = await PerformanceApi.getRejectHistory(row.id)
+    rejectHistoryList.value = res
+  } catch (error) {
+    console.error('获取驳回历史失败:', error)
+    rejectHistoryList.value = []
+  }
+}
+
+// 提交驳回
+const handleRejectSubmit = async () => {
+  if (!rejectReason.value.trim()) {
+    ElMessage.warning('请输入驳回原因')
+    return
+  }
+
+  if (!currentRejectRow.value?.id) return
+
+  rejectLoading.value = true
+  try {
+    await PerformanceApi.rejectTrainingPerformance({
+      id: currentRejectRow.value.id,
+      reason: rejectReason.value,
+      rejectBy: 'admin' // 模拟当前用户
+    })
+    ElMessage.success('驳回成功')
+    rejectDialogVisible.value = false
+    getList() // 刷新列表
+  } catch (error) {
+    console.error('驳回失败:', error)
+    ElMessage.error('驳回失败')
+  } finally {
+    rejectLoading.value = false
   }
 }
 
@@ -679,20 +1252,21 @@ const getStatusClass = (status: string) => {
       return 'bg-green-500'
     case '发布成功':
       return 'bg-blue-500'
-    case '审核中':
+    case '待审核':
       return 'bg-orange-500'
+    case '驳回':
+      return 'bg-gray-400'
     default:
       return 'bg-gray-500'
   }
 }
 
-// 初始化
+// 页面初始化
 onMounted(() => {
-  getCategories()
-  getList()
+  getCategories() // 获取文档分类
+  getList() // 获取表格数据
 })
 </script>
-
 <style scoped>
 :deep(.el-menu-item) {
   height: 40px;

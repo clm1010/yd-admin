@@ -1,12 +1,42 @@
 <template>
   <div class="tiptap-editor-wrapper">
-    <!-- 工具栏 -->
-    <EditorToolbar v-if="editor" :editor="editor" :save-status="saveStatus" />
+    <!-- 工具栏仅在编辑器就绪时展示 -->
+    <EditorToolbar v-if="editor && !loading" :editor="editor" :save-status="saveStatus" />
 
-    <!-- 编辑器内容 -->
-    <div class="tiptap-content-wrapper">
-      <editor-content :editor="editor" class="tiptap-content" />
+    <!-- 编辑器内容区域 -->
+    <div class="tiptap-content-wrapper" ref="contentWrapperRef" @scroll="handleScroll">
+      <div v-if="loading || !editor" class="p-6 h-full">
+        <el-skeleton :rows="12" animated />
+      </div>
+      <template v-else>
+        <!-- A4 页面容器 -->
+        <div class="page-container">
+          <div
+            class="page-content"
+            :style="{
+              width: pageWidth + 'px',
+              minHeight: pageHeight + 'px',
+              padding: `${pageMargin.top}px ${pageMargin.right}px ${pageMargin.bottom}px ${pageMargin.left}px`,
+              background: pageBackground
+            }"
+          >
+            <editor-content :editor="editor" class="tiptap-content" />
+          </div>
+        </div>
+      </template>
     </div>
+
+    <!-- 回到顶部按钮 -->
+    <transition name="fade">
+      <button
+        v-show="showBackToTop && !loading"
+        class="back-to-top-btn"
+        @click="scrollToTop"
+        title="回到顶部"
+      >
+        <Icon icon="mdi:arrow-up" />
+      </button>
+    </transition>
 
     <!-- HTML 预览对话框 -->
     <el-dialog
@@ -70,7 +100,7 @@
 
 <script setup lang="ts">
 // @ts-nocheck - 忽略 Tiptap 版本不兼容导致的类型问题
-import { ref, onBeforeUnmount, watch, computed, provide } from 'vue'
+import { ref, onBeforeUnmount, watch, computed, provide, reactive, onMounted } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
@@ -80,8 +110,8 @@ import TextAlign from '@tiptap/extension-text-align'
 import Underline from '@tiptap/extension-underline'
 import Highlight from '@tiptap/extension-highlight'
 import Link from '@tiptap/extension-link'
-import Image from '@tiptap/extension-image'
 import Table from '@tiptap/extension-table'
+import { ResizableImage } from './toolbar/extensions/ResizableImage'
 import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
@@ -93,6 +123,7 @@ import Color from '@tiptap/extension-color'
 import Subscript from '@tiptap/extension-subscript'
 import Superscript from '@tiptap/extension-superscript'
 import { DragHandle } from './toolbar/extensions/DragHandle'
+import { PageBreak } from './toolbar/extensions/PageBreak'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 import { Icon } from '@/components/Icon'
@@ -111,11 +142,13 @@ interface Props {
   }
   placeholder?: string
   title?: string
+  loading?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: '开始编写文档内容...',
-  title: '文档'
+  title: '文档',
+  loading: false
 })
 
 // Emits
@@ -129,6 +162,77 @@ let isComponentDestroyed = false
 
 // 保存状态
 const saveStatus = ref<'saved' | 'saving' | 'unsaved'>('saved')
+
+// 内容区域引用
+const contentWrapperRef = ref<HTMLElement | null>(null)
+
+// 回到顶部按钮显示状态
+const showBackToTop = ref(false)
+
+// 页面设置 - A4 默认尺寸 (96 DPI: 210mm = 794px, 297mm = 1123px)
+const pageWidth = ref(794)
+const pageHeight = ref(1123)
+const pageMargin = reactive({
+  top: 96, // 约 25.4mm
+  bottom: 96,
+  left: 120, // 约 31.8mm
+  right: 120
+})
+const pageBackground = ref('#ffffff')
+
+// 处理滚动事件
+const handleScroll = () => {
+  if (contentWrapperRef.value) {
+    showBackToTop.value = contentWrapperRef.value.scrollTop > 300
+  }
+}
+
+// 回到顶部
+const scrollToTop = () => {
+  if (contentWrapperRef.value) {
+    contentWrapperRef.value.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    })
+  }
+}
+
+// 更新页面设置
+const updatePageSettings = (settings: any) => {
+  if (settings.size) {
+    // 根据页面大小更新尺寸
+    const sizeMap: Record<string, { width: number; height: number }> = {
+      A4: { width: 794, height: 1123 },
+      A3: { width: 1123, height: 1587 },
+      A5: { width: 559, height: 794 },
+      B5: { width: 665, height: 945 },
+      '5号信封': { width: 412, height: 488 },
+      '6号信封': { width: 450, height: 866 }
+    }
+    const size = sizeMap[settings.size] || sizeMap['A4']
+
+    if (settings.orientation === 'landscape') {
+      pageWidth.value = size.height
+      pageHeight.value = size.width
+    } else {
+      pageWidth.value = size.width
+      pageHeight.value = size.height
+    }
+  }
+
+  if (settings.margin) {
+    // mm 转 px (96 DPI)
+    const mmToPx = (mm: number) => Math.round((mm * 96) / 25.4)
+    pageMargin.top = mmToPx(settings.margin.top)
+    pageMargin.bottom = mmToPx(settings.margin.bottom)
+    pageMargin.left = mmToPx(settings.margin.left)
+    pageMargin.right = mmToPx(settings.margin.right)
+  }
+
+  if (settings.background) {
+    pageBackground.value = settings.background
+  }
+}
 
 // 预览相关状态
 const htmlPreviewVisible = ref(false)
@@ -225,9 +329,13 @@ const editor = useEditor({
         class: 'text-blue-500 underline cursor-pointer'
       }
     }),
-    // 图片
-    Image.configure({
-      inline: true
+    // 可调整大小的图片
+    ResizableImage.configure({
+      inline: false,
+      allowBase64: true,
+      HTMLAttributes: {
+        class: 'editor-image'
+      }
     }),
     // 表格
     Table.configure({
@@ -256,7 +364,13 @@ const editor = useEditor({
     // 下标
     Subscript,
     // 拖动手柄
-    DragHandle
+    DragHandle,
+    // 分页符
+    PageBreak.configure({
+      HTMLAttributes: {
+        class: 'page-break'
+      }
+    })
   ],
   onUpdate: ({ editor }) => {
     // 防止组件销毁后触发回调
@@ -514,7 +628,9 @@ defineExpose({
   getHTML: () => editor.value?.getHTML() || '',
   generateFullHtml,
   previewHtml,
-  previewPdf
+  previewPdf,
+  updatePageSettings,
+  scrollToTop
 })
 </script>
 
@@ -523,15 +639,136 @@ defineExpose({
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #fff;
+  background: #f4f5f7;
   border-radius: 8px;
   overflow: hidden;
+  position: relative;
 }
 
 .tiptap-content-wrapper {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 32px;
+  overflow-x: auto;
+  background: #e8eaed;
+
+  // 自定义滚动条样式 - 参考 Umo Editor
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+
+    &:hover {
+      background: #a8a8a8;
+    }
+  }
+
+  &::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+// A4 页面容器
+.page-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px 60px;
+  min-height: 100%;
+  gap: 40px; // 页面之间的间距
+}
+
+// 页面内容区域 - 模拟 A4 纸张
+.page-content {
+  position: relative;
+  background: #fff;
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.08),
+    0 0 1px rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+  transition: all 0.3s ease;
+
+  // 页面边角装饰
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 20px;
+    height: 20px;
+    border-left: 1px solid #e0e0e0;
+    border-top: 1px solid #e0e0e0;
+    pointer-events: none;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    border-right: 1px solid #e0e0e0;
+    border-top: 1px solid #e0e0e0;
+    pointer-events: none;
+  }
+}
+
+// 回到顶部按钮
+.back-to-top-btn {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: #1a73e8;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.4);
+  transition: all 0.2s ease;
+  z-index: 100;
+
+  &:hover {
+    background: #1557b0;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(26, 115, 232, 0.5);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  :deep(svg) {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+// 渐变动画
+.fade-enter-active,
+.fade-leave-active {
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
 }
 
 .tiptap-content {
@@ -647,6 +884,22 @@ defineExpose({
       max-width: 100%;
       height: auto;
       border-radius: 8px;
+
+      &.editor-image {
+        cursor: default;
+      }
+    }
+
+    // 可调整大小的图片容器
+    .resizable-image-wrapper {
+      display: inline-block;
+      margin: 8px 0;
+    }
+
+    // 分页符样式
+    .page-break-wrapper {
+      display: block;
+      margin: 0;
     }
 
     // 表格样式
@@ -910,6 +1163,27 @@ defineExpose({
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+// 分页符全局样式
+:global(.page-break) {
+  display: block;
+  page-break-after: always;
+  break-after: page;
+}
+
+// 打印时分页符样式
+@media print {
+  :global(.page-break-wrapper) {
+    margin: 0;
+    height: 0;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  :global(.page-break-container) {
+    display: none;
+  }
 }
 
 // 拖动手柄样式

@@ -775,7 +775,7 @@ const remainingRouter: AppRouteRecordRaw[] = [
     children: [
       {
         path: 'edit/:id',
-        component: () => import('@/views/document/UmoCollaborativeEditor.vue'),
+        component: () => import('@/views/document/TiptapCollaborativeEditor.vue'),
         name: 'DocumentEdit',
         meta: {
           title: '协同编辑',

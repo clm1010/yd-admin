@@ -85,8 +85,6 @@ export default ({ command, mode }: ConfigEnv): UserConfig => {
             echarts: ['echarts'], // 将 echarts 单独打包，参考 https://gitee.com/yudaocode/yudao-ui-admin-vue3/issues/IAB1SX 讨论
             'form-create': ['@form-create/element-ui'], // 参考 https://github.com/yudaocode/yudao-ui-admin-vue3/issues/148 讨论
             'form-designer': ['@form-create/designer']
-            // ,
-            // 'umo-editor': ['@umoteam/editor']
           }
         }
       }

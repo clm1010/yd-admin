@@ -227,42 +227,79 @@
 
     <!-- 标题样式 -->
     <div class="toolbar-group heading-group">
-      <el-tooltip content="正文" placement="bottom" :show-after="500">
-        <button
-          class="heading-btn"
-          :class="{ active: editor?.isActive('paragraph') && !editor?.isActive('heading') }"
-          @click="editor?.chain().focus().setParagraph().run()"
-        >
-          正文
-        </button>
-      </el-tooltip>
-      <el-tooltip content="标题 1" placement="bottom" :show-after="500">
-        <button
-          class="heading-btn h1"
-          :class="{ active: editor?.isActive('heading', { level: 1 }) }"
-          @click="editor?.chain().focus().toggleHeading({ level: 1 }).run()"
-        >
-          标题 1
-        </button>
-      </el-tooltip>
-      <el-tooltip content="标题 2" placement="bottom" :show-after="500">
-        <button
-          class="heading-btn h2"
-          :class="{ active: editor?.isActive('heading', { level: 2 }) }"
-          @click="editor?.chain().focus().toggleHeading({ level: 2 }).run()"
-        >
-          标题 2
-        </button>
-      </el-tooltip>
-      <el-tooltip content="标题 3" placement="bottom" :show-after="500">
-        <button
-          class="heading-btn h3"
-          :class="{ active: editor?.isActive('heading', { level: 3 }) }"
-          @click="editor?.chain().focus().toggleHeading({ level: 3 }).run()"
-        >
-          标题 3
-        </button>
-      </el-tooltip>
+      <div class="heading-panel" :class="{ expanded: isHeadingExpanded }">
+        <!-- 第一行 -->
+        <div class="heading-row">
+          <button
+            class="heading-btn"
+            :class="{ active: editor?.isActive('paragraph') && !editor?.isActive('heading') }"
+            @click="editor?.chain().focus().setParagraph().run()"
+          >
+            <span class="heading-title">正文</span>
+            <span class="heading-label">Text</span>
+          </button>
+          <button
+            class="heading-btn"
+            :class="{ active: editor?.isActive('heading', { level: 1 }) }"
+            @click="editor?.chain().focus().toggleHeading({ level: 1 }).run()"
+          >
+            <span class="heading-title h1">标题 1</span>
+            <span class="heading-label">H1</span>
+          </button>
+          <button
+            class="heading-btn"
+            :class="{ active: editor?.isActive('heading', { level: 2 }) }"
+            @click="editor?.chain().focus().toggleHeading({ level: 2 }).run()"
+          >
+            <span class="heading-title h2">标题 2</span>
+            <span class="heading-label">H2</span>
+          </button>
+          <button
+            class="heading-btn"
+            :class="{ active: editor?.isActive('heading', { level: 3 }) }"
+            @click="editor?.chain().focus().toggleHeading({ level: 3 }).run()"
+          >
+            <span class="heading-title h3">标题 3</span>
+            <span class="heading-label">H3</span>
+          </button>
+          <div class="heading-scroll">
+            <button
+              class="scroll-btn"
+              @click="toggleHeadingExpand"
+              :title="isHeadingExpanded ? '收起' : '更多'"
+            >
+              <Icon :icon="isHeadingExpanded ? 'mdi:chevron-up' : 'mdi:chevron-down'" />
+            </button>
+          </div>
+        </div>
+        <!-- 第二行 -->
+        <div class="heading-row">
+          <button
+            class="heading-btn"
+            :class="{ active: editor?.isActive('heading', { level: 4 }) }"
+            @click="editor?.chain().focus().toggleHeading({ level: 4 }).run()"
+          >
+            <span class="heading-title h4">标题 4</span>
+            <span class="heading-label">H4</span>
+          </button>
+          <button
+            class="heading-btn"
+            :class="{ active: editor?.isActive('heading', { level: 5 }) }"
+            @click="editor?.chain().focus().toggleHeading({ level: 5 }).run()"
+          >
+            <span class="heading-title h5">标题 5</span>
+            <span class="heading-label">H5</span>
+          </button>
+          <button
+            class="heading-btn"
+            :class="{ active: editor?.isActive('heading', { level: 6 }) }"
+            @click="editor?.chain().focus().toggleHeading({ level: 6 }).run()"
+          >
+            <span class="heading-title h6">标题 6</span>
+            <span class="heading-label">H6</span>
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="toolbar-divider"></div>
@@ -409,6 +446,73 @@
         </div>
       </div>
     </el-dialog>
+
+    <!-- 文档预览对话框 -->
+    <el-dialog
+      v-model="documentPreviewVisible"
+      :fullscreen="true"
+      :show-close="false"
+      class="document-preview-dialog"
+      :close-on-click-modal="false"
+    >
+      <template #header>
+        <div class="preview-header">
+          <div class="header-left">
+            <button class="menu-btn" @click="togglePreviewSidebar">
+              <Icon icon="mdi:menu" />
+            </button>
+            <span class="doc-title">{{ documentTitle || '示例文档' }}</span>
+          </div>
+          <div class="header-right">
+            <button class="close-btn" @click="closeDocumentPreview">
+              <Icon icon="mdi:close" />
+            </button>
+          </div>
+        </div>
+      </template>
+      <div class="preview-body">
+        <div class="preview-content-wrapper">
+          <div class="preview-page" :style="{ transform: `scale(${previewZoom / 100})` }">
+            <div class="page-content" v-html="previewContent"></div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="preview-footer">
+          <div class="footer-left">
+            <button class="sidebar-btn" @click="togglePreviewSidebar">
+              <Icon icon="mdi:dock-left" />
+              <span>打开边栏</span>
+            </button>
+          </div>
+          <div class="footer-right">
+            <button class="zoom-btn" @click="togglePreviewFullscreen" title="全屏">
+              <Icon icon="mdi:fullscreen" />
+            </button>
+            <div class="zoom-slider">
+              <button class="zoom-btn" @click="zoomOut" title="缩小">
+                <Icon icon="mdi:minus" />
+              </button>
+              <el-slider
+                v-model="previewZoom"
+                :min="50"
+                :max="200"
+                :step="10"
+                :show-tooltip="false"
+                class="zoom-slider-input"
+              />
+              <button class="zoom-btn" @click="zoomIn" title="放大">
+                <Icon icon="mdi:plus" />
+              </button>
+            </div>
+            <button class="zoom-btn fit-btn" @click="fitToWidth" title="适应宽度">
+              <Icon icon="mdi:fit-to-page-outline" />
+            </button>
+            <span class="zoom-value">{{ previewZoom }}%</span>
+          </div>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -445,6 +549,13 @@ const replaceText = ref('')
 const matchCase = ref(false)
 const matchWholeWord = ref(false)
 const findResultCount = ref(-1)
+
+// 文档预览
+const documentPreviewVisible = ref(false)
+const documentTitle = ref('')
+const previewContent = ref('')
+const previewZoom = ref(100)
+const previewSidebarVisible = ref(false)
 
 // 监听编辑器选区变化，更新当前样式状态
 watch(
@@ -636,36 +747,89 @@ const handleWordFileSelect = async (uploadFile: any) => {
 
     const arrayBuffer = await file.arrayBuffer()
 
-    // 配置转换选项
+    // 配置转换选项 - 增强样式映射以保持更好的排版
     const options: any = {
       styleMap: wordImportOptions.preserveStyles
         ? [
+            // 标题映射
             "p[style-name='Heading 1'] => h1:fresh",
             "p[style-name='Heading 2'] => h2:fresh",
             "p[style-name='Heading 3'] => h3:fresh",
+            "p[style-name='Heading 4'] => h4:fresh",
+            "p[style-name='Heading 5'] => h5:fresh",
+            "p[style-name='Heading 6'] => h6:fresh",
             "p[style-name='标题 1'] => h1:fresh",
             "p[style-name='标题 2'] => h2:fresh",
             "p[style-name='标题 3'] => h3:fresh",
+            "p[style-name='标题 4'] => h4:fresh",
+            "p[style-name='标题'] => h1:fresh",
+            // 文本样式映射
             "r[style-name='Strong'] => strong",
             "r[style-name='Emphasis'] => em",
+            "r[style-name='加粗'] => strong",
+            "r[style-name='斜体'] => em",
+            "r[style-name='下划线'] => u",
+            // 引用
             "p[style-name='Quote'] => blockquote:fresh",
-            "p[style-name='Block Quote'] => blockquote:fresh"
+            "p[style-name='Block Quote'] => blockquote:fresh",
+            "p[style-name='引用'] => blockquote:fresh",
+            // 列表
+            "p[style-name='List Paragraph'] => p:fresh",
+            "p[style-name='列表段落'] => p:fresh",
+            // 正文
+            "p[style-name='Normal'] => p:fresh",
+            "p[style-name='正文'] => p:fresh",
+            // 保持表格
+            'table => table',
+            // 代码
+            "p[style-name='Code'] => pre:fresh",
+            "r[style-name='Code'] => code"
           ]
-        : []
+        : [],
+      // 保持行内样式
+      includeDefaultStyleMap: true,
+      // 保持嵌入式样式
+      includeEmbeddedStyleMap: true
     }
 
-    // 处理图片
+    // 处理图片 - 使用 mammoth 的图片转换功能
     if (wordImportOptions.convertImages) {
-      options.convertImage = mammoth.images.imgElement((image: any) => {
-        return image.read('base64').then((imageBuffer: string) => {
-          return {
-            src: `data:${image.contentType};base64,${imageBuffer}`
-          }
+      // mammoth.images.imgElement 返回一个图片转换器
+      const mammothLib = mammoth.default || mammoth
+      if (mammothLib.images && mammothLib.images.imgElement) {
+        options.convertImage = mammothLib.images.imgElement((image: any) => {
+          return image.read('base64').then((imageBuffer: string) => {
+            const contentType = image.contentType || 'image/png'
+            return {
+              src: `data:${contentType};base64,${imageBuffer}`
+            }
+          })
         })
-      })
+      } else {
+        // 备用方案：直接处理图片数据
+        options.convertImage = {
+          'image/png': (image: any) => {
+            return image.read('base64').then((imageBuffer: string) => {
+              return { src: `data:image/png;base64,${imageBuffer}` }
+            })
+          },
+          'image/jpeg': (image: any) => {
+            return image.read('base64').then((imageBuffer: string) => {
+              return { src: `data:image/jpeg;base64,${imageBuffer}` }
+            })
+          },
+          'image/gif': (image: any) => {
+            return image.read('base64').then((imageBuffer: string) => {
+              return { src: `data:image/gif;base64,${imageBuffer}` }
+            })
+          }
+        }
+      }
     }
 
-    const result = await mammoth.convertToHtml({ arrayBuffer }, options)
+    // 使用正确的 mammoth 引用
+    const mammothLib = mammoth.default || mammoth
+    const result = await mammothLib.convertToHtml({ arrayBuffer }, options)
 
     // 处理HTML内容
     let html = result.value
@@ -675,11 +839,39 @@ const handleWordFileSelect = async (uploadFile: any) => {
 
     wordImportPreview.value = html
 
-    // 显示警告信息
+    // 显示警告信息（过滤掉不重要的警告）
     if (result.messages.length > 0) {
-      const warnings = result.messages.filter((m: any) => m.type === 'warning')
-      if (warnings.length > 0) {
-        console.warn('Word导入警告:', warnings)
+      // 过滤掉已知的、不影响功能的警告
+      const ignoredPatterns = [
+        'v:path',
+        'v:fill',
+        'v:stroke',
+        'v:shape',
+        'v:rect',
+        'v:oval',
+        'v:line',
+        'v:imagedata',
+        'v:textbox',
+        'v:formulas',
+        'office:office',
+        'office-word',
+        'urn:schemas-microsoft-com',
+        'image/x-emf',
+        'image/x-wmf',
+        'OLEObject',
+        'lock',
+        'anchorlock'
+      ]
+
+      const importantWarnings = result.messages.filter((m: any) => {
+        if (m.type !== 'warning') return false
+        const msg = m.message || ''
+        // 检查是否包含可忽略的模式
+        return !ignoredPatterns.some((pattern) => msg.toLowerCase().includes(pattern.toLowerCase()))
+      })
+
+      if (importantWarnings.length > 0) {
+        console.warn('Word导入警告:', importantWarnings)
       }
     }
   } catch (error) {
@@ -692,25 +884,135 @@ const handleWordFileSelect = async (uploadFile: any) => {
   }
 }
 
-// 清理 Word 导出的 HTML
+// 清理 Word 导出的 HTML - 保持更好的排版
 const cleanWordHtml = (html: string): string => {
-  // 移除多余的空段落
-  html = html.replace(/<p>\s*<\/p>/g, '')
+  // 移除多余的连续空段落（保留单个空段落用于间距）
+  html = html.replace(/(<p>\s*<\/p>\s*){2,}/g, '<p></p>')
 
-  // 清理多余的空格
-  html = html.replace(/&nbsp;/g, ' ')
+  // 清理多余的空格，但保留必要的空格
+  html = html.replace(/&nbsp;&nbsp;+/g, ' ')
 
-  // 移除 Word 特有的标签和属性
-  html = html.replace(/class="[^"]*MsoNormal[^"]*"/g, '')
-  html = html.replace(/style="[^"]*mso-[^"]*"/g, '')
+  // 移除 Word 特有的 mso- 样式，但保留其他有用的样式
+  html = html.replace(/mso-[^;:"]+:[^;:"]+;?/gi, '')
 
-  // 转换列表
-  html = html.replace(/<p[^>]*>\s*[-•]\s*/g, '<li>')
+  // 移除空的 style 属性
+  html = html.replace(/style="\s*"/g, '')
 
-  // 保持换行
-  if (wordImportOptions.keepLineBreaks) {
-    html = html.replace(/\n/g, '<br>')
-  }
+  // 移除 Word 特有的 class
+  html = html.replace(/class="[^"]*Mso[^"]*"/gi, '')
+
+  // 处理分页符 - 转换为自定义分页标记
+  html = html.replace(
+    /<br[^>]*style="[^"]*page-break[^"]*"[^>]*>/gi,
+    '<div class="page-break" data-type="page-break"></div>'
+  )
+  html = html.replace(
+    /<p[^>]*style="[^"]*page-break-before:\s*always[^"]*"[^>]*>/gi,
+    '<div class="page-break" data-type="page-break"></div><p>'
+  )
+  html = html.replace(
+    /<p[^>]*style="[^"]*page-break-after:\s*always[^"]*"[^>]*>(.*?)<\/p>/gi,
+    '<p>$1</p><div class="page-break" data-type="page-break"></div>'
+  )
+
+  // 处理图片宽度 - 限制最大宽度为编辑器可用宽度
+  const MAX_IMAGE_WIDTH = 540 // 编辑器可用宽度（A4 页面 794px - 边距 240px - 一些余量）
+
+  html = html.replace(/<img([^>]*)style="([^"]*)"/gi, (match, attrs, style) => {
+    // 提取宽度和高度
+    const widthMatch = style.match(/width:\s*([^;]+)/i)
+    const heightMatch = style.match(/height:\s*([^;]+)/i)
+
+    let width = 0
+    let height = 0
+
+    if (widthMatch) {
+      const widthStr = widthMatch[1].trim()
+      // 转换各种单位为像素
+      if (widthStr.endsWith('pt')) {
+        width = parseFloat(widthStr) * 1.33 // pt 转 px
+      } else if (widthStr.endsWith('in')) {
+        width = parseFloat(widthStr) * 96 // in 转 px
+      } else if (widthStr.endsWith('cm')) {
+        width = parseFloat(widthStr) * 37.8 // cm 转 px
+      } else if (widthStr.endsWith('mm')) {
+        width = parseFloat(widthStr) * 3.78 // mm 转 px
+      } else if (widthStr.endsWith('%')) {
+        width = 0 // 百分比不处理，让浏览器自动计算
+      } else {
+        width = parseFloat(widthStr) || 0
+      }
+    }
+
+    if (heightMatch) {
+      const heightStr = heightMatch[1].trim()
+      if (heightStr.endsWith('pt')) {
+        height = parseFloat(heightStr) * 1.33
+      } else if (heightStr.endsWith('in')) {
+        height = parseFloat(heightStr) * 96
+      } else if (heightStr.endsWith('cm')) {
+        height = parseFloat(heightStr) * 37.8
+      } else if (heightStr.endsWith('mm')) {
+        height = parseFloat(heightStr) * 3.78
+      } else if (heightStr.endsWith('%')) {
+        height = 0
+      } else {
+        height = parseFloat(heightStr) || 0
+      }
+    }
+
+    // 限制最大宽度
+    if (width > MAX_IMAGE_WIDTH) {
+      const ratio = height / width
+      width = MAX_IMAGE_WIDTH
+      height = width * ratio
+    }
+
+    let newStyle = 'max-width: 100%;'
+    if (width > 0) newStyle = `width: ${Math.round(width)}px; max-width: 100%;`
+    if (height > 0) newStyle += ` height: ${Math.round(height)}px;`
+
+    return `<img${attrs}style="${newStyle}"`
+  })
+
+  // 处理没有 style 属性的图片
+  html = html.replace(/<img(?![^>]*style=)([^>]*)>/gi, '<img$1 style="max-width: 100%;">')
+
+  // 处理表格样式
+  html = html.replace(
+    /<table([^>]*)>/gi,
+    '<table$1 style="border-collapse: collapse; width: 100%;">'
+  )
+  html = html.replace(/<td([^>]*)>/gi, (match, attrs) => {
+    if (attrs.includes('style=')) {
+      return match.replace(/style="([^"]*)"/i, 'style="$1; border: 1px solid #ddd; padding: 8px;"')
+    }
+    return `<td${attrs} style="border: 1px solid #ddd; padding: 8px;">`
+  })
+  html = html.replace(/<th([^>]*)>/gi, (match, attrs) => {
+    if (attrs.includes('style=')) {
+      return match.replace(
+        /style="([^"]*)"/i,
+        'style="$1; border: 1px solid #ddd; padding: 8px; background: #f5f5f5; font-weight: bold;"'
+      )
+    }
+    return `<th${attrs} style="border: 1px solid #ddd; padding: 8px; background: #f5f5f5; font-weight: bold;">`
+  })
+
+  // 保持文本对齐
+  html = html.replace(/text-align:\s*(left|center|right|justify)/gi, 'text-align: $1')
+
+  // 保持缩进（转换为 padding-left）
+  html = html.replace(/text-indent:\s*([^;]+)/gi, 'text-indent: $1')
+
+  // 保持行高
+  html = html.replace(/line-height:\s*([^;]+)/gi, 'line-height: $1')
+
+  // 处理列表缩进
+  html = html.replace(
+    /<p[^>]*style="[^"]*margin-left:\s*(\d+)([^;]*)[^"]*"[^>]*>\s*[-•●○]\s*/gi,
+    '<li style="margin-left: $1$2">'
+  )
 
   return html.trim()
 }
@@ -808,36 +1110,55 @@ const replaceAll = () => {
 const previewDocument = () => {
   if (!editor.value) return
 
-  const content = editor.value.getHTML()
-  const previewWindow = window.open('', '_blank')
-  if (!previewWindow) {
-    ElMessage.error('无法打开预览窗口')
-    return
-  }
+  previewContent.value = editor.value.getHTML()
+  documentTitle.value = '示例文档'
+  previewZoom.value = 100
+  documentPreviewVisible.value = true
+}
 
-  previewWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>文档预览</title>
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; }
-        h1 { font-size: 2em; }
-        h2 { font-size: 1.5em; }
-        h3 { font-size: 1.25em; }
-        p { line-height: 1.8; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { border: 1px solid #ddd; padding: 8px; }
-        blockquote { border-left: 3px solid #1a73e8; padding-left: 1em; color: #666; }
-        code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; }
-        pre { background: #1f2937; color: #fff; padding: 16px; border-radius: 8px; overflow-x: auto; }
-      </style>
-    </head>
-    <body>${content}</body>
-    </html>
-  `)
-  previewWindow.document.close()
+// 关闭文档预览
+const closeDocumentPreview = () => {
+  documentPreviewVisible.value = false
+  previewContent.value = ''
+}
+
+// 切换预览侧边栏
+const togglePreviewSidebar = () => {
+  previewSidebarVisible.value = !previewSidebarVisible.value
+}
+
+// 切换全屏
+const togglePreviewFullscreen = () => {
+  if (document.fullscreenElement) {
+    document.exitFullscreen()
+  } else {
+    document.documentElement.requestFullscreen()
+  }
+}
+
+// 缩小
+const zoomOut = () => {
+  if (previewZoom.value > 50) {
+    previewZoom.value -= 10
+  }
+}
+
+// 放大
+const zoomIn = () => {
+  if (previewZoom.value < 200) {
+    previewZoom.value += 10
+  }
+}
+
+// 适应宽度
+const fitToWidth = () => {
+  previewZoom.value = 100
+}
+
+// 标题样式展开/收起
+const isHeadingExpanded = ref(false)
+const toggleHeadingExpand = () => {
+  isHeadingExpanded.value = !isHeadingExpanded.value
 }
 
 // 打印文档
@@ -974,39 +1295,136 @@ const printDocument = () => {
 }
 
 .heading-group {
-  .heading-btn {
-    padding: 4px 12px;
+  position: relative;
+  width: 292px;
+  height: 66px;
+  z-index: 5; // 确保不被前面的元素遮挡
+
+  .heading-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+    background: #fff;
     border: 1px solid #e0e0e0;
-    border-radius: 4px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transition: all 0.2s ease;
+    max-height: 66px;
+    overflow: hidden;
+
+    &.expanded {
+      max-height: 140px; // 足够容纳两行
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+      z-index: 100;
+    }
+  }
+
+  .heading-row {
+    display: flex;
+    gap: 4px;
+    align-items: stretch;
+  }
+
+  .heading-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 48px;
+    padding: 4px 8px;
+    border: 1px solid #e8e8e8;
+    border-radius: 6px;
     background: #fff;
     cursor: pointer;
-    font-size: 12px;
     transition: all 0.15s ease;
 
     &:hover {
       border-color: #1a73e8;
-      color: #1a73e8;
+      background: #f0f7ff;
     }
 
     &.active {
       background: #d3e3fd;
       border-color: #1a73e8;
-      color: #1a73e8;
     }
 
-    &.h1 {
-      font-size: 16px;
-      font-weight: bold;
-    }
-
-    &.h2 {
-      font-size: 14px;
-      font-weight: bold;
-    }
-
-    &.h3 {
+    .heading-title {
       font-size: 13px;
-      font-weight: bold;
+      font-weight: 500;
+      color: #333;
+      line-height: 1.2;
+
+      &.h1 {
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      &.h2 {
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      &.h3 {
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      &.h4 {
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      &.h5 {
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      &.h6 {
+        font-size: 10px;
+        font-weight: 600;
+      }
+    }
+
+    .heading-label {
+      font-size: 10px;
+      color: #999;
+      margin-top: 2px;
+    }
+  }
+
+  .heading-scroll {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin-left: 2px;
+
+    .scroll-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 24px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      color: #999;
+      border-radius: 4px;
+
+      &:hover {
+        background: #f0f0f0;
+        color: #333;
+      }
+
+      :deep(svg) {
+        width: 16px;
+        height: 16px;
+      }
     }
   }
 }
@@ -1222,6 +1640,342 @@ const printDocument = () => {
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+// 文档预览对话框样式
+:global(.document-preview-dialog) {
+  .el-dialog__header {
+    padding: 0;
+    margin: 0;
+  }
+
+  .el-dialog__body {
+    padding: 0;
+    height: calc(100vh - 100px);
+    background: #f0f0f0;
+  }
+
+  .el-dialog__footer {
+    padding: 0;
+    border-top: 1px solid #e0e0e0;
+  }
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 16px;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .menu-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #333;
+
+      &:hover {
+        background: #f0f0f0;
+      }
+
+      :deep(svg) {
+        width: 24px;
+        height: 24px;
+      }
+    }
+
+    .doc-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: #333;
+    }
+  }
+
+  .header-right {
+    .close-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #666;
+
+      &:hover {
+        background: #f0f0f0;
+        color: #333;
+      }
+
+      :deep(svg) {
+        width: 24px;
+        height: 24px;
+      }
+    }
+  }
+}
+
+.preview-body {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  height: 100%;
+  overflow: auto;
+  padding: 40px 20px;
+  background: #e8eaed;
+}
+
+.preview-content-wrapper {
+  transform-origin: top center;
+}
+
+.preview-page {
+  width: 794px;
+  min-height: 1123px;
+  background: #fff;
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.1),
+    0 0 1px rgba(0, 0, 0, 0.1);
+  padding: 96px 120px;
+  transform-origin: top center;
+  position: relative;
+
+  // 页面边角装饰
+  &::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 30px;
+    height: 30px;
+    border-left: 2px solid #ccc;
+    border-top: 2px solid #ccc;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 30px;
+    height: 30px;
+    border-right: 2px solid #ccc;
+    border-top: 2px solid #ccc;
+  }
+}
+
+.page-content {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #333;
+
+  :deep(h1) {
+    font-size: 2em;
+    font-weight: 700;
+    margin: 0.67em 0;
+    color: #1a1a1a;
+  }
+
+  :deep(h2) {
+    font-size: 1.5em;
+    font-weight: 600;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    color: #2a2a2a;
+  }
+
+  :deep(h3) {
+    font-size: 1.25em;
+    font-weight: 600;
+    margin-top: 1.2em;
+    margin-bottom: 0.5em;
+    color: #3a3a3a;
+  }
+
+  :deep(p) {
+    margin: 1em 0;
+  }
+
+  :deep(ul),
+  :deep(ol) {
+    padding-left: 2em;
+    margin: 1em 0;
+  }
+
+  :deep(blockquote) {
+    border-left: 4px solid #2563eb;
+    padding-left: 1em;
+    margin: 1em 0;
+    color: #666;
+    font-style: italic;
+    background: #f8fafc;
+    padding: 0.5em 1em;
+  }
+
+  :deep(code) {
+    background: #f3f4f6;
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.9em;
+  }
+
+  :deep(pre) {
+    background: #1f2937;
+    color: #f9fafb;
+    padding: 1em;
+    border-radius: 8px;
+    overflow-x: auto;
+  }
+
+  :deep(table) {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1em 0;
+  }
+
+  :deep(th),
+  :deep(td) {
+    border: 1px solid #e5e7eb;
+    padding: 8px 12px;
+  }
+
+  :deep(th) {
+    background: #f9fafb;
+    font-weight: 600;
+  }
+
+  :deep(img) {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+  }
+
+  :deep(a) {
+    color: #2563eb;
+    text-decoration: underline;
+  }
+}
+
+.preview-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 16px;
+  background: #fff;
+
+  .footer-left {
+    .sidebar-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #666;
+      font-size: 13px;
+
+      &:hover {
+        background: #f0f0f0;
+        color: #333;
+      }
+
+      :deep(svg) {
+        width: 18px;
+        height: 18px;
+      }
+    }
+  }
+
+  .footer-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .zoom-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #666;
+
+      &:hover {
+        background: #f0f0f0;
+        color: #333;
+      }
+
+      :deep(svg) {
+        width: 18px;
+        height: 18px;
+      }
+
+      &.fit-btn {
+        :deep(svg) {
+          width: 20px;
+          height: 20px;
+        }
+      }
+    }
+
+    .zoom-slider {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+
+      .zoom-slider-input {
+        width: 100px;
+
+        :deep(.el-slider__runway) {
+          height: 4px;
+          background: #e0e0e0;
+        }
+
+        :deep(.el-slider__bar) {
+          height: 4px;
+          background: #1a73e8;
+        }
+
+        :deep(.el-slider__button) {
+          width: 12px;
+          height: 12px;
+          border: 2px solid #1a73e8;
+        }
+      }
+    }
+
+    .zoom-value {
+      min-width: 45px;
+      font-size: 13px;
+      color: #666;
+      text-align: right;
+    }
   }
 }
 </style>

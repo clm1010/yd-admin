@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, provide, defineAsyncComponent, watch } from 'vue'
+import { ref, computed, provide, watch } from 'vue'
 import type { Editor } from '@tiptap/vue-3'
 import { Icon } from '@/components/Icon'
 import StartToolbar from './StartToolbar.vue'
@@ -51,13 +51,8 @@ import TableToolbar from './TableToolbar.vue'
 import ToolsToolbar from './ToolsToolbar.vue'
 import { EditorKey } from './types'
 
-// 异步加载可选的工具栏（暂时用空组件代替）
-const PageToolbar = defineAsyncComponent(() =>
-  Promise.resolve({ template: '<div class="empty-toolbar">页面设置功能开发中...</div>' })
-)
-const ExportToolbar = defineAsyncComponent(() =>
-  Promise.resolve({ template: '<div class="empty-toolbar">导出功能开发中...</div>' })
-)
+import PageToolbar from './PageToolbar.vue'
+import ExportToolbar from './ExportToolbar.vue'
 
 // Props
 interface Props {
@@ -212,7 +207,8 @@ const toggleToolbar = () => {
 
 .toolbar-content {
   min-height: 60px;
-  overflow: hidden;
+  position: relative;
+  z-index: 20;
 }
 
 .empty-toolbar {
@@ -228,6 +224,7 @@ const toggleToolbar = () => {
 .slide-enter-active,
 .slide-leave-active {
   transition: all 0.2s ease;
+  overflow: hidden;
 }
 
 .slide-enter-from,

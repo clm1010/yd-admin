@@ -92,20 +92,17 @@
           <span class="text-gray-400">版本:</span>
           <span>{{ properties?.version || 'V1.0' }}</span>
         </div>
-        <div class="mt-2">
+        <div class="flex justify-between">
           <span class="text-gray-400 block mb-1">标签:</span>
-          <div class="flex flex-wrap gap-1">
-            <el-tag
-              v-for="tag in properties?.tags || []"
-              :key="tag"
-              size="small"
-              type="info"
-              effect="plain"
-              class="!border-gray-200"
-            >
-              {{ tag }}
-            </el-tag>
-          </div>
+          <el-tag
+            v-for="tag in properties?.tags || []"
+            :key="tag"
+            size="small"
+            type="primary"
+            effect="plain"
+          >
+            {{ tag }}
+          </el-tag>
         </div>
       </div>
     </div>
