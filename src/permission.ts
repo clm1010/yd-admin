@@ -62,7 +62,27 @@ router.beforeEach(async (to, from, next) => {
   loadStart()
 
   // ===== 临时跳过登录验证（开发调试用） =====
-  // 如果需要恢复登录验证，请删除或注释掉下面这两行代码
+  // 修复：跳过登录但仍然需要加载路由
+  const permissionStore = usePermissionStoreWithOut()
+  const dictStore = useDictStoreWithOut()
+
+  // 初始化字典（忽略错误，避免因后端未连接而阻塞）
+  if (!dictStore.getIsSetDict) {
+    try {
+      await dictStore.setDictMap()
+    } catch (error) {
+      console.warn('字典初始化失败（开发环境忽略）:', error)
+    }
+  }
+
+  // 初始化路由
+  if (!permissionStore.getRouters || permissionStore.getRouters.length === 0) {
+    await permissionStore.generateRoutes()
+    permissionStore.getAddRouters.forEach((route) => {
+      router.addRoute(route as unknown as RouteRecordRaw)
+    })
+  }
+
   next()
   return
   // =========================================

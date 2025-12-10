@@ -12,14 +12,6 @@
           >
             <el-menu-item v-for="category in categories" :key="category.id" :index="category.id">
               <span>{{ category.fileType }}</span>
-              <el-tag
-                v-if="category.count && category.count > 0"
-                class="ml-2"
-                size="small"
-                type="info"
-              >
-                {{ category.count }}
-              </el-tag>
             </el-menu-item>
           </el-menu>
         </div>
@@ -272,7 +264,7 @@
         <el-select v-model="formData.docCategory" placeholder="请选择" clearable class="w-full">
           <el-option
             v-for="item in docCategoryOptions"
-            :key="item.value"
+            :key="item.id"
             :label="item.label"
             :value="item.value"
           />
@@ -307,31 +299,27 @@
         </el-radio-group>
       </el-form-item>
 
-      <!-- 创建方式：新建文档 (显示文档类型图标) -->
-      <div v-if="formData.creationMethod === 'new'" class="pl-[120px] mt-4">
-        <div class="flex gap-6">
-          <div
-            v-for="type in fileTypes"
-            :key="type.value"
-            class="flex flex-col items-center cursor-pointer p-2 rounded hover:bg-gray-100"
-            :class="{ 'bg-blue-50 border border-blue-200': formData.fileType === type.value }"
-            @click="formData.fileType = type.value"
-          >
-            <Icon :icon="type.icon" class="text-40px mb-2" :color="type.color" />
-            <span class="text-sm text-gray-600">{{ type.label }}</span>
-          </div>
-        </div>
-      </div>
-
       <!-- 创建方式：上传文档 (显示上传组件) -->
       <div v-if="formData.creationMethod === 'upload'" class="pl-[120px] mt-4">
-        <el-upload class="upload-demo w-full" drag action="#" :auto-upload="false" multiple>
-          <Icon icon="ep:upload-filled" class="el-icon--upload text-50px text-gray-400" />
-          <div class="el-upload__text"> 将文件拖到此处，或 <em>点击上传</em> </div>
-          <template #tip>
-            <div class="el-upload__tip"> 支持 doc, docx, xlsx 等格式文件 </div>
-          </template>
-        </el-upload>
+        <div class="flex items-start">
+          <span class="text-red-500 mr-1">*</span>
+          <el-upload
+            class="upload-demo w-full"
+            drag
+            action="#"
+            :auto-upload="false"
+            :file-list="uploadFileList"
+            :on-change="handleFileChange"
+            :on-remove="handleFileRemove"
+            accept=".doc,.docx"
+          >
+            <Icon icon="ep:upload-filled" class="el-icon--upload text-50px text-gray-400" />
+            <div class="el-upload__text"> 将文件拖到此处，或 <em>点击上传</em> </div>
+            <template #tip>
+              <div class="el-upload__tip text-red-500"> * 支持 doc, docx 格式文件（必选） </div>
+            </template>
+          </el-upload>
+        </div>
       </div>
     </el-form>
 
@@ -578,7 +566,7 @@ const loading = ref(false)
 const total = ref(0)
 const list = ref<PerformanceApi.TrainingPerformanceVO[]>([])
 const activeTab = ref('recent')
-const selectedCategory = ref('all')
+const selectedCategory = ref('0') // '0' 对应 "全部"
 const categories = ref<PerformanceApi.DocCategoryVO[]>([])
 const selectedRows = ref<PerformanceApi.TrainingPerformanceVO[]>([])
 
@@ -588,7 +576,6 @@ const queryParams = reactive<PerformanceApi.TrainingPerformancePageReqVO>({
   name: undefined,
   uploadTime: [],
   status: undefined,
-  statusList: undefined, // 用于多选状态查询
   docCategory: undefined,
   fileType: undefined, // 左侧文档分类
   drillTheme: undefined,
@@ -599,7 +586,7 @@ const queryParams = reactive<PerformanceApi.TrainingPerformancePageReqVO>({
 
 const queryFormRef = ref()
 
-// 获取数据列表
+// 获取数据列表 - 调用 Java 后端 /api/users/getPageList
 const getList = async () => {
   loading.value = true
   try {
@@ -613,12 +600,18 @@ const getList = async () => {
       })
     )
 
+    // 添加标签页类型参数
+    if (activeTab.value === 'review') {
+      params.tabType = 'review'
+    } else if (activeTab.value === 'publish') {
+      params.tabType = 'publish'
+    }
+    // recent 标签页不传 tabType，查询全部数据
+
     console.log('查询参数:', params)
-    const data = await PerformanceApi.getTrainingPerformancePage(params as any)
-    list.value = data.list
-    total.value = data.total
-    // 每次获取数据后更新分类统计
-    await updateCategoryCounts()
+    const data = await PerformanceApi.getPageList(params as any)
+    list.value = data.list || []
+    total.value = data.total || 0
   } catch (error) {
     console.error('获取数据失败:', error)
     ElMessage.error('获取数据失败，请确保后端服务已启动')
@@ -638,47 +631,6 @@ const getCategories = async () => {
   }
 }
 
-// 动态统计每个分类的文档数量
-const updateCategoryCounts = async () => {
-  try {
-    // 获取所有数据（不分页）用于统计
-    const allData = await PerformanceApi.getTrainingPerformancePage({
-      pageNo: 1,
-      pageSize: 9999 // 获取全部数据
-    })
-
-    // 分类ID到分类名称的映射
-    const categoryIdMap: Record<string, string> = {
-      plan: '企图立案',
-      combat: '作战计划',
-      scheme: '演训方案',
-      book: '作战文书',
-      guide: '导调计划',
-      idea: '作战想点',
-      report: '战绩战报',
-      summary: '总结报告',
-      notice: '通知',
-      announce: '通告',
-      result: '评估结果'
-    }
-
-    // 统计每个分类的数量
-    categories.value = categories.value.map((category) => {
-      if (category.id === 'all') {
-        // "全部"显示总数
-        return { ...category, count: allData.total }
-      } else {
-        // 根据 docCategory 统计
-        const categoryName = categoryIdMap[category.id]
-        const count = allData.list.filter((item) => item.docCategory === categoryName).length
-        return { ...category, count }
-      }
-    })
-  } catch (error) {
-    console.error('统计分类数量失败:', error)
-  }
-}
-
 // 查询按钮
 const handleQuery = () => {
   queryParams.pageNo = 1
@@ -688,10 +640,9 @@ const handleQuery = () => {
 // 重置按钮
 const resetQuery = () => {
   queryFormRef.value?.resetFields()
-  selectedCategory.value = 'all'
+  selectedCategory.value = '0' // '0' 对应 "全部"
   queryParams.fileType = undefined // 重置分类过滤
-  queryParams.statusList = undefined // 重置状态列表过滤
-  queryParams.status = undefined // 重置状态过滤
+  activeTab.value = 'recent' // 重置标签页
   handleQuery()
 }
 
@@ -701,8 +652,8 @@ const handleCategorySelect = (index: string) => {
   console.log('选择分类:', index)
 
   // 将选择的分类传递到查询参数
-  if (index === 'all') {
-    // 选择全部时，清空分类过滤
+  if (index === '0') {
+    // 选择全部时 (id='0')，清空分类过滤
     queryParams.fileType = undefined
   } else {
     // 将分类 ID 传递给查询参数
@@ -725,9 +676,12 @@ const formData = reactive({
   docCategory: '', // 文档分类
   brief: '', // 简介
   editableUser: [], // 可编辑用户
-  creationMethod: 'new', // 创建方式: new, upload
-  fileType: '' // 文件类型
+  creationMethod: 'new' // 创建方式: new, upload
 })
+
+// 上传文件列表
+const uploadFileList = ref<any[]>([])
+const uploadFile = ref<File | null>(null)
 
 // 表单验证规则
 const formRules = {
@@ -738,21 +692,16 @@ const formRules = {
   creationMethod: [{ required: true, message: '请选择创建方式', trigger: 'change' }]
 }
 
-// 下拉框选项（前端写死）
-const docCategoryOptions = [
-  { label: '企图立案', value: '企图立案' },
-  { label: '总体方案', value: '总体方案' },
-  { label: '作战计划', value: '作战计划' },
-  { label: '演训方案', value: '演训方案' },
-  { label: '作战文书', value: '作战文书' },
-  { label: '导调计划', value: '导调计划' },
-  { label: '作战想定', value: '作战想定' },
-  { label: '战绩战报', value: '战绩战报' },
-  { label: '总结报告', value: '总结报告' },
-  { label: '通知', value: '通知' },
-  { label: '通告', value: '通告' },
-  { label: '评估结果', value: '评估结果' }
-]
+// 文档分类下拉选项（从中间件获取，过滤掉"全部"）
+const docCategoryOptions = computed(() => {
+  return categories.value
+    .filter((item) => item.id !== '0') // 过滤掉"全部"选项
+    .map((item) => ({
+      label: item.fileType,
+      value: item.fileType, // value 使用 fileType（分类名称）
+      id: item.id // 保留 id 用于传递 fileType 参数
+    }))
+})
 
 const editableUserOptions = [
   { label: '管理员', value: 'admin' },
@@ -767,18 +716,6 @@ const userOptions = [
   { label: 'user3', value: 'user3' },
   { label: 'user4', value: 'user4' },
   { label: 'user5', value: 'user5' }
-]
-
-const fileTypes = [
-  { label: 'Word文档', value: 'doc', icon: 'vscode-icons:file-type-word', color: '#2b579a' },
-  { label: 'Excel表格', value: 'xlsx', icon: 'vscode-icons:file-type-excel', color: '#217346' },
-  {
-    label: 'PPT演示文稿',
-    value: 'ppt',
-    icon: 'vscode-icons:file-type-powerpoint',
-    color: '#d24726'
-  },
-  { label: 'TXT文本文档', value: 'txt', icon: 'vscode-icons:file-type-text', color: '#909399' }
 ]
 
 // 演训数据选择器逻辑
@@ -852,6 +789,17 @@ const handleDrillSelect = (row: any) => {
   formRef.value?.validateField('drillDataId')
 }
 
+// 文件选择变化
+const handleFileChange = (file: any) => {
+  console.log('文件选择:', file)
+  uploadFile.value = file.raw
+}
+
+// 文件移除
+const handleFileRemove = () => {
+  uploadFile.value = null
+}
+
 // 新建
 const handleAdd = () => {
   dialogVisible.value = true
@@ -863,9 +811,11 @@ const handleAdd = () => {
     docCategory: '',
     brief: '',
     editableUser: [],
-    creationMethod: 'new',
-    fileType: ''
+    creationMethod: 'new'
   })
+  // 重置上传文件
+  uploadFileList.value = []
+  uploadFile.value = null
   // 清除验证
   nextTick(() => {
     formRef.value?.clearValidate()
@@ -876,25 +826,90 @@ const handleAdd = () => {
 const handleSave = async () => {
   try {
     await formRef.value?.validate()
+
+    // 只有选择上传文档模式时，才验证是否已选择文件
+    if (formData.creationMethod === 'upload' && !uploadFile.value) {
+      ElMessage.warning('请选择要上传的文件')
+      return
+    }
+
     loading.value = true
 
-    const saveData = {
-      ...formData,
+    // 根据选择的 docCategory 找到对应的分类 id 作为 fileType
+    const selectedCategory = docCategoryOptions.value.find(
+      (item) => item.value === formData.docCategory
+    )
+    const fileType = selectedCategory?.id || ''
+
+    // 构建保存数据
+    const saveData: any = {
+      drillDataId: formData.drillDataId,
+      drillDataName: formData.drillDataName,
+      name: formData.name,
+      docCategory: formData.docCategory,
+      brief: formData.brief,
       editableUser: formData.editableUser.join(','), // 数组转字符串
+      creationMethod: formData.creationMethod,
+      fileType: fileType, // 新建文档和上传文档都传递 fileType
       author: 'admin', // 当前用户
       scope: '可编辑',
       status: '编辑中'
     }
 
-    await PerformanceApi.createTrainingPerformance(saveData as any)
-    ElMessage.success('创建成功')
+    // 判断创建方式
+    if (formData.creationMethod === 'upload') {
+      // 上传文档模式
+      // 先上传文档文件
+      console.log('上传文档文件:', uploadFile.value!.name)
+      const uploadResult = await PerformanceApi.uploadDocument({
+        file: uploadFile.value!
+      })
+      console.log('上传结果:', uploadResult, typeof uploadResult)
+
+      // 处理上传结果 - 兼容两种响应格式:
+      // 1. 完整响应对象: {code: 200, data: "fileId", msg: "操作成功"}
+      // 2. axios 解包后直接返回 data 值: "fileId" (字符串)
+      let fileId: string | null = null
+
+      if (typeof uploadResult === 'string') {
+        // axios 封装解包后直接返回了 data 值
+        fileId = uploadResult
+        console.log('上传成功(解包响应), 文件ID:', fileId)
+      } else if (uploadResult && typeof uploadResult === 'object') {
+        // 完整响应对象
+        if (uploadResult.code === 200 || uploadResult.code === 0) {
+          fileId = uploadResult.data
+          console.log('上传成功(完整响应), 文件ID:', fileId)
+        } else {
+          ElMessage.error(uploadResult.msg || '上传文档失败')
+          return
+        }
+      }
+
+      if (!fileId) {
+        ElMessage.error('上传文档失败：未获取到文件ID')
+        return
+      }
+
+      // 将上传返回的 fileId 传递给 createNewData
+      saveData.fileId = fileId
+
+      // 创建筹划方案记录
+      await PerformanceApi.createNewData(saveData)
+      ElMessage.success('创建成功')
+    } else {
+      // 新建文档模式
+      await PerformanceApi.createNewData(saveData)
+      ElMessage.success('创建成功')
+    }
+
     dialogVisible.value = false
     getList()
   } catch (error: any) {
     if (error !== false) {
       // 不是验证失败
       console.error('创建失败:', error)
-      ElMessage.error('创建失败')
+      ElMessage.error(error.message || '创建失败')
     }
   } finally {
     loading.value = false
@@ -916,22 +931,10 @@ const handleTabClick = (tab: any) => {
   console.log('切换Tab:', tab.props.name)
   activeTab.value = tab.props.name
 
-  // 1、点击 标签页 最近文档 表格el-table展示全部内容
-  // 2、点击 审核列表 表格el-table展示（审核通过、待审核）的数据
-  // 3、点击 文档发布 表格el-table展示发布成功
-
-  if (tab.props.name === 'recent') {
-    queryParams.status = undefined
-    queryParams.statusList = undefined
-  } else if (tab.props.name === 'review') {
-    queryParams.status = undefined
-    queryParams.statusList = ['待审核', '审核通过', '驳回']
-    console.log('设置审核列表筛选条件:', queryParams.statusList)
-  } else if (tab.props.name === 'publish') {
-    queryParams.status = '发布成功'
-    queryParams.statusList = undefined
-    console.log('设置发布筛选条件:', queryParams.status)
-  }
+  // 标签页切换：
+  // 1、最近文档 - 查询全部数据（不传 tabType）
+  // 2、审核列表 - 传递 tabType='review'
+  // 3、文档发布 - 传递 tabType='publish'
 
   handleQuery()
 }
@@ -1078,19 +1081,30 @@ const handleAuditSubmit = async () => {
 
   auditLoading.value = true
   try {
-    await PerformanceApi.submitAudit({
+    const result = await PerformanceApi.submitAudit({
       id: currentAuditRow.value.id,
       ...auditFormData
     })
-    ElMessage.success('审核成功')
-    auditDialogVisible.value = false
-    getList()
-  } catch (error) {
-    // console.error('审核失败:', error)
-    // 演示模式下也提示成功
-    ElMessage.success('审核成功')
-    auditDialogVisible.value = false
-    getList()
+    console.log('提交审核结果:', result)
+
+    // 处理响应 - 兼容两种格式
+    if (typeof result === 'object' && result !== null) {
+      if (result.code === 200 || result.code === 0) {
+        ElMessage.success(result.msg || '提交审核成功')
+        auditDialogVisible.value = false
+        getList()
+      } else {
+        ElMessage.error(result.msg || '提交审核失败')
+      }
+    } else {
+      // 直接成功
+      ElMessage.success('提交审核成功')
+      auditDialogVisible.value = false
+      getList()
+    }
+  } catch (error: any) {
+    console.error('提交审核失败:', error)
+    ElMessage.error(error.message || '提交审核失败')
   } finally {
     auditLoading.value = false
   }
@@ -1117,18 +1131,30 @@ const handlePublishSubmit = async () => {
 
   publishLoading.value = true
   try {
-    await PerformanceApi.publishDocument({
+    const result = await PerformanceApi.publishDocument({
       id: currentPublishRow.value.id,
       visibleScope: publishFormData.visibleScope
     })
-    ElMessage.success('发布成功')
-    publishDialogVisible.value = false
-    getList()
-  } catch (error) {
+    console.log('发布结果:', result)
+
+    // 处理响应 - 兼容两种格式
+    if (typeof result === 'object' && result !== null) {
+      if (result.code === 200 || result.code === 0) {
+        ElMessage.success(result.msg || '发布成功')
+        publishDialogVisible.value = false
+        getList()
+      } else {
+        ElMessage.error(result.msg || '发布失败')
+      }
+    } else {
+      // 直接成功
+      ElMessage.success('发布成功')
+      publishDialogVisible.value = false
+      getList()
+    }
+  } catch (error: any) {
     console.error('发布失败:', error)
-    ElMessage.success('发布成功')
-    publishDialogVisible.value = false
-    getList()
+    ElMessage.error(error.message || '发布失败')
   } finally {
     publishLoading.value = false
   }

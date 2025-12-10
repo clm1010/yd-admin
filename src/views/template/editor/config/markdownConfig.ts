@@ -1,9 +1,9 @@
 /**
- * Umo Editor 协同编辑配置文件
+ * Markdown 协同编辑器配置文件
  */
 
-export interface CollaborationConfig {
-  // WebSocket 服务器地址
+export interface MarkdownCollaborationConfig {
+  // WebSocket 服务器地址 (使用独立的 /markdown 路径)
   wsUrl: string
   // 是否启用协同编辑
   enabled: boolean
@@ -19,16 +19,20 @@ export interface CollaborationConfig {
   }
 }
 
-// 默认配置
-// 规范化 ws 地址，强制追加协同网关前缀，避免与其他网关冲突
-const resolveWsUrl = () => {
-  const envUrl = (import.meta.env.VITE_WS_URL as string | undefined) || 'ws://localhost:3001'
-  const normalized = envUrl.replace(/\/+$/, '')
-  return normalized.endsWith('/collaboration') ? normalized : `${normalized}/collaboration`
+// 获取 WebSocket 基础 URL
+const getWsBaseUrl = (): string => {
+  const envUrl = import.meta.env.VITE_WS_URL
+  if (envUrl) {
+    // 确保 URL 格式正确
+    return envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl
+  }
+  return 'ws://localhost:3001'
 }
 
-export const defaultCollaborationConfig: CollaborationConfig = {
-  wsUrl: resolveWsUrl(),
+// 默认配置
+export const defaultMarkdownConfig: MarkdownCollaborationConfig = {
+  // 使用独立的 /markdown WebSocket 路径
+  wsUrl: `${getWsBaseUrl()}/markdown`,
   enabled: true,
   reconnect: {
     maxAttempts: 10,
@@ -66,17 +70,16 @@ export const generateRandomUsername = (): string => {
   return `${adj}${noun}${Math.floor(Math.random() * 100)}`
 }
 
-// Umo Editor 默认配置
+// Markdown 编辑器默认配置
 export const defaultEditorOptions = {
   // 文档配置
   document: {
-    placeholder: '开始输入内容...',
+    placeholder: '开始编写模板内容...',
     enableSpellcheck: false
   },
   // 工具栏配置
   toolbar: {
     defaultMode: 'classic'
-  },
-  // CDN 配置 - 使用本地资源而不是 unpkg.com
-  cdnUrl: '/editor-external'
+  }
 }
+

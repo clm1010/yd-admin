@@ -11,6 +11,7 @@ export interface TrainingPerformanceVO {
   editableUser?: string // 可编辑用户
   creationMethod: string // 创建方式: 'new', 'upload'
   fileType?: string // 新建文档时选择的文件类型
+  fileId?: any // 上传文档时返回的文件ID
 
   // 保留原有字段以兼容列表显示
   college?: string
@@ -27,7 +28,6 @@ export interface TrainingPerformanceVO {
 export interface TrainingPerformancePageReqVO extends PageParam {
   name?: string // 方案名称
   status?: string // 文档状态
-  statusList?: string[] // 文档状态列表（用于多选查询）
   uploadTime?: string[] // 上传时间范围
   docCategory?: string // 文档分类
   fileType?: string // 左侧文档分类ID
@@ -35,6 +35,7 @@ export interface TrainingPerformancePageReqVO extends PageParam {
   drillType?: string // 演训类型
   drillLevel?: string // 演训等级
   docType?: string // 文档类型
+  tabType?: string // 标签页类型: 'review' | 'publish' | undefined(recent)
 }
 
 // 文档分类接口
@@ -102,11 +103,30 @@ export interface FileStreamResponse {
 // 通过环境变量配置，支持开发和生产环境切换
 const BASE_URL = `${import.meta.env.VITE_COLLABORATION_API_URL || 'http://localhost:3001'}/api`
 
-// 获取演训方案分页数据
+// 上传文档参数接口
+export interface UploadDocumentData {
+  id?: string // 文档ID（可选）
+  file: File // 文件对象
+}
+
+// 获取演训方案分页数据 (旧接口，保留兼容)
 export const getTrainingPerformancePage = async (params: TrainingPerformancePageReqVO) => {
   return await request.get({
     url: `${BASE_URL}/training/performance/page`,
     params
+  })
+}
+
+/**
+ * 获取分页列表数据 - 调用 Java 后端
+ * POST /api/users/getPageList
+ * @param params 查询参数
+ * @param params.tabType 标签页类型: 'review' | 'publish' | undefined(recent 查询全部)
+ */
+export const getPageList = async (params: TrainingPerformancePageReqVO) => {
+  return await request.post({
+    url: `${BASE_URL}/training/performance/pageList`,
+    data: params
   })
 }
 
@@ -117,10 +137,18 @@ export const getDocCategories = async () => {
   })
 }
 
-// 创建演训方案
+// 创建演训方案 (Mock)
 export const createTrainingPerformance = async (data: TrainingPerformanceVO) => {
   return await request.post({
     url: `${BASE_URL}/training/performance/create`,
+    data
+  })
+}
+
+// 新建筹划方案 - 调用 Java 后端
+export const createNewData = async (data: TrainingPerformanceVO) => {
+  return await request.post({
+    url: `${BASE_URL}/training/performance/newData`,
     data
   })
 }
@@ -188,6 +216,24 @@ export const getDrillDataList = async (_params?: any) => {
   return Promise.resolve([])
 }
 
+// 上传文档文件
+export const uploadDocument = async (data: UploadDocumentData) => {
+  const formData = new FormData()
+  // id 参数可选，不传也可以
+  if (data.id) {
+    formData.append('id', data.id)
+  }
+  formData.append('file', data.file)
+
+  return await request.post({
+    url: `${BASE_URL}/document/saveDocument`,
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
 // ==================== 权限校验与文件流接口 ====================
 
 /**
@@ -230,9 +276,9 @@ export const getFileStream = async (id: number): Promise<Blob | null> => {
         const text = await response.text()
         console.log('JSON 响应内容:', text)
         try {
-        const json = JSON.parse(text)
-        if (json.data === null || json.code !== 0) {
-          return null
+          const json = JSON.parse(text)
+          if (json.data === null || json.code !== 0) {
+            return null
           }
         } catch (e) {
           // 不是有效的 JSON，当作二进制数据处理

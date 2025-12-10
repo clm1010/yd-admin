@@ -366,6 +366,40 @@ const remainingRouter: AppRouteRecordRaw[] = [
     ]
   },
   {
+    path: '/template',
+    component: Layout,
+    name: 'Template',
+    meta: {
+      hidden: false, // 明确设置为不隐藏
+      title: '模板管理',
+      icon: 'ep:document-copy'
+    },
+    children: [
+      {
+        path: 'management',
+        component: () => import('@/views/template/management/index.vue'),
+        name: 'TemplateManagement',
+        meta: {
+          hidden: false, // 明确设置为不隐藏
+          title: '模板管理',
+          icon: 'ep:files'
+        }
+      },
+      {
+        path: 'editor/:id',
+        component: () => import('@/views/template/editor/MarkdownCollaborativeEditor.vue'),
+        name: 'TemplateEditor',
+        meta: {
+          hidden: true,
+          title: '模板写作',
+          noCache: true,
+          canTo: true,
+          activeMenu: '/template/management'
+        }
+      }
+    ]
+  },
+  {
     path: '/mall/product', // 商品中心
     component: Layout,
     name: 'ProductCenter',

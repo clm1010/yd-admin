@@ -93,7 +93,7 @@
     "mockjs": "^1.1.0",
     "nanoid": "^5.0.0",
     "nprogress": "^0.2.0",
-    "pdfjs-dist": "^5.4.449",
+    "pdfjs-dist": "^2.6.347",
     "pinia": "^2.1.7",
     "pinia-plugin-persistedstate": "^3.2.1",
     "qrcode": "^1.5.3",
