@@ -36,16 +36,16 @@ export interface TrainingPerformanceVO {
 
 // 查询参数接口
 export interface TrainingPerformancePageReqVO extends PageParam {
-  name?: string // 方案名称
-  status?: string // 文档状态
-  uploadTime?: string[] // 上传时间范围
-  docCategory?: string // 文档分类
-  fileType?: string // 左侧文档分类ID
-  drillTheme?: string // 演训主题
-  drillType?: string // 演训类型
-  drillLevel?: string // 演训等级
-  docType?: string // 文档类型
-  tabType?: string // 标签页类型: 'review' | 'publish' | undefined(recent)
+  planName?: string // 方案名称
+  applyNode?: string // 审核状态
+  createTime?: string //创建时间 (上传时间)
+  fileType?: string //左侧文档分类
+  exerciseTheme?: string //演训主题
+  exerciseType?: string //演训类型
+  level?: string // 演训等级
+  collegeCode?: string // 所属学院
+  docType?: string // 文件类型
+  tabType?: string // 标签页类型undefined(recent)
 }
 
 // 文档分类接口
