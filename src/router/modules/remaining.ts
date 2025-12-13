@@ -346,60 +346,6 @@ const remainingRouter: AppRouteRecordRaw[] = [
     ]
   },
   {
-    path: '/training',
-    component: Layout,
-    name: 'Training',
-    meta: {
-      title: '演训',
-      icon: 'ep:monitor'
-    },
-    children: [
-      {
-        path: 'performance',
-        component: () => import('@/views/training/performance/index.vue'),
-        name: 'TrainingPerformance',
-        meta: {
-          title: '演训方案',
-          icon: 'ep:document'
-        }
-      }
-    ]
-  },
-  {
-    path: '/template',
-    component: Layout,
-    name: 'Template',
-    meta: {
-      hidden: false, // 明确设置为不隐藏
-      title: '模板管理',
-      icon: 'ep:document-copy'
-    },
-    children: [
-      {
-        path: 'management',
-        component: () => import('@/views/template/management/index.vue'),
-        name: 'TemplateManagement',
-        meta: {
-          hidden: false, // 明确设置为不隐藏
-          title: '模板管理',
-          icon: 'ep:files'
-        }
-      },
-      {
-        path: 'editor/:id',
-        component: () => import('@/views/template/editor/MarkdownCollaborativeEditor.vue'),
-        name: 'TemplateEditor',
-        meta: {
-          hidden: true,
-          title: '模板写作',
-          noCache: true,
-          canTo: true,
-          activeMenu: '/template/management'
-        }
-      }
-    ]
-  },
-  {
     path: '/mall/product', // 商品中心
     component: Layout,
     name: 'ProductCenter',
@@ -802,29 +748,67 @@ const remainingRouter: AppRouteRecordRaw[] = [
     ]
   },
   {
-    path: '/document',
+    path: '/training',
     component: Layout,
-    name: 'Document',
-    meta: { hidden: true },
+    name: 'Training',
+    meta: {
+      title: '演训',
+      icon: 'ep:monitor'
+    },
     children: [
       {
-        path: 'edit/:id',
-        component: () => import('@/views/document/TiptapCollaborativeEditor.vue'),
+        path: 'performance',
+        component: () => import('@/views/training/performance/index.vue'),
+        name: 'TrainingPerformance',
+        meta: {
+          title: '演训方案',
+          icon: 'ep:document'
+        }
+      },
+      {
+        path: 'editor/:id',
+        component: () => import('@/views/training/document/TiptapCollaborativeEditor.vue'),
         name: 'DocumentEdit',
         meta: {
           title: '协同编辑',
           hidden: true,
-          noCache: true
+          noCache: true,
+          canTo: true,
+          activeMenu: '/training/performance'
+        }
+      }
+    ]
+  },
+  {
+    path: '/template',
+    component: Layout,
+    name: 'Template',
+    meta: {
+      hidden: false, // 明确设置为不隐藏
+      title: '模板管理',
+      icon: 'ep:document-copy'
+    },
+    children: [
+      {
+        path: 'management',
+        component: () => import('@/views/template/management/index.vue'),
+        name: 'TemplateManagement',
+        meta: {
+          hidden: false, // 明确设置为不隐藏
+          title: '模板管理',
+          icon: 'ep:files'
         }
       },
       {
-        path: 'tiptap/:id',
-        component: () => import('@/views/document/TiptapCollaborativeEditor.vue'),
-        name: 'TiptapDocumentEdit',
+        path: 'editor/:id',
+        component: () => import('@/views/template/editor/MarkdownCollaborativeEditor.vue'),
+        name: 'TemplateEditor',
         meta: {
-          title: 'Tiptap 协同编辑',
           hidden: true,
-          noCache: true
+          title: '模板写作',
+          noCache: true,
+          canTo: true,
+          activeMenu: '/template/management'
         }
       }
     ]

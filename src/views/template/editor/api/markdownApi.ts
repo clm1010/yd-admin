@@ -183,10 +183,20 @@ export interface SaveMarkdownFileResponse {
   msg?: string
 }
 
+// 创建模板管理专用的 axios 实例
+const templateRequest = axios.create({
+  baseURL: `${import.meta.env.VITE_COLLABORATION_API_URL || 'http://localhost:3001'}/api/template/management`,
+  timeout: 60000,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+})
+
 /**
  * 保存 Markdown 文件到后端
- * 调用 /api/markdown/saveDocument 接口
- * @param id 文档ID
+ * 调用 /api/template/management/saveFile 接口
+ * 通过中间层代理调用 Java 后端: POST /api/users/saveFile
+ * @param id 文档ID（模板ID）
  * @param file Blob 文件流
  * @param filename 文件名（可选）
  */
@@ -200,17 +210,17 @@ export const saveMarkdownFile = async (
     formData.append('id', id)
     formData.append('file', file, filename)
 
-    const res = await markdownRequest.post<SaveMarkdownFileResponse>('/saveDocument', formData, {
+    const res = await templateRequest.post<SaveMarkdownFileResponse>('/saveFile', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       },
       timeout: 60000 // 文件上传超时设为 60 秒
     })
 
-    console.log('保存 Markdown 文档响应:', res.data)
+    console.log('保存模板文档响应:', res.data)
     return res.data
   } catch (error) {
-    console.error('保存 Markdown 文档失败:', error)
+    console.error('保存模板文档失败:', error)
     throw error
   }
 }

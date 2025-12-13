@@ -1,27 +1,37 @@
 import request from '@/config/axios'
+import { isArray, isNil } from 'lodash-es'
 
 // 演训方案数据接口
 export interface TrainingPerformanceVO {
   id?: number
   drillDataId?: string // 演训数据ID
   drillDataName?: string // 演训数据名称
-  name: string // 筹划方案名称
-  docCategory: string // 文档分类
-  brief?: string // 简介
-  editableUser?: string // 可编辑用户
-  creationMethod: string // 创建方式: 'new', 'upload'
-  fileType?: string // 新建文档时选择的文件类型
-  fileId?: any // 上传文档时返回的文件ID
+  planName: string // 筹划方案名称
+  collegeCode?: string // 学院代码
+  fileType: string //左侧树文档分类
+  activeUser?: string // 可编辑用户
+  description?: string // 简介/描述
+  level?: string //演训等级
+  exerciseType?: string // 演训类型
+  exerciseTheme?: string // 演训主题
+  docType?: string // 文件类型
+  createBy?: string // 创建人
+  applyNode?: string // 审核状态
+  createTime?: string // 创建时间 (上传时间)
+  updateTime?: string // 更新时间
+  delFlg?: string // 删除(0-未删除,1-已删除)
+  flowId?: string // 审核流程id
+  flowNode?: string // 当前审核节点
+  creationMethod?: string // 创建方式: 'new', 'upload'
+  newFileType?: string //新建文档时选择的文件类型
+  fileId?: any //上传文档时返回的文件ID
+  scope?: string // 权限范围
 
   // 保留原有字段以兼容列表显示
-  college?: string
-  drillLevel?: string
-  drillType?: string
-  drillTheme?: string
-  author?: string
-  scope?: string
-  status?: string
-  createTime?: string
+  offset?: number // 偏移量
+  userId?: string // 用户ID
+  version?: string // 版本号
+  author?: string // 作者
 }
 
 // 查询参数接口
@@ -121,7 +131,7 @@ export const getTrainingPerformancePage = async (params: TrainingPerformancePage
  * 获取分页列表数据 - 调用 Java 后端
  * POST /api/users/getPageList
  * @param params 查询参数
- * @param params.tabType 标签页类型: 'review' | 'publish' | undefined(recent 查询全部)
+ * @param params.tabType 标签页类型: 'recent' | 'review' | 'publish'
  */
 export const getPageList = async (params: TrainingPerformancePageReqVO) => {
   return await request.post({
@@ -161,12 +171,24 @@ export const updateTrainingPerformance = async (data: TrainingPerformanceVO) => 
   })
 }
 
+/**
+ * 编辑演训方案数据
+ * 调用 Java 后端: POST /api/tbTemplate/update
+ * @param data 更新数据
+ */
+export const updatePerformanceData = async (data: any) => {
+  return await request.post({
+    url: `${BASE_URL}/training/performance/editData`,
+    data
+  })
+}
+
 // 删除演训方案
 export const deleteTrainingPerformance = async (ids: number | number[]) => {
-  const idsArray = Array.isArray(ids) ? ids : [ids]
+  const idsArray = isArray(ids) ? ids : [ids]
   return await request.delete({
     url: `${BASE_URL}/training/performance/delete`,
-    data: { ids: idsArray }
+    data: idsArray
   })
 }
 
@@ -216,7 +238,12 @@ export const getDrillDataList = async (_params?: any) => {
   return Promise.resolve([])
 }
 
-// 上传文档文件
+/**
+ * 上传文档文件
+ * 使用 template/management/saveFile 接口，调用 Java 后端 /api/tbTemplate/saveFile
+ * @param data 上传数据 { file, id? }
+ * @returns 返回 fileId
+ */
 export const uploadDocument = async (data: UploadDocumentData) => {
   const formData = new FormData()
   // id 参数可选，不传也可以
@@ -226,7 +253,7 @@ export const uploadDocument = async (data: UploadDocumentData) => {
   formData.append('file', data.file)
 
   return await request.post({
-    url: `${BASE_URL}/document/saveDocument`,
+    url: `${BASE_URL}/template/management/saveFile`,
     data: formData,
     headers: {
       'Content-Type': 'multipart/form-data'
@@ -277,10 +304,10 @@ export const getFileStream = async (id: number): Promise<Blob | null> => {
         console.log('JSON 响应内容:', text)
         try {
           const json = JSON.parse(text)
-          if (json.data === null || json.code !== 0) {
+          if (isNil(json.data) || json.code !== 0) {
             return null
           }
-        } catch (e) {
+        } catch {
           // 不是有效的 JSON，当作二进制数据处理
         }
       }
@@ -288,7 +315,7 @@ export const getFileStream = async (id: number): Promise<Blob | null> => {
     }
 
     // 如果不是 Blob，尝试检查是否是 ArrayBuffer 或其他二进制数据
-    if (response && (response as any).data instanceof Blob) {
+    if (!isNil(response) && (response as any).data instanceof Blob) {
       const blob = (response as any).data as Blob
       console.log('响应包含 Blob data, size:', blob.size)
       if (blob.size > 0) {

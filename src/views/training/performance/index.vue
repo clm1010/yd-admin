@@ -136,7 +136,7 @@
             type="danger"
             plain
             size="large"
-            :disabled="selectedRows.length === 0"
+            :disabled="!canBatchDelete"
             @click="handleBatchDelete"
           >
             <Icon icon="ep:delete" class="mr-1" />
@@ -179,10 +179,14 @@
             </template>
           </el-table-column>
           <el-table-column label="创建时间" prop="createTime" align="center" width="180" />
-          <el-table-column label="操作" align="center" width="200" fixed="right">
+          <el-table-column label="操作" align="center" width="280" fixed="right">
             <template #default="scope">
-              <!-- 编辑中状态显示：写作、审核、删除 -->
+              <!-- 编辑中状态显示：编辑、写作、审核、删除 -->
               <div v-if="scope.row.status === '编辑中'">
+                <el-button link type="primary" @click="handleEditData(scope.row)">
+                  <Icon icon="ep:edit-pen" />
+                  编辑
+                </el-button>
                 <el-button link type="primary" @click="handleEdit(scope.row)">
                   <Icon icon="ep:edit" />
                   写作
@@ -236,10 +240,10 @@
     </el-col>
   </el-row>
 
-  <!-- 新建筹划方案弹窗 -->
+  <!-- 新建/编辑筹划方案弹窗 -->
   <el-dialog
     v-model="dialogVisible"
-    title="新建筹划方案"
+    :title="dialogTitle"
     width="800px"
     :close-on-click-modal="false"
   >
@@ -292,15 +296,16 @@
         </el-select>
       </el-form-item>
 
-      <el-form-item label="创建方式" prop="creationMethod">
+      <!-- 创建方式（仅新建时显示） -->
+      <el-form-item v-if="!isEditMode" label="创建方式" prop="creationMethod">
         <el-radio-group v-model="formData.creationMethod">
           <el-radio label="new">新建文档</el-radio>
           <el-radio label="upload">上传文档</el-radio>
         </el-radio-group>
       </el-form-item>
 
-      <!-- 创建方式：上传文档 (显示上传组件) -->
-      <div v-if="formData.creationMethod === 'upload'" class="pl-[120px] mt-4">
+      <!-- 创建方式：上传文档 (显示上传组件，仅新建时显示) -->
+      <div v-if="!isEditMode && formData.creationMethod === 'upload'" class="pl-[120px] mt-4">
         <div class="flex items-start">
           <span class="text-red-500 mr-1">*</span>
           <el-upload
@@ -551,12 +556,26 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, onMounted, nextTick, computed } from 'vue'
+import { ref, reactive, onMounted, nextTick, computed, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import * as PerformanceApi from '@/api/training/performance'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import { Search, ArrowDown } from '@element-plus/icons-vue'
 import { useCollaborationUserStore } from '@/store/modules/collaborationUser'
+import {
+  isEmpty,
+  isArray,
+  isNil,
+  isString,
+  isObject,
+  pickBy,
+  find,
+  every,
+  filter,
+  map,
+  trim,
+  includes
+} from 'lodash-es'
 
 defineOptions({ name: 'TrainingPerformance' })
 
@@ -569,6 +588,12 @@ const activeTab = ref('recent')
 const selectedCategory = ref('0') // '0' 对应 "全部"
 const categories = ref<PerformanceApi.DocCategoryVO[]>([])
 const selectedRows = ref<PerformanceApi.TrainingPerformanceVO[]>([])
+
+// 计算属性：判断是否可以批量删除（只有选中的数据都是"编辑中"状态才能删除）
+const canBatchDelete = computed(() => {
+  if (isEmpty(selectedRows.value)) return false
+  return every(selectedRows.value, (row) => row.status === '编辑中')
+})
 
 const queryParams = reactive<PerformanceApi.TrainingPerformancePageReqVO>({
   pageNo: 1,
@@ -590,23 +615,20 @@ const queryFormRef = ref()
 const getList = async () => {
   loading.value = true
   try {
-    // 构建查询参数，去除 undefined 值
-    const params = Object.fromEntries(
-      Object.entries(queryParams).filter(([_, value]) => {
-        if (Array.isArray(value)) {
-          return value.length > 0
-        }
-        return value !== undefined && value !== null && value !== ''
-      })
-    )
+    // 使用 lodash pickBy 过滤空值
+    const params = pickBy(queryParams, (value) => {
+      if (isArray(value)) return !isEmpty(value)
+      return !isNil(value) && value !== ''
+    }) as Record<string, any>
+
+    // 将 uploadTime 数组转换为字符串格式 '2025-12-10, 2025-12-11'
+    if (isArray(params.uploadTime) && params.uploadTime.length === 2) {
+      params.uploadTime = params.uploadTime.join(', ')
+    }
 
     // 添加标签页类型参数
-    if (activeTab.value === 'review') {
-      params.tabType = 'review'
-    } else if (activeTab.value === 'publish') {
-      params.tabType = 'publish'
-    }
-    // recent 标签页不传 tabType，查询全部数据
+    params.tabType =
+      activeTab.value === 'review' ? 'review' : activeTab.value === 'publish' ? 'publish' : 'recent'
 
     console.log('查询参数:', params)
     const data = await PerformanceApi.getPageList(params as any)
@@ -649,23 +671,30 @@ const resetQuery = () => {
 // 文档分类选择
 const handleCategorySelect = (index: string) => {
   selectedCategory.value = index
-  console.log('选择分类:', index)
+  console.log('选择分类 id:', index)
+
+  // 使用 lodash find 根据 id 找到对应的 category
+  const category = find(categories.value, (cat) => cat.id === index)
 
   // 将选择的分类传递到查询参数
   if (index === '0') {
     // 选择全部时 (id='0')，清空分类过滤
     queryParams.fileType = undefined
-  } else {
-    // 将分类 ID 传递给查询参数
-    queryParams.fileType = index
+  } else if (category) {
+    // 传递 fileType（文字）而不是 id
+    queryParams.fileType = category.fileType
+    console.log('传递 fileType:', category.fileType)
   }
 
   // 触发查询
   handleQuery()
 }
 
-// 新建弹窗
+// 新建/编辑弹窗
 const dialogVisible = ref(false)
+const dialogTitle = ref('新建筹划方案')
+const isEditMode = ref(false) // 是否为编辑模式（编辑模式隐藏创建方式）
+const currentEditId = ref<number | null>(null) // 当前编辑的数据ID
 const formRef = ref()
 
 // 表单数据
@@ -694,16 +723,62 @@ const formRules = {
 
 // 文档分类下拉选项（从中间件获取，过滤掉"全部"）
 const docCategoryOptions = computed(() => {
-  return categories.value
-    .filter((item) => item.id !== '0') // 过滤掉"全部"选项
-    .map((item) => ({
-      label: item.fileType,
-      value: item.fileType, // value 使用 fileType（分类名称）
-      id: item.id // 保留 id 用于传递 fileType 参数
-    }))
+  const filtered = filter(categories.value, (item) => item.id !== '0')
+  return map(filtered, (item) => ({
+    label: item.fileType,
+    value: item.fileType, // value 使用 fileType（分类名称）
+    id: item.id // 保留 id 用于传递 fileType 参数
+  }))
 })
 
-const editableUserOptions = [
+    // 演训类型
+const exerciseTypeOptions = [
+  { label: '大学年度演训', value: 'DXNDYX' },
+  { label: '联合类', value: 'LHL' },
+  { label: '作战类', value: 'ZUOZL' },
+  { label: '政治类', value: 'ZZL' },
+  { label: '经济类', value: 'JJL' },
+  { label: '认知类', value: 'RZL' },
+  { label: '文化类', value: 'WHL' },
+  { label: '后装类', value: 'HZL' },
+  { label: '国际防务类', value: 'GJFWL' },
+  { label: '网络类', value: 'WLL' },
+  { label: '电磁类', value: 'DCL' },
+  { label: '太空类', value: 'TKL' }
+
+// 演训主题
+const exerciseThemeOptions = [
+  { label: '经济类', value: 'JJL' },
+  { label: '认知类', value: 'RZL' },
+  { label: '文化类', value: 'WHL' },
+  { label: '后装类', value: 'HZL' },
+  { label: '国际防务类', value: 'GJFWL' },
+  { label: '网络类', value: 'WLL' },
+  { label: '电磁类', value: 'DCL' },
+  { label: '太空类', value: 'TKL' }
+]
+
+// 演训等级
+const levelOptions = [
+  { label: '战略级', value: 'ZLJ' },
+  { label: '战役级', value: 'YXJ' },
+  { label: '战术级', value: 'ZSJ' }
+]
+
+  // 所属学院
+const collegeOptions = [
+  { label: '国防大学', value: 'GFDX' },
+  { label: '联合作战学院', value: 'LHZZXY' },
+  { label: '国家安全学院', value: 'GJAQXY' },
+  { label: '联合勤务学院', value: 'LHQWXY' },
+  { label: '国际防务学院', value: 'GJFWXY' },
+  { label: '军事管理学院', value: 'SGLXY' },
+  { label: '政治学院', value: 'ZZXY' },
+  { label: '军事文华学院', value: 'JSWHXY' },
+  { label: '研究生院', value: 'YJSY' }
+
+// 可编辑用户
+const activeUserOptions = [
   { label: '管理员', value: 'admin' },
   { label: '参谋人员A', value: 'staff_a' },
   { label: '参谋人员B', value: 'staff_b' }
@@ -768,10 +843,10 @@ const drillDataList = [
 ]
 
 const filteredDrillData = computed(() => {
-  return drillDataList.filter((item) => {
-    const matchUnit = !drillFilter.unit || item.unit === drillFilter.unit
-    const matchLevel = !drillFilter.level || item.level === drillFilter.level
-    const matchName = !drillFilter.name || item.name.includes(drillFilter.name)
+  return filter(drillDataList, (item) => {
+    const matchUnit = isEmpty(drillFilter.unit) || item.unit === drillFilter.unit
+    const matchLevel = isEmpty(drillFilter.level) || item.level === drillFilter.level
+    const matchName = isEmpty(drillFilter.name) || includes(item.name, drillFilter.name)
     return matchUnit && matchLevel && matchName
   })
 })
@@ -780,6 +855,7 @@ const openDrillSelector = () => {
   drillSelectorVisible.value = true
 }
 
+//
 const handleDrillSelect = (row: any) => {
   if (!row) return
   formData.drillDataId = row.id
@@ -802,6 +878,9 @@ const handleFileRemove = () => {
 
 // 新建
 const handleAdd = () => {
+  dialogTitle.value = '新建筹划方案'
+  isEditMode.value = false // 新建模式
+  currentEditId.value = null
   dialogVisible.value = true
   // 重置表单
   Object.assign(formData, {
@@ -822,13 +901,41 @@ const handleAdd = () => {
   })
 }
 
+// 编辑数据
+const handleEditData = (row: PerformanceApi.TrainingPerformanceVO) => {
+  dialogTitle.value = '编辑筹划方案'
+  isEditMode.value = true // 编辑模式（隐藏创建方式）
+  currentEditId.value = row.id || null
+  dialogVisible.value = true
+
+  // 填充表单数据
+  Object.assign(formData, {
+    drillDataId: row.drillDataId || '',
+    drillDataName: row.drillDataName || row.name || '',
+    name: row.name || '',
+    docCategory: row.docCategory || '',
+    brief: row.brief || '',
+    editableUser: row.editableUser ? row.editableUser.split(',') : []
+    // 编辑模式不设置 creationMethod
+  })
+
+  // 重置上传文件
+  uploadFileList.value = []
+  uploadFile.value = null
+
+  // 清除验证
+  nextTick(() => {
+    formRef.value?.clearValidate()
+  })
+}
+
 // 保存
 const handleSave = async () => {
   try {
     await formRef.value?.validate()
 
-    // 只有选择上传文档模式时，才验证是否已选择文件
-    if (formData.creationMethod === 'upload' && !uploadFile.value) {
+    // 只有新建模式且选择上传文档时，才验证是否已选择文件
+    if (!isEditMode.value && formData.creationMethod === 'upload' && !uploadFile.value) {
       ElMessage.warning('请选择要上传的文件')
       return
     }
@@ -836,11 +943,34 @@ const handleSave = async () => {
     loading.value = true
 
     // 根据选择的 docCategory 找到对应的分类 id 作为 fileType
-    const selectedCategory = docCategoryOptions.value.find(
+    const selectedCat = find(
+      docCategoryOptions.value,
       (item) => item.value === formData.docCategory
     )
-    const fileType = selectedCategory?.id || ''
+    const fileType = selectedCat?.id || ''
 
+    // 编辑模式
+    if (isEditMode.value) {
+      // 构建编辑数据（不传递 creationMethod）
+      const editData: any = {
+        id: currentEditId.value,
+        drillDataId: formData.drillDataId,
+        drillDataName: formData.drillDataName,
+        name: formData.name,
+        docCategory: formData.docCategory,
+        brief: formData.brief,
+        editableUser: formData.editableUser.join(','),
+        fileType: fileType
+      }
+
+      await PerformanceApi.updatePerformanceData(editData)
+      ElMessage.success('更新成功')
+      dialogVisible.value = false
+      getList()
+      return
+    }
+
+    // 新建模式
     // 构建保存数据
     const saveData: any = {
       drillDataId: formData.drillDataId,
@@ -851,9 +981,7 @@ const handleSave = async () => {
       editableUser: formData.editableUser.join(','), // 数组转字符串
       creationMethod: formData.creationMethod,
       fileType: fileType, // 新建文档和上传文档都传递 fileType
-      author: 'admin', // 当前用户
-      scope: '可编辑',
-      status: '编辑中'
+      author: 'admin' // 当前用户
     }
 
     // 判断创建方式
@@ -871,22 +999,23 @@ const handleSave = async () => {
       // 2. axios 解包后直接返回 data 值: "fileId" (字符串)
       let fileId: string | null = null
 
-      if (typeof uploadResult === 'string') {
+      if (isString(uploadResult)) {
         // axios 封装解包后直接返回了 data 值
         fileId = uploadResult
         console.log('上传成功(解包响应), 文件ID:', fileId)
-      } else if (uploadResult && typeof uploadResult === 'object') {
+      } else if (isObject(uploadResult)) {
         // 完整响应对象
-        if (uploadResult.code === 200 || uploadResult.code === 0) {
-          fileId = uploadResult.data
+        const result = uploadResult as { code?: number; data?: string; msg?: string }
+        if (result.code === 200 || result.code === 0) {
+          fileId = result.data || null
           console.log('上传成功(完整响应), 文件ID:', fileId)
         } else {
-          ElMessage.error(uploadResult.msg || '上传文档失败')
+          ElMessage.error(result.msg || '上传文档失败')
           return
         }
       }
 
-      if (!fileId) {
+      if (isEmpty(fileId)) {
         ElMessage.error('上传文档失败：未获取到文件ID')
         return
       }
@@ -908,8 +1037,8 @@ const handleSave = async () => {
   } catch (error: any) {
     if (error !== false) {
       // 不是验证失败
-      console.error('创建失败:', error)
-      ElMessage.error(error.message || '创建失败')
+      console.error('保存失败:', error)
+      ElMessage.error(error.message || '保存失败')
     }
   } finally {
     loading.value = false
@@ -1018,7 +1147,7 @@ const handleEdit = async (row: any) => {
 
     // 7. 跳转编辑器
     router.push({
-      name: 'TiptapDocumentEdit',
+      name: 'DocumentEdit',
       params: { id: row.id },
       query: {
         title: row.name, // 传递方案名称作为标题
@@ -1077,7 +1206,7 @@ const openAuditDialog = (row: PerformanceApi.TrainingPerformanceVO) => {
 
 // 确认审核
 const handleAuditSubmit = async () => {
-  if (!currentAuditRow.value?.id) return
+  if (isNil(currentAuditRow.value?.id)) return
 
   auditLoading.value = true
   try {
@@ -1088,13 +1217,14 @@ const handleAuditSubmit = async () => {
     console.log('提交审核结果:', result)
 
     // 处理响应 - 兼容两种格式
-    if (typeof result === 'object' && result !== null) {
-      if (result.code === 200 || result.code === 0) {
-        ElMessage.success(result.msg || '提交审核成功')
+    if (isObject(result) && !isNil(result)) {
+      const res = result as { code?: number; msg?: string }
+      if (res.code === 200 || res.code === 0) {
+        ElMessage.success(res.msg || '提交审核成功')
         auditDialogVisible.value = false
         getList()
       } else {
-        ElMessage.error(result.msg || '提交审核失败')
+        ElMessage.error(res.msg || '提交审核失败')
       }
     } else {
       // 直接成功
@@ -1127,7 +1257,7 @@ const openPublishDialog = (row: PerformanceApi.TrainingPerformanceVO) => {
 
 // 确认发布
 const handlePublishSubmit = async () => {
-  if (!currentPublishRow.value?.id) return
+  if (isNil(currentPublishRow.value?.id)) return
 
   publishLoading.value = true
   try {
@@ -1138,13 +1268,14 @@ const handlePublishSubmit = async () => {
     console.log('发布结果:', result)
 
     // 处理响应 - 兼容两种格式
-    if (typeof result === 'object' && result !== null) {
-      if (result.code === 200 || result.code === 0) {
-        ElMessage.success(result.msg || '发布成功')
+    if (isObject(result) && !isNil(result)) {
+      const res = result as { code?: number; msg?: string }
+      if (res.code === 200 || res.code === 0) {
+        ElMessage.success(res.msg || '发布成功')
         publishDialogVisible.value = false
         getList()
       } else {
-        ElMessage.error(result.msg || '发布失败')
+        ElMessage.error(res.msg || '发布失败')
       }
     } else {
       // 直接成功
@@ -1187,12 +1318,12 @@ const openRejectDialog = async (row: PerformanceApi.TrainingPerformanceVO) => {
 
 // 提交驳回
 const handleRejectSubmit = async () => {
-  if (!rejectReason.value.trim()) {
+  if (isEmpty(trim(rejectReason.value))) {
     ElMessage.warning('请输入驳回原因')
     return
   }
 
-  if (!currentRejectRow.value?.id) return
+  if (isNil(currentRejectRow.value?.id)) return
 
   rejectLoading.value = true
   try {
@@ -1214,7 +1345,7 @@ const handleRejectSubmit = async () => {
 
 // 删除（单个）
 const handleDelete = async (row: PerformanceApi.TrainingPerformanceVO) => {
-  if (!row.id) {
+  if (isNil(row.id)) {
     ElMessage.error('无效的数据ID')
     return
   }
@@ -1238,8 +1369,15 @@ const handleDelete = async (row: PerformanceApi.TrainingPerformanceVO) => {
 
 // 批量删除
 const handleBatchDelete = async () => {
-  if (selectedRows.value.length === 0) {
+  if (isEmpty(selectedRows.value)) {
     ElMessage.warning('请先选择要删除的数据')
+    return
+  }
+
+  // 检查是否所有选中的数据都是"编辑中"状态
+  const notEditingRows = filter(selectedRows.value, (row) => row.status !== '编辑中')
+  if (!isEmpty(notEditingRows)) {
+    ElMessage.warning('只能删除"编辑中"状态的数据，请重新选择')
     return
   }
 
@@ -1250,10 +1388,11 @@ const handleBatchDelete = async () => {
       type: 'warning'
     })
 
-    const ids = selectedRows.value
-      .map((item) => item.id)
-      .filter((id): id is number => id !== undefined)
-    if (ids.length === 0) {
+    const ids = filter(
+      map(selectedRows.value, (item) => item.id),
+      (id): id is number => !isNil(id)
+    )
+    if (isEmpty(ids)) {
       ElMessage.error('无效的数据ID')
       return
     }
@@ -1291,6 +1430,15 @@ const getStatusClass = (status: string) => {
 onMounted(() => {
   getCategories() // 获取文档分类
   getList() // 获取表格数据
+})
+
+// 页面销毁时清理
+onUnmounted(() => {
+  // 清理选中状态，避免内存泄漏
+  selectedRows.value = []
+  list.value = []
+  categories.value = []
+  rejectHistoryList.value = []
 })
 </script>
 <style scoped>

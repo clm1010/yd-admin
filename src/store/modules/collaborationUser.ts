@@ -1,7 +1,7 @@
 import { store } from '@/store'
 import { defineStore } from 'pinia'
 import { nanoid } from 'nanoid'
-import { getRandomUserColor, generateRandomUsername } from '@/views/document/config/editorConfig'
+import { getRandomUserColor, generateRandomUsername } from '@/views/training/document/config/editorConfig'
 
 // sessionStorage 存储键
 const STORAGE_KEY = 'collaboration_user'

@@ -28,7 +28,9 @@
           ></span>
           {{ connectionStatus }}
         </div>
-        <el-button type="primary" plain size="default" @click="handleSubmitAudit">提交审核</el-button>
+        <el-button type="primary" plain size="default" @click="handleSubmitAudit"
+          >提交审核</el-button
+        >
         <el-button type="primary" size="default" @click="handleSave" :loading="isSaving">
           保存
         </el-button>
@@ -287,31 +289,101 @@ const handleContentUpdate = (_content: string) => {
 const handleEditorReady = async (editor: any) => {
   editorInstance.value = editor
   console.log('Markdown 编辑器已就绪')
+
+  // 如果有初始内容，设置到编辑器中
+  if (initialMarkdownContent.value) {
+    console.log('设置初始 Markdown 内容到编辑器')
+    // 使用 setTimeout 确保协同编辑已完全初始化
+    setTimeout(() => {
+      if (editor && initialMarkdownContent.value) {
+        editor.commands.setContent(initialMarkdownContent.value)
+        console.log('初始内容已设置')
+        // 清空初始内容，避免重复设置
+        initialMarkdownContent.value = ''
+      }
+    }, 500)
+  }
+}
+
+/**
+ * 将 HTML 内容转换为 Markdown 格式
+ * @param htmlContent HTML 内容
+ * @returns Markdown 文本
+ */
+const htmlToMarkdown = (htmlContent: string): string => {
+  if (!htmlContent) return ''
+
+  let markdown = htmlContent
+    // 处理标题
+    .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n')
+    .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n')
+    .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n')
+    .replace(/<h4[^>]*>(.*?)<\/h4>/gi, '#### $1\n\n')
+    .replace(/<h5[^>]*>(.*?)<\/h5>/gi, '##### $1\n\n')
+    .replace(/<h6[^>]*>(.*?)<\/h6>/gi, '###### $1\n\n')
+    // 处理粗体和斜体
+    .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
+    .replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**')
+    .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
+    .replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*')
+    // 处理删除线
+    .replace(/<s[^>]*>(.*?)<\/s>/gi, '~~$1~~')
+    .replace(/<del[^>]*>(.*?)<\/del>/gi, '~~$1~~')
+    .replace(/<strike[^>]*>(.*?)<\/strike>/gi, '~~$1~~')
+    // 处理行内代码
+    .replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
+    // 处理链接
+    .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)')
+    // 处理图片
+    .replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*\/?>/gi, '![$2]($1)')
+    .replace(/<img[^>]*src="([^"]*)"[^>]*\/?>/gi, '![]($1)')
+    // 处理水平线
+    .replace(/<hr[^>]*\/?>/gi, '\n---\n\n')
+    // 处理引用
+    .replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gis, (_, content) => {
+      return (
+        content
+          .split('\n')
+          .map((line: string) => `> ${line.trim()}`)
+          .join('\n') + '\n\n'
+      )
+    })
+    // 处理无序列表项
+    .replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n')
+    // 移除 ul/ol 标签
+    .replace(/<\/?ul[^>]*>/gi, '\n')
+    .replace(/<\/?ol[^>]*>/gi, '\n')
+    // 处理段落
+    .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
+    // 处理换行
+    .replace(/<br[^>]*\/?>/gi, '\n')
+    // 移除其他 HTML 标签
+    .replace(/<[^>]+>/g, '')
+    // 解码 HTML 实体
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    // 清理多余的空行
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+
+  return markdown
 }
 
 /**
  * 将 HTML 内容转换为 Markdown 文件的 Blob
  * @param htmlContent HTML 内容
- * @param title 文档标题
- * @returns Blob 文件流
+ * @returns Blob 文件流（Markdown 格式）
  */
-const htmlToMarkdownBlob = (htmlContent: string, title: string): Blob => {
-  // 构建完整的 HTML 文档
-  const fullHtml = `
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <title>${title}</title>
-</head>
-<body>
-${htmlContent}
-</body>
-</html>
-  `.trim()
+const htmlToMarkdownBlob = (htmlContent: string): Blob => {
+  // 将 HTML 转换为 Markdown
+  const markdownContent = htmlToMarkdown(htmlContent)
 
-  return new Blob([fullHtml], {
-    type: 'text/html;charset=utf-8'
+  return new Blob([markdownContent], {
+    type: 'text/markdown;charset=utf-8'
   })
 }
 
@@ -327,13 +399,13 @@ const handleSave = async () => {
     // 获取编辑器的 HTML 内容
     const content = editorInstance.value.getHTML()
 
-    // 将 HTML 内容转换为文件 Blob
-    const blob = htmlToMarkdownBlob(content, documentTitle.value)
+    // 将 HTML 内容转换为 Markdown 文件 Blob
+    const blob = htmlToMarkdownBlob(content)
 
     console.log('保存文件，文档ID:', documentId.value, '文件大小:', blob.size, 'bytes')
 
-    // 调用保存文档接口
-    const result = await saveMarkdownFile(documentId.value, blob, `${documentTitle.value}.html`)
+    // 调用保存文档接口，使用 .md 后缀
+    const result = await saveMarkdownFile(documentId.value, blob, `${documentTitle.value}.md`)
 
     if (result.code === 200 || result.status === 200) {
       ElMessage.success('文档已保存')
@@ -537,6 +609,100 @@ const updateCollaborators = () => {
   }, 100) // 100ms 防抖
 }
 
+/**
+ * Base64 转文本工具函数
+ * @param base64 Base64 字符串 (data URL 格式)
+ * @returns 解码后的文本内容
+ */
+const base64ToText = async (base64: string): Promise<string> => {
+  try {
+    // 从 data URL 提取 base64 数据
+    const base64Data = base64.split(',')[1]
+    if (!base64Data) {
+      console.warn('无效的 base64 数据格式')
+      return ''
+    }
+
+    // 解码 base64 为二进制
+    const binaryString = atob(base64Data)
+    const bytes = new Uint8Array(binaryString.length)
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i)
+    }
+
+    // 使用 TextDecoder 解码为 UTF-8 文本
+    const decoder = new TextDecoder('utf-8')
+    return decoder.decode(bytes)
+  } catch (error) {
+    console.error('Base64 解码失败:', error)
+    return ''
+  }
+}
+
+/**
+ * Markdown 转 HTML
+ * 简单转换，支持基本的 Markdown 语法
+ * @param markdown Markdown 文本
+ * @returns HTML 内容
+ */
+const markdownToHtml = (markdown: string): string => {
+  if (!markdown) return ''
+
+  let html = markdown
+    // 转义 HTML 特殊字符（但保留 Markdown 需要的字符）
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    // 标题
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    // 粗体和斜体
+    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/___(.+?)___/g, '<strong><em>$1</em></strong>')
+    .replace(/__(.+?)__/g, '<strong>$1</strong>')
+    .replace(/_(.+?)_/g, '<em>$1</em>')
+    // 行内代码
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    // 删除线
+    .replace(/~~(.+?)~~/g, '<s>$1</s>')
+    // 水平线
+    .replace(/^---$/gm, '<hr>')
+    .replace(/^\*\*\*$/gm, '<hr>')
+    // 引用
+    .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+    // 无序列表
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/^\* (.+)$/gm, '<li>$1</li>')
+    // 有序列表
+    .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+    // 段落（连续的非空行）
+    .replace(/\n\n/g, '</p><p>')
+
+  // 包裹在段落中
+  html = '<p>' + html + '</p>'
+
+  // 清理多余的空段落
+  html = html.replace(/<p><\/p>/g, '')
+  html = html.replace(/<p>(<h[1-6]>)/g, '$1')
+  html = html.replace(/(<\/h[1-6]>)<\/p>/g, '$1')
+  html = html.replace(/<p>(<hr>)<\/p>/g, '$1')
+  html = html.replace(/<p>(<blockquote>)/g, '$1')
+  html = html.replace(/(<\/blockquote>)<\/p>/g, '$1')
+  html = html.replace(/<p>(<li>)/g, '<ul>$1')
+  html = html.replace(/(<\/li>)<\/p>/g, '$1</ul>')
+
+  // 合并连续的列表项
+  html = html.replace(/<\/ul><ul>/g, '')
+
+  return html
+}
+
+// 初始 Markdown 内容（用于编辑器初始化后设置）
+const initialMarkdownContent = ref<string>('')
+
 // 加载文档数据
 const loadDocument = async () => {
   try {
@@ -562,6 +728,33 @@ const loadDocument = async () => {
         creatorName: '未知'
       }
       console.log('使用默认文档信息:', documentInfo.value)
+    }
+
+    // 从 sessionStorage 获取 Markdown 内容（由 management 页面传递）
+    const hasContent = route.query.hasContent === 'true'
+    if (hasContent) {
+      const cachedContentKey = `markdown_content_${documentId.value}`
+      const cachedContent = sessionStorage.getItem(cachedContentKey)
+
+      if (cachedContent) {
+        console.log('从缓存加载 Markdown 内容')
+        // 将 base64 解码为文本
+        const markdownText = await base64ToText(cachedContent)
+        console.log('解码后的 Markdown 内容长度:', markdownText.length)
+        console.log('Markdown 内容前200字符:', markdownText.substring(0, 200))
+
+        if (markdownText) {
+          // 将 Markdown 转换为 HTML
+          const htmlContent = markdownToHtml(markdownText)
+          console.log('转换后的 HTML 内容长度:', htmlContent.length)
+
+          // 存储初始内容，等编辑器就绪后设置
+          initialMarkdownContent.value = htmlContent
+        }
+
+        // 清除缓存（一次性使用）
+        sessionStorage.removeItem(cachedContentKey)
+      }
     }
 
     // 加载参考素材
@@ -681,4 +874,3 @@ onBeforeUnmount(() => {
   }
 }
 </style>
-

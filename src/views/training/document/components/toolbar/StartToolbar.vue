@@ -1106,12 +1106,37 @@ const replaceAll = () => {
   ElMessage.success('替换完成')
 }
 
+// 提取文档标题
+const extractDocumentTitle = (html: string): string => {
+  // 创建一个临时 DOM 元素来解析 HTML
+  const tempDiv = document.createElement('div')
+  tempDiv.innerHTML = html
+
+  // 按优先级查找标题：h1 > h2 > h3 > h4 > h5 > h6
+  for (let i = 1; i <= 6; i++) {
+    const heading = tempDiv.querySelector(`h${i}`)
+    if (heading && heading.textContent?.trim()) {
+      return heading.textContent.trim()
+    }
+  }
+
+  // 如果没有找到标题，尝试获取第一段文本（限制长度）
+  const firstParagraph = tempDiv.querySelector('p')
+  if (firstParagraph && firstParagraph.textContent?.trim()) {
+    const text = firstParagraph.textContent.trim()
+    return text.length > 30 ? text.substring(0, 30) + '...' : text
+  }
+
+  return '文档预览'
+}
+
 // 文档预览
 const previewDocument = () => {
   if (!editor.value) return
 
-  previewContent.value = editor.value.getHTML()
-  documentTitle.value = '示例文档'
+  const html = editor.value.getHTML()
+  previewContent.value = html
+  documentTitle.value = extractDocumentTitle(html)
   previewZoom.value = 100
   documentPreviewVisible.value = true
 }
