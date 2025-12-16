@@ -107,11 +107,12 @@
                   clearable
                   class="!w-200px"
                 >
-                  <el-option label="编辑中" value="editing" />
-                  <el-option label="待审核" value="reviewing" />
-                  <el-option label="驳回" value="rejected" />
-                  <el-option label="审核通过" value="approved" />
-                  <el-option label="发布" value="published" />
+                  <el-option label="编辑中" value="1" />
+                  <!-- <el-option label="待审核" value="2" /> -->
+                  <el-option label="审核中" value="2" />
+                  <el-option label="审核通过" value="3" />
+                  <el-option label="发布" value="4" />
+                  <el-option label="驳回" value="5" />
                 </el-select>
               </el-form-item>
               <el-form-item label="上传时间" prop="createTime">
@@ -163,7 +164,7 @@
         </div>
 
         <!-- 标签页 -->
-        <el-tabs v-model="activeTab" @tab-click="handleTabClick">
+        <el-tabs v-model="activeTab" @tab-change="handleTabChange">
           <el-tab-pane label="最近文档" name="recent" />
           <el-tab-pane label="审核列表" name="review" />
           <el-tab-pane label="文档发布" name="publish" />
@@ -212,10 +213,10 @@
             </template>
           </el-table-column>
           <el-table-column label="创建时间" prop="createTime" align="center" width="180" />
-          <el-table-column label="操作" align="center" width="280" fixed="right">
+          <el-table-column label="操作" align="center" width="320" fixed="right">
             <template #default="scope">
-              <!-- 编辑中状态显示：编辑、写作、审核、删除 -->
-              <div v-if="scope.row.applyNode === '编辑中'">
+              <!-- 编辑中状态(1)显示：编辑、写作、审核、删除 -->
+              <div v-if="scope.row.applyNode === '1'">
                 <el-button link type="primary" @click="handleEditData(scope.row)">
                   <Icon icon="ep:edit-pen" />
                   编辑
@@ -226,7 +227,7 @@
                 </el-button>
                 <el-button link type="primary" @click="openAuditDialog(scope.row)">
                   <Icon icon="ep:upload" />
-                  审核
+                  提交审核
                 </el-button>
                 <el-button link type="danger" @click="handleDelete(scope.row)">
                   <Icon icon="ep:delete" />
@@ -234,28 +235,67 @@
                 </el-button>
               </div>
 
-              <!-- 待审核或驳回状态显示：审核 -->
-              <div v-else-if="scope.row.applyNode === '待审核' || scope.row.applyNode === '驳回'">
-                <el-button link type="primary" @click="openAuditDialog(scope.row)">
-                  <Icon icon="ep:upload" />
+              <!-- 审核中状态(2)显示：审核、驳回、审核记录 -->
+              <div v-else-if="scope.row.applyNode === '2'">
+                <el-button link type="success" @click="handleApprove(scope.row)">
+                  <Icon icon="ep:check" />
                   审核
                 </el-button>
-                <el-button
-                  v-if="scope.row.applyNode === '驳回'"
-                  link
-                  type="danger"
-                  @click="openRejectDialog(scope.row)"
-                >
-                  <Icon icon="ep:warning" />
+                <el-button link type="danger" @click="openRejectDialog(scope.row)">
+                  <Icon icon="ep:close" />
                   驳回
+                </el-button>
+                <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
+                  <Icon icon="ep:document" />
+                  审核记录
                 </el-button>
               </div>
 
-              <!-- 审核通过状态显示：发布 -->
-              <div v-else-if="scope.row.applyNode === '审核通过'">
+              <!-- 审核通过状态(3)显示：发布 + 审核记录 -->
+              <div v-else-if="scope.row.applyNode === '3'">
                 <el-button link type="primary" @click="openPublishDialog(scope.row)">
                   <Icon icon="ep:promotion" />
                   发布
+                </el-button>
+                <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
+                  <Icon icon="ep:document" />
+                  审核记录
+                </el-button>
+              </div>
+
+              <!-- 发布状态(4)显示：已发布 + 审核记录 -->
+              <div v-else-if="scope.row.applyNode === '4'">
+                <el-button link type="success" disabled>
+                  <Icon icon="ep:check" />
+                  已发布
+                </el-button>
+                <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
+                  <Icon icon="ep:document" />
+                  审核记录
+                </el-button>
+              </div>
+
+              <!-- 驳回状态(5)显示：编辑、写作、提交审核、删除、审核记录 -->
+              <div v-else-if="scope.row.applyNode === '5'">
+                <el-button link type="primary" @click="handleEditData(scope.row)">
+                  <Icon icon="ep:edit-pen" />
+                  编辑
+                </el-button>
+                <el-button link type="primary" @click="handleEdit(scope.row)">
+                  <Icon icon="ep:edit" />
+                  写作
+                </el-button>
+                <el-button link type="primary" @click="openAuditDialog(scope.row)">
+                  <Icon icon="ep:upload" />
+                  提交审核
+                </el-button>
+                <el-button link type="danger" @click="handleDelete(scope.row)">
+                  <Icon icon="ep:delete" />
+                  删除
+                </el-button>
+                <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
+                  <Icon icon="ep:document" />
+                  审核记录
                 </el-button>
               </div>
             </template>
@@ -424,105 +464,14 @@
   </el-dialog>
 
   <!-- 审核流配置弹窗 -->
-  <el-dialog
+  <AuditFlowDialog
     v-model="auditDialogVisible"
-    title="审核流配置"
-    width="600px"
-    :close-on-click-modal="false"
-  >
-    <el-form ref="auditFormRef" :model="auditFormData" label-width="100px">
-      <el-form-item label="流程名称">
-        <el-select v-model="auditFormData.flowName" placeholder="请选择" class="w-full">
-          <el-option label="演训筹划文档审批流" value="flow1" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="审核人">
-        <div class="border p-4 rounded w-full bg-gray-50">
-          <el-row :gutter="10" class="mb-2">
-            <el-col :span="4" class="text-right leading-8">节点1</el-col>
-            <el-col :span="20">
-              <el-select
-                v-model="auditFormData.auditors.node1"
-                multiple
-                placeholder="请选择"
-                class="w-full"
-              >
-                <el-option
-                  v-for="u in userOptions"
-                  :key="u.value"
-                  :label="u.label"
-                  :value="u.value"
-                />
-              </el-select>
-            </el-col>
-          </el-row>
-          <el-row :gutter="10" class="mb-2">
-            <el-col :span="4" class="text-right leading-8">节点2</el-col>
-            <el-col :span="20">
-              <el-select
-                v-model="auditFormData.auditors.node2"
-                multiple
-                placeholder="请选择"
-                class="w-full"
-              >
-                <el-option
-                  v-for="u in userOptions"
-                  :key="u.value"
-                  :label="u.label"
-                  :value="u.value"
-                />
-              </el-select>
-            </el-col>
-          </el-row>
-          <el-row :gutter="10" class="mb-2">
-            <el-col :span="4" class="text-right leading-8">节点3</el-col>
-            <el-col :span="20">
-              <el-select
-                v-model="auditFormData.auditors.node3"
-                multiple
-                placeholder="请选择"
-                class="w-full"
-              >
-                <el-option
-                  v-for="u in userOptions"
-                  :key="u.value"
-                  :label="u.label"
-                  :value="u.value"
-                />
-              </el-select>
-            </el-col>
-          </el-row>
-          <el-row :gutter="10">
-            <el-col :span="4" class="text-right leading-8">节点4</el-col>
-            <el-col :span="20">
-              <el-select
-                v-model="auditFormData.auditors.node4"
-                multiple
-                placeholder="请选择"
-                class="w-full"
-              >
-                <el-option
-                  v-for="u in userOptions"
-                  :key="u.value"
-                  :label="u.label"
-                  :value="u.value"
-                />
-              </el-select>
-            </el-col>
-          </el-row>
-        </div>
-      </el-form-item>
-      <el-form-item label="审核说明">
-        <el-input v-model="auditFormData.comment" type="textarea" :rows="4" placeholder="请输入" />
-      </el-form-item>
-    </el-form>
-    <template #footer>
-      <el-button type="primary" @click="handleAuditSubmit" :loading="auditLoading"
-        >确认提交</el-button
-      >
-      <el-button @click="auditDialogVisible = false">取消</el-button>
-    </template>
-  </el-dialog>
+    :document-id="currentAuditRow?.id || 0"
+    :flow-list="auditFlowList"
+    :user-options="userOptions"
+    :loading="auditLoading"
+    @submit="handleAuditSubmit"
+  />
 
   <!-- 发布配置弹窗 -->
   <el-dialog
@@ -555,47 +504,67 @@
   <el-dialog
     v-model="rejectDialogVisible"
     title="驳回原因"
-    width="800px"
+    width="500px"
     :close-on-click-modal="false"
     append-to-body
   >
-    <div class="reject-container p-4">
-      <!-- 驳回原因表格 -->
-      <div class="font-bold mb-3 text-14px text-gray-700">驳回原因</div>
-      <el-table :data="rejectHistoryList" border stripe style="width: 100%" max-height="300px">
-        <el-table-column prop="rejectBy" label="驳回人" width="150" align="center" />
-        <el-table-column prop="rejectTime" label="驳回时间" width="180" align="center" />
-        <el-table-column prop="reason" label="驳回原因" align="left" show-overflow-tooltip />
-      </el-table>
+    <el-form label-position="top">
+      <el-form-item label="请输入驳回原因" required>
+        <el-input
+          v-model="rejectReason"
+          type="textarea"
+          :rows="6"
+          placeholder="请输入驳回原因"
+          resize="none"
+        />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="rejectDialogVisible = false">取消</el-button>
+      <el-button type="primary" @click="handleRejectSubmit" :loading="rejectLoading"
+        >确认提交</el-button
+      >
+    </template>
+  </el-dialog>
 
-      <!-- 驳回操作区 -->
-      <div class="reject-action mt-6">
-        <div class="font-bold mb-3 text-14px text-gray-700">驳回</div>
-        <div class="reject-form border p-6 rounded bg-gray-50">
-          <el-form label-position="left" label-width="80px">
-            <el-form-item label="驳回原因" required>
-              <el-input
-                v-model="rejectReason"
-                type="textarea"
-                :rows="6"
-                placeholder="请输入驳回原因"
-                resize="none"
-              />
-            </el-form-item>
-          </el-form>
-          <div class="flex justify-end mt-4 gap-3">
-            <el-button
-              type="primary"
-              @click="handleRejectSubmit"
-              :loading="rejectLoading"
-              class="!w-20"
-              >确定</el-button
-            >
-            <el-button @click="rejectDialogVisible = false" class="!w-20">取消</el-button>
-          </div>
-        </div>
-      </div>
-    </div>
+  <!-- 审核记录弹窗 -->
+  <el-dialog
+    v-model="examRecordDialogVisible"
+    title="审核记录"
+    width="900px"
+    :close-on-click-modal="false"
+  >
+    <el-table
+      v-loading="examRecordLoading"
+      :data="examRecordList"
+      border
+      stripe
+      style="width: 100%"
+      max-height="400px"
+    >
+      <el-table-column prop="examNode" label="审核节点" width="100" align="center" />
+      <el-table-column prop="examResult" label="审核结果" width="100" align="center">
+        <template #default="scope">
+          <el-tag :type="scope.row.examResult === '1' ? 'success' : 'danger'">
+            {{ scope.row.examResult === '1' ? '通过' : '驳回' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="examOpinion"
+        label="审核意见"
+        min-width="200"
+        align="left"
+        show-overflow-tooltip
+      />
+      <el-table-column prop="examofficeName" label="审核部门" width="120" align="center" />
+      <el-table-column prop="examUserid" label="审批用户" width="100" align="center" />
+      <el-table-column prop="nextUserid" label="下一审批人" width="100" align="center" />
+      <el-table-column prop="createTime" label="审核时间" width="160" align="center" />
+    </el-table>
+    <template #footer>
+      <el-button @click="examRecordDialogVisible = false">关闭</el-button>
+    </template>
   </el-dialog>
 </template>
 
@@ -606,6 +575,7 @@ import * as PerformanceApi from '@/api/training/performance'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import { Search, ArrowDown } from '@element-plus/icons-vue'
 import { useCollaborationUserStore } from '@/store/modules/collaborationUser'
+import AuditFlowDialog from '@/components/AuditFlowDialog/index.vue'
 import {
   isEmpty,
   isArray,
@@ -617,7 +587,6 @@ import {
   every,
   filter,
   map,
-  trim,
   includes
 } from 'lodash-es'
 
@@ -633,10 +602,10 @@ const selectedCategory = ref('0') // '0' 对应 "全部"
 const categories = ref<PerformanceApi.DocCategoryVO[]>([])
 const selectedRows = ref<PerformanceApi.TrainingPerformanceVO[]>([])
 
-// 计算属性：判断是否可以批量删除（只有选中的数据都是"编辑中"状态才能删除）
+// 计算属性：判断是否可以批量删除（只有选中的数据都是"编辑中"(1)或"驳回"(5)状态才能删除）
 const canBatchDelete = computed(() => {
   if (isEmpty(selectedRows.value)) return false
-  return every(selectedRows.value, (row) => row.applyNode === '编辑中')
+  return every(selectedRows.value, (row) => row.applyNode === '1' || row.applyNode === '5')
 })
 
 const queryParams = reactive<PerformanceApi.TrainingPerformancePageReqVO>({
@@ -674,107 +643,145 @@ const getList = async () => {
       activeTab.value === 'review' ? 'review' : activeTab.value === 'publish' ? 'publish' : 'recent'
 
     console.log('查询参数:', params)
-    // const data = await PerformanceApi.getPageList(params as any)
-    // list.value = data.list || []
-    list.value = [
-      {
-        id: 1,
-        drillDataId: 'drill-001',
-        drillDataName: '2024年度联合作战演练',
-        planName: '联合作战演练筹划方案',
-        collegeCode: 'LHZZXY',
-        fileType: '演训方案',
-        activeUser: 'admin,staff_a',
-        description: '本方案用于指导2024年度联合作战演练的组织实施',
-        level: 'ZLJ',
-        exerciseType: 'LHL',
-        exerciseTheme: '联合作战',
-        docType: 'doc',
-        createBy: 'admin',
-        applyNode: '编辑中',
-        createTime: '2024-12-10 09:30:00',
-        updateTime: '2024-12-12 14:20:00',
-        delFlg: '0'
-      },
-      {
-        id: 2,
-        drillDataId: 'drill-002',
-        drillDataName: '战略级演训项目',
-        planName: '战略级综合演练方案',
-        collegeCode: 'GFDX',
-        fileType: '作战计划',
-        activeUser: 'staff_b',
-        description: '战略级综合演练的总体方案设计',
-        level: 'ZLJ',
-        exerciseType: 'ZUOZL',
-        exerciseTheme: '战略演练',
-        docType: 'doc',
-        createBy: 'staff_b',
-        applyNode: '待审核',
-        createTime: '2024-12-08 10:00:00',
-        updateTime: '2024-12-11 16:45:00',
-        delFlg: '0'
-      },
-      {
-        id: 3,
-        drillDataId: 'drill-003',
-        drillDataName: '网络安全演练',
-        planName: '网络攻防演练实施方案',
-        collegeCode: 'GJAQXY',
-        fileType: '导调计划',
-        activeUser: 'admin',
-        description: '网络空间安全攻防演练方案',
-        level: 'YXJ',
-        exerciseType: 'WLL',
-        exerciseTheme: '网络安全',
-        docType: 'doc',
-        createBy: 'admin',
-        applyNode: '审核通过',
-        createTime: '2024-12-05 08:30:00',
-        updateTime: '2024-12-10 11:20:00',
-        delFlg: '0'
-      },
-      {
-        id: 4,
-        drillDataId: 'drill-004',
-        drillDataName: '后勤保障演练',
-        planName: '联合勤务保障方案',
-        collegeCode: 'LHQWXY',
-        fileType: '作战文书',
-        activeUser: 'staff_a,staff_b',
-        description: '后勤保障体系综合演练方案',
-        level: 'ZSJ',
-        exerciseType: 'HZL',
-        exerciseTheme: '后勤保障',
-        docType: 'doc',
-        createBy: 'staff_a',
-        applyNode: '发布成功',
-        createTime: '2024-12-01 14:00:00',
-        updateTime: '2024-12-09 09:15:00',
-        delFlg: '0'
-      },
-      {
-        id: 5,
-        drillDataId: 'drill-005',
-        drillDataName: '电磁频谱管控演练',
-        planName: '电磁环境管控方案',
-        collegeCode: 'SGLXY',
-        fileType: '企图立案',
-        activeUser: 'admin',
-        description: '复杂电磁环境下的频谱管控方案',
-        level: 'YXJ',
-        exerciseType: 'DCL',
-        exerciseTheme: '电磁管控',
-        docType: 'doc',
-        createBy: 'admin',
-        applyNode: '驳回',
-        createTime: '2024-11-28 11:30:00',
-        updateTime: '2024-12-08 15:40:00',
-        delFlg: '0'
-      }
-    ]
-    // total.value = data.total || 0
-    total.value = 5 || 0
+    const data = await PerformanceApi.getPageList(params as any)
+    list.value = data.list || []
+    total.value = data.total || 0
+    // list.value = [
+    //   {
+    //     id: 1,
+    //     drillDataId: 'drill-001',
+    //     drillDataName: '2024年度联合作战演练',
+    //     planName: '联合作战演练筹划方案',
+    //     collegeCode: 'LHZZXY',
+    //     fileType: '演训方案',
+    //     activeUser: 'admin,staff_a',
+    //     description: '本方案用于指导2024年度联合作战演练的组织实施',
+    //     level: 'ZLJ',
+    //     exerciseType: 'LHL',
+    //     exerciseTheme: '联合作战',
+    //     docType: 'docx',
+    //     createBy: 'admin',
+    //     applyNode: '1', // 编辑中
+    //     createTime: '2024-12-10 09:30:00',
+    //     updateTime: '2024-12-12 14:20:00',
+    //     delFlg: '0'
+    //   },
+    //   {
+    //     id: 2,
+    //     drillDataId: 'drill-002',
+    //     drillDataName: '战略级演训项目',
+    //     planName: '战略级综合演练方案',
+    //     collegeCode: 'GFDX',
+    //     fileType: '作战计划',
+    //     activeUser: 'staff_b',
+    //     description: '战略级综合演练的总体方案设计',
+    //     level: 'ZLJ',
+    //     exerciseType: 'ZUOZL',
+    //     exerciseTheme: '战略演练',
+    //     docType: 'docx',
+    //     createBy: 'staff_b',
+    //     applyNode: '2', // 审核中
+    //     createTime: '2024-12-08 10:00:00',
+    //     updateTime: '2024-12-11 16:45:00',
+    //     delFlg: '0'
+    //   },
+    //   {
+    //     id: 3,
+    //     drillDataId: 'drill-003',
+    //     drillDataName: '网络安全演练',
+    //     planName: '网络攻防演练实施方案',
+    //     collegeCode: 'GJAQXY',
+    //     fileType: '导调计划',
+    //     activeUser: 'admin',
+    //     description: '网络空间安全攻防演练方案',
+    //     level: 'YXJ',
+    //     exerciseType: 'WLL',
+    //     exerciseTheme: '网络安全',
+    //     docType: 'docx',
+    //     createBy: 'admin',
+    //     applyNode: '3', // 审核通过
+    //     createTime: '2024-12-05 08:30:00',
+    //     updateTime: '2024-12-10 11:20:00',
+    //     delFlg: '0'
+    //   },
+    //   {
+    //     id: 4,
+    //     drillDataId: 'drill-004',
+    //     drillDataName: '后勤保障演练',
+    //     planName: '联合勤务保障方案',
+    //     collegeCode: 'LHQWXY',
+    //     fileType: '作战文书',
+    //     activeUser: 'staff_a,staff_b',
+    //     description: '后勤保障体系综合演练方案',
+    //     level: 'ZSJ',
+    //     exerciseType: 'HZL',
+    //     exerciseTheme: '后勤保障',
+    //     docType: 'docx',
+    //     createBy: 'staff_a',
+    //     applyNode: '4', // 发布
+    //     createTime: '2024-12-01 14:00:00',
+    //     updateTime: '2024-12-09 09:15:00',
+    //     delFlg: '0'
+    //   },
+    //   {
+    //     id: 5,
+    //     drillDataId: 'drill-005',
+    //     drillDataName: '电磁频谱管控演练',
+    //     planName: '电磁环境管控方案',
+    //     collegeCode: 'SGLXY',
+    //     fileType: '企图立案',
+    //     activeUser: 'admin',
+    //     description: '复杂电磁环境下的频谱管控方案',
+    //     level: 'YXJ',
+    //     exerciseType: 'DCL',
+    //     exerciseTheme: '电磁管控',
+    //     docType: 'docx',
+    //     createBy: 'admin',
+    //     applyNode: '5', // 驳回
+    //     createTime: '2024-11-28 11:30:00',
+    //     updateTime: '2024-12-08 15:40:00',
+    //     delFlg: '0'
+    //   },
+    //   {
+    //     id: 6,
+    //     drillDataId: 'drill-006',
+    //     drillDataName: '后勤保障演练',
+    //     planName: '联合勤务保障方案',
+    //     collegeCode: 'SGLXY',
+    //     fileType: '作战文书',
+    //     activeUser: 'staff_a,staff_b',
+    //     description: '后勤保障体系综合演练方案',
+    //     level: 'YXJ',
+    //     exerciseType: 'HZL',
+    //     exerciseTheme: '后勤保障',
+    //     docType: 'docx',
+    //     createBy: 'staff_a',
+    //     applyNode: '2', // 审核中
+    //     createTime: '2024-11-28 11:30:00',
+    //     updateTime: '2024-12-08 15:40:00',
+    //     delFlg: '0'
+    //   },
+    //   {
+    //     id: 7,
+    //     drillDataId: 'drill-007',
+    //     drillDataName: '太空作战演练',
+    //     planName: '太空作战演练方案',
+    //     collegeCode: 'SGLXY',
+    //     fileType: '企图立案',
+    //     activeUser: 'staff_a',
+    //     description: '太空作战演练方案',
+    //     level: 'YXJ', // 演训等级
+    //     exerciseType: 'KZL', // 演训类型
+    //     exerciseTheme: '太空作战',
+    //     docType: 'docx', // 文档类型
+    //     createBy: 'staff_a', // 创建人
+    //     applyNode: '5', // 驳回
+    //     createTime: '2024-11-28 11:30:00',
+    //     updateTime: '2024-12-08 15:40:00',
+    //     delFlg: '0'
+    //   }
+    // ]
+    // total.value = list.value.length || 0
   } catch (error) {
     console.error('获取数据失败:', error)
     ElMessage.error('获取数据失败，请确保后端服务已启动')
@@ -1192,17 +1199,14 @@ const handleGenerate = () => {
   ElMessage.info('文档生成功能开发中')
 }
 
-// Tab 切换 list
-const handleTabClick = (tab: any) => {
-  console.log('切换Tab:', tab.props.name)
-  activeTab.value = tab.props.name
-
+// Tab 切换 list（使用 tab-change 事件，在值更新后触发）
+const handleTabChange = () => {
   // 标签页切换：
   // 1、最近文档 - 查询全部数据（不传 tabType）
   // 2、审核列表 - 传递 tabType='review'
   // 3、文档发布 - 传递 tabType='publish'
-
-  handleQuery()
+  queryParams.pageNo = 1 // 切换时重置页码
+  getList()
 }
 
 // 选择变化
@@ -1317,40 +1321,51 @@ const blobToBase64 = (blob: Blob): Promise<string> => {
 const auditDialogVisible = ref(false)
 const auditLoading = ref(false)
 const currentAuditRow = ref<PerformanceApi.TrainingPerformanceVO>()
-const auditFormData = reactive({
-  flowName: 'flow1', // 默认选一个
-  auditors: {
-    node1: '',
-    node2: [] as string[],
-    node3: 'user5', // 默认回显
-    node4: 'user4' // 默认回显
+
+// 审核流程列表数据（传递给 AuditFlowDialog 组件）
+const auditFlowList = [
+  {
+    flowId: 'flow1',
+    flowName: '演训筹划文档审批流1',
+    nodes: [
+      { nodeId: 'node1', nodeName: '节点1', users: [] as string[] },
+      { nodeId: 'node2', nodeName: '节点2', users: ['user1', 'user2'] },
+      { nodeId: 'node3', nodeName: '节点3', users: ['user5'] },
+      { nodeId: 'node4', nodeName: '节点4', users: ['user4'] }
+    ]
   },
-  comment: ''
-})
+  {
+    flowId: 'flow2',
+    flowName: '演训筹划文档审批流2',
+    nodes: [
+      { nodeId: 'node1', nodeName: '节点1', users: [] as string[] },
+      { nodeId: 'node2', nodeName: '节点2', users: [] as string[] }
+    ]
+  }
+]
 
 // 打开审核弹窗
 const openAuditDialog = (row: PerformanceApi.TrainingPerformanceVO) => {
   currentAuditRow.value = row
   auditDialogVisible.value = true
-  // 重置/初始化表单
-  auditFormData.flowName = 'flow1'
-  auditFormData.auditors.node1 = ''
-  auditFormData.auditors.node2 = ['user1', 'user2', 'user3'] // 示例默认值
-  auditFormData.auditors.node3 = 'user5'
-  auditFormData.auditors.node4 = 'user4'
-  auditFormData.comment = ''
 }
 
-// 确认审核
-const handleAuditSubmit = async () => {
-  if (isNil(currentAuditRow.value?.id)) return
-
+// 确认审核（接收来自 AuditFlowDialog 组件的数据）
+const handleAuditSubmit = async (submitData: {
+  id: number | string
+  flowId: string
+  auditors: Record<string, string[]>
+  comment: string
+}) => {
   auditLoading.value = true
   try {
-    const result = await PerformanceApi.submitAudit({
-      id: currentAuditRow.value.id,
-      ...auditFormData
-    })
+    console.log('提交审核参数:', submitData)
+    // 转换为符合 API 类型的数据
+    const apiData = {
+      ...submitData,
+      id: Number(submitData.id)
+    }
+    const result = await PerformanceApi.submitAudit(apiData)
     console.log('提交审核结果:', result)
 
     // 处理响应 - 兼容两种格式
@@ -1428,34 +1443,46 @@ const handlePublishSubmit = async () => {
   }
 }
 
+// 审核记录弹窗相关
+const examRecordDialogVisible = ref(false)
+const examRecordLoading = ref(false)
+const examRecordList = ref<PerformanceApi.ExamRecordVO[]>([])
+
+// 打开审核记录弹窗
+const openExamRecordDialog = async (row: PerformanceApi.TrainingPerformanceVO) => {
+  if (!row.id) return
+  examRecordDialogVisible.value = true
+  examRecordLoading.value = true
+  examRecordList.value = []
+
+  try {
+    const res = await PerformanceApi.getExamRecordList(row.id)
+    examRecordList.value = res.data || []
+  } catch (error) {
+    console.error('获取审核记录失败:', error)
+    ElMessage.error('获取审核记录失败')
+  } finally {
+    examRecordLoading.value = false
+  }
+}
+
 // 驳回弹窗相关
 const rejectDialogVisible = ref(false)
 const rejectLoading = ref(false)
-const rejectHistoryList = ref<PerformanceApi.RejectRecordVO[]>([])
 const rejectReason = ref('')
 const currentRejectRow = ref<PerformanceApi.TrainingPerformanceVO>()
 
 // 打开驳回弹窗
-const openRejectDialog = async (row: PerformanceApi.TrainingPerformanceVO) => {
+const openRejectDialog = (row: PerformanceApi.TrainingPerformanceVO) => {
   if (!row.id) return
   currentRejectRow.value = row
   rejectDialogVisible.value = true
-  rejectReason.value = '' // 重置输入
-  rejectHistoryList.value = [] // 先清空
-
-  // 获取历史记录
-  try {
-    const res = await PerformanceApi.getRejectHistory(row.id)
-    rejectHistoryList.value = res.data || []
-  } catch (error) {
-    console.error('获取驳回历史失败:', error)
-    rejectHistoryList.value = []
-  }
+  rejectReason.value = ''
 }
 
-// 提交驳回
+// 提交驳回 - POST /examRecord/examApply
 const handleRejectSubmit = async () => {
-  if (isEmpty(trim(rejectReason.value))) {
+  if (isEmpty(rejectReason.value.trim())) {
     ElMessage.warning('请输入驳回原因')
     return
   }
@@ -1464,19 +1491,55 @@ const handleRejectSubmit = async () => {
 
   rejectLoading.value = true
   try {
-    await PerformanceApi.rejectTrainingPerformance({
-      id: currentRejectRow.value.id,
-      reason: rejectReason.value,
-      rejectBy: 'admin' // 模拟当前用户
+    // 获取当前用户ID
+    const collaborationUser = collaborationUserStore.getOrCreateUser()
+    const userId = collaborationUser.id || 'admin'
+
+    await PerformanceApi.examApply({
+      apply: currentRejectRow.value.id,
+      examResult: '2', // 驳回
+      examOpinion: rejectReason.value,
+      examuserId: userId
     })
     ElMessage.success('驳回成功')
     rejectDialogVisible.value = false
-    getList() // 刷新列表
+    getList()
   } catch (error) {
     console.error('驳回失败:', error)
     ElMessage.error('驳回失败')
   } finally {
     rejectLoading.value = false
+  }
+}
+
+// 审核通过 - POST /examRecord/examApply
+const handleApprove = async (row: PerformanceApi.TrainingPerformanceVO) => {
+  if (!row.id) return
+
+  try {
+    await ElMessageBox.confirm('确认审核通过该方案吗？', '审核确认', {
+      confirmButtonText: '确认提交',
+      cancelButtonText: '取消',
+      type: 'info'
+    })
+
+    // 获取当前用户ID
+    const collaborationUser = collaborationUserStore.getOrCreateUser()
+    const userId = collaborationUser.id || 'admin'
+
+    await PerformanceApi.examApply({
+      apply: row.id,
+      examResult: '1', // 通过
+      examOpinion: '',
+      examuserId: userId
+    })
+    ElMessage.success('审核通过')
+    getList()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('审核失败:', error)
+      ElMessage.error('审核失败')
+    }
   }
 }
 
@@ -1511,10 +1574,13 @@ const handleBatchDelete = async () => {
     return
   }
 
-  // 检查是否所有选中的数据都是"编辑中"状态
-  const notEditingRows = filter(selectedRows.value, (row) => row.applyNode !== '编辑中')
+  // 检查是否所有选中的数据都是"编辑中"(1)或"驳回"(5)状态
+  const notEditingRows = filter(
+    selectedRows.value,
+    (row) => row.applyNode !== '1' && row.applyNode !== '5'
+  )
   if (!isEmpty(notEditingRows)) {
-    ElMessage.warning('只能删除"编辑中"状态的数据，请重新选择')
+    ElMessage.warning('只能删除"编辑中"或"驳回"状态的数据，请重新选择')
     return
   }
 
@@ -1578,25 +1644,32 @@ const getExerciseTypeLabel = (type?: string) => {
   return option?.label || type
 }
 
-const getApplyNodeLabel = (applyNode?: string) => {
-  if (!applyNode) return ''
-  // 直接返回，因为后端返回的已经是中文
-  return applyNode
+// 审核状态文本映射（编辑中:1、审核中:2、审核通过:3、发布:4、驳回:5）
+const applyNodeTextMap: Record<string, string> = {
+  '1': '编辑中',
+  '2': '审核中',
+  '3': '审核通过',
+  '4': '发布',
+  '5': '驳回'
 }
 
-// 状态样式
+const getApplyNodeLabel = (applyNode?: string) => {
+  if (!applyNode) return ''
+  return applyNodeTextMap[applyNode] || applyNode
+}
+
+// 状态样式（编辑中:1、审核中:2、审核通过:3、发布:4、驳回:5）
 const getStatusClass = (status?: string) => {
   switch (status) {
-    case '编辑中':
+    case '1': // 编辑中
       return 'bg-red-500'
-    case '审核通过':
-      return 'bg-green-500'
-    case '发布':
-    case '发布成功':
-      return 'bg-blue-500'
-    case '待审核':
+    case '2': // 审核中
       return 'bg-orange-500'
-    case '驳回':
+    case '3': // 审核通过
+      return 'bg-green-500'
+    case '4': // 发布
+      return 'bg-blue-500'
+    case '5': // 驳回
       return 'bg-gray-400'
     default:
       return 'bg-gray-500'
@@ -1615,7 +1688,6 @@ onUnmounted(() => {
   selectedRows.value = []
   list.value = []
   categories.value = []
-  rejectHistoryList.value = []
 })
 </script>
 <style scoped>

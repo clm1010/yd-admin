@@ -45,7 +45,9 @@
           ></span>
           {{ connectionStatus }}
         </div>
-        <el-button type="primary" plain size="default">提交审核</el-button>
+        <el-button type="primary" plain size="default" @click="handleSubmitAudit"
+          >提交审核</el-button
+        >
         <!-- <el-button plain size="default">发布</el-button> -->
         <el-button type="primary" size="default" @click="handleSave" :loading="isSaving">
           保存
@@ -82,6 +84,16 @@
           @click-material="handleMaterialClick"
         />
       </div>
+
+      <!-- 审核流配置弹窗 -->
+      <AuditFlowDialog
+        v-model="auditDialogVisible"
+        :document-id="documentId"
+        :flow-list="auditFlowList"
+        :user-options="userOptions"
+        :loading="auditLoading"
+        @submit="handleAuditSubmit"
+      />
 
       <!-- 参考素材抽屉 (无遮罩，从协同面板左侧滑出) -->
       <el-drawer
@@ -132,11 +144,18 @@ import dayjs from 'dayjs'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 import { Icon } from '@/components/Icon'
+import AuditFlowDialog from '@/components/AuditFlowDialog/index.vue'
 import CollaborationPanel from './components/CollaborationPanel.vue'
 import TiptapEditor from './components/TiptapEditor.vue'
 import { useCollaborationUserStore } from '@/store/modules/collaborationUser'
 import { defaultCollaborationConfig } from './config/editorConfig'
-import { getReferenceMaterials, saveDocumentFile, type DocumentInfo } from './api/documentApi'
+import {
+  getReferenceMaterials,
+  saveDocumentFile,
+  submitAudit,
+  type DocumentInfo,
+  type SubmitAuditReqVO
+} from './api/documentApi'
 import { parseFileContent } from './utils/wordParser'
 
 // Props
@@ -223,6 +242,41 @@ const docProperties = computed(() => ({
 const drawerVisible = ref(false)
 const currentMaterial = ref<any>(null)
 
+// 审核弹窗相关
+const auditDialogVisible = ref(false)
+const auditLoading = ref(false)
+
+// 审核流程列表数据
+const auditFlowList = [
+  {
+    flowId: 'flow1',
+    flowName: '演训筹划文档审批流1',
+    nodes: [
+      { nodeId: 'node1', nodeName: '节点1', users: [] as string[] },
+      { nodeId: 'node2', nodeName: '节点2', users: ['user1', 'user2'] },
+      { nodeId: 'node3', nodeName: '节点3', users: ['user5'] },
+      { nodeId: 'node4', nodeName: '节点4', users: ['user4'] }
+    ]
+  },
+  {
+    flowId: 'flow2',
+    flowName: '演训筹划文档审批流2',
+    nodes: [
+      { nodeId: 'node1', nodeName: '节点1', users: [] as string[] },
+      { nodeId: 'node2', nodeName: '节点2', users: [] as string[] }
+    ]
+  }
+]
+
+// 用户选项列表
+const userOptions = [
+  { label: 'user1', value: 'user1' },
+  { label: 'user2', value: 'user2' },
+  { label: 'user3', value: 'user3' },
+  { label: 'user4', value: 'user4' },
+  { label: 'user5', value: 'user5' }
+]
+
 // Yjs 和 WebSocket Provider
 let ydoc: Y.Doc | null = null
 let provider: WebsocketProvider | null = null
@@ -253,6 +307,34 @@ const copyContent = (html: string) => {
 // 返回
 const goBack = () => {
   router.back()
+}
+
+// 打开提交审核弹窗
+const handleSubmitAudit = () => {
+  auditDialogVisible.value = true
+}
+
+// 提交审核
+const handleAuditSubmit = async (data: SubmitAuditReqVO) => {
+  auditLoading.value = true
+  try {
+    console.log('提交审核参数:', data)
+    const result = await submitAudit(data)
+    console.log('提交审核结果:', result)
+
+    // 处理响应
+    if (result && (result.code === 200 || result.code === 0)) {
+      ElMessage.success(result.msg || '提交审核成功')
+      auditDialogVisible.value = false
+    } else {
+      ElMessage.error(result?.msg || '提交审核失败')
+    }
+  } catch (error: any) {
+    console.error('提交审核失败:', error)
+    ElMessage.error(error.message || '提交审核失败')
+  } finally {
+    auditLoading.value = false
+  }
 }
 
 // 内容更新回调

@@ -11,7 +11,9 @@ import type {
   RejectReqVO,
   PermissionCheckResponse,
   checkWriteData,
-  UploadDocumentData
+  UploadDocumentData,
+  ExamRecordVO,
+  ExamApplyReqVO
 } from '@/api/training/performance/types'
 import {
   performanceCategories,
@@ -32,6 +34,17 @@ let mockIdCounter = 100
 const generateMockId = () => ++mockIdCounter
 
 /**
+ * 审核状态枚举（编辑中:1、审核中:2、审核通过:3、发布:4、驳回:5）
+ */
+const AuditStatus = {
+  EDITING: '1', // 编辑中
+  REVIEWING: '2', // 审核中
+  APPROVED: '3', // 审核通过
+  PUBLISHED: '4', // 发布
+  REJECTED: '5' // 驳回
+}
+
+/**
  * 模拟演训方案数据列表
  */
 const mockDataList: TrainingPerformanceVO[] = [
@@ -47,9 +60,9 @@ const mockDataList: TrainingPerformanceVO[] = [
     level: 'ZLJ',
     exerciseType: 'LHL',
     exerciseTheme: '联合作战',
-    docType: 'doc',
+    docType: 'docx',
     createBy: 'admin',
-    applyNode: '编辑中',
+    applyNode: AuditStatus.EDITING, // 编辑中
     createTime: '2024-12-10 09:30:00',
     updateTime: '2024-12-12 14:20:00',
     delFlg: '0'
@@ -66,9 +79,9 @@ const mockDataList: TrainingPerformanceVO[] = [
     level: 'ZLJ',
     exerciseType: 'ZUOZL',
     exerciseTheme: '战略演练',
-    docType: 'doc',
+    docType: 'docx',
     createBy: 'staff_b',
-    applyNode: '待审核',
+    applyNode: AuditStatus.REVIEWING, // 审核中
     createTime: '2024-12-08 10:00:00',
     updateTime: '2024-12-11 16:45:00',
     delFlg: '0'
@@ -85,9 +98,9 @@ const mockDataList: TrainingPerformanceVO[] = [
     level: 'YXJ',
     exerciseType: 'WLL',
     exerciseTheme: '网络安全',
-    docType: 'doc',
+    docType: 'docx',
     createBy: 'admin',
-    applyNode: '审核通过',
+    applyNode: AuditStatus.APPROVED, // 审核通过
     createTime: '2024-12-05 08:30:00',
     updateTime: '2024-12-10 11:20:00',
     delFlg: '0'
@@ -104,9 +117,9 @@ const mockDataList: TrainingPerformanceVO[] = [
     level: 'ZSJ',
     exerciseType: 'HZL',
     exerciseTheme: '后勤保障',
-    docType: 'doc',
+    docType: 'docx',
     createBy: 'staff_a',
-    applyNode: '发布成功',
+    applyNode: AuditStatus.PUBLISHED, // 发布
     createTime: '2024-12-01 14:00:00',
     updateTime: '2024-12-09 09:15:00',
     delFlg: '0'
@@ -123,9 +136,47 @@ const mockDataList: TrainingPerformanceVO[] = [
     level: 'YXJ',
     exerciseType: 'DCL',
     exerciseTheme: '电磁管控',
-    docType: 'doc',
+    docType: 'docx',
     createBy: 'admin',
-    applyNode: '驳回',
+    applyNode: AuditStatus.REJECTED, // 驳回
+    createTime: '2024-11-28 11:30:00',
+    updateTime: '2024-12-08 15:40:00',
+    delFlg: '0'
+  },
+  {
+    id: 6,
+    drillDataId: 'drill-006',
+    drillDataName: '后勤保障演练',
+    planName: '联合勤务保障方案',
+    collegeCode: 'SGLXY',
+    fileType: '作战文书',
+    activeUser: 'staff_a,staff_b',
+    description: '后勤保障体系综合演练方案',
+    level: 'YXJ',
+    exerciseType: 'HZL',
+    exerciseTheme: '后勤保障',
+    docType: 'docx',
+    createBy: 'staff_a',
+    applyNode: AuditStatus.REVIEWING, // 审核中
+    createTime: '2024-11-28 11:30:00',
+    updateTime: '2024-12-08 15:40:00',
+    delFlg: '0'
+  },
+  {
+    id: 7,
+    drillDataId: 'drill-007',
+    drillDataName: '太空作战演练',
+    planName: '太空作战演练方案',
+    collegeCode: 'SGLXY',
+    fileType: '企图立案',
+    activeUser: 'staff_a',
+    description: '太空作战演练方案',
+    level: 'YXJ', // 演训等级
+    exerciseType: 'KZL', // 演训类型
+    exerciseTheme: '太空作战',
+    docType: 'docx', // 文档类型
+    createBy: 'staff_a', // 创建人
+    applyNode: AuditStatus.REJECTED, // 驳回
     createTime: '2024-11-28 11:30:00',
     updateTime: '2024-12-08 15:40:00',
     delFlg: '0'
@@ -141,6 +192,105 @@ const mockRejectHistory: Record<number, RejectRecordVO[]> = {
       rejectBy: '审核员A',
       rejectTime: '2024-12-08 15:40:00',
       reason: '方案描述不够详细，请补充具体实施步骤'
+    }
+  ]
+}
+
+/**
+ * 模拟审核记录数据
+ * 审核结果: 1通过 2驳回
+ */
+const mockExamRecordList: Record<number | string, ExamRecordVO[]> = {
+  2: [
+    {
+      id: 'exam-001',
+      apply: 'apply-001',
+      examNode: '节点1',
+      examResult: '1',
+      examOpinion: '方案设计合理，同意通过',
+      examOffice: 'office-001',
+      examUserid: 'user1',
+      nextUserid: 'user2',
+      examofficeName: '作战部',
+      createTime: '2024-12-09 10:00:00'
+    },
+    {
+      id: 'exam-002',
+      apply: 'apply-001',
+      examNode: '节点2',
+      examResult: '1',
+      examOpinion: '内容完整，审核通过',
+      examOffice: 'office-002',
+      examUserid: 'user2',
+      nextUserid: 'user3',
+      examofficeName: '训练部',
+      createTime: '2024-12-10 14:30:00'
+    }
+  ],
+  3: [
+    {
+      id: 'exam-003',
+      apply: 'apply-002',
+      examNode: '节点1',
+      examResult: '1',
+      examOpinion: '审核通过',
+      examOffice: 'office-001',
+      examUserid: 'user1',
+      nextUserid: 'user2',
+      examofficeName: '作战部',
+      createTime: '2024-12-06 09:00:00'
+    },
+    {
+      id: 'exam-004',
+      apply: 'apply-002',
+      examNode: '节点2',
+      examResult: '1',
+      examOpinion: '同意',
+      examOffice: 'office-002',
+      examUserid: 'user2',
+      nextUserid: '',
+      examofficeName: '训练部',
+      createTime: '2024-12-07 11:00:00'
+    }
+  ],
+  4: [
+    {
+      id: 'exam-005',
+      apply: 'apply-003',
+      examNode: '节点1',
+      examResult: '1',
+      examOpinion: '审核通过',
+      examOffice: 'office-001',
+      examUserid: 'user1',
+      nextUserid: 'user2',
+      examofficeName: '作战部',
+      createTime: '2024-12-02 10:00:00'
+    },
+    {
+      id: 'exam-006',
+      apply: 'apply-003',
+      examNode: '节点2',
+      examResult: '1',
+      examOpinion: '方案可行，同意发布',
+      examOffice: 'office-002',
+      examUserid: 'user2',
+      nextUserid: '',
+      examofficeName: '训练部',
+      createTime: '2024-12-03 15:00:00'
+    }
+  ],
+  6: [
+    {
+      id: 'exam-007',
+      apply: 'apply-004',
+      examNode: '节点1',
+      examResult: '1',
+      examOpinion: '初审通过',
+      examOffice: 'office-001',
+      examUserid: 'user1',
+      nextUserid: 'user2',
+      examofficeName: '作战部',
+      createTime: '2024-12-06 16:00:00'
     }
   ]
 }
@@ -190,12 +340,15 @@ export const getPageList = async (params: TrainingPerformancePageReqVO) => {
   }
 
   // 按标签页类型筛选
+  // tabType=recent: 显示全部数据
+  // tabType=review: 只显示审核中(2)和审核通过(3)
+  // tabType=publish: 只显示发布(4)
   if (params.tabType === 'review') {
     filteredList = filteredList.filter((item) =>
-      ['待审核', '审核通过', '驳回'].includes(item.applyNode || '')
+      [AuditStatus.REVIEWING, AuditStatus.APPROVED].includes(item.applyNode || '')
     )
   } else if (params.tabType === 'publish') {
-    filteredList = filteredList.filter((item) => item.applyNode === '发布成功')
+    filteredList = filteredList.filter((item) => item.applyNode === AuditStatus.PUBLISHED)
   }
 
   // 分页
@@ -232,7 +385,7 @@ export const createNewData = async (data: TrainingPerformanceVO) => {
   const newItem: TrainingPerformanceVO = {
     ...data,
     id: generateMockId(),
-    applyNode: '编辑中',
+    applyNode: AuditStatus.EDITING, // 编辑中
     createTime: new Date().toLocaleString('zh-CN'),
     updateTime: new Date().toLocaleString('zh-CN'),
     delFlg: '0'
@@ -298,13 +451,15 @@ export const deleteTrainingPerformance = async (ids: number | number[]) => {
 
 /**
  * 提交审核
+ * @param data { id: number, flowId: string, auditors: Record<string, string[]>, comment?: string }
  */
 export const submitAudit = async (data: SubmitAuditReqVO) => {
   await mockDelay()
 
   const index = mockDataList.findIndex((item) => item.id === data.id)
   if (index !== -1) {
-    mockDataList[index].applyNode = '待审核'
+    mockDataList[index].applyNode = AuditStatus.REVIEWING // 审核中
+    mockDataList[index].flowId = data.flowId
     mockDataList[index].updateTime = new Date().toLocaleString('zh-CN')
 
     return {
@@ -329,7 +484,7 @@ export const publishDocument = async (data: PublishDocReqVO) => {
 
   const index = mockDataList.findIndex((item) => item.id === data.id)
   if (index !== -1) {
-    mockDataList[index].applyNode = '发布成功'
+    mockDataList[index].applyNode = AuditStatus.PUBLISHED // 发布
     mockDataList[index].updateTime = new Date().toLocaleString('zh-CN')
 
     return {
@@ -379,7 +534,7 @@ export const getFileStream = async (_id: number): Promise<Blob | null> => {
 /**
  * 上传文档文件
  */
-export const uploadDocument = async (data: UploadDocumentData) => {
+export const uploadDocument = async (_data: UploadDocumentData) => {
   await mockDelay(500)
 
   return {
@@ -407,7 +562,7 @@ export const rejectTrainingPerformance = async (data: RejectReqVO) => {
 
   const index = mockDataList.findIndex((item) => item.id === data.id)
   if (index !== -1) {
-    mockDataList[index].applyNode = '驳回'
+    mockDataList[index].applyNode = AuditStatus.REJECTED // 驳回
     mockDataList[index].updateTime = new Date().toLocaleString('zh-CN')
 
     // 添加驳回记录
@@ -459,6 +614,51 @@ export const getDrillDataList = async (_params?: any) => {
   ]
 }
 
+/**
+ * 获取审核记录列表
+ * GET /examRecord/examApply
+ * @param id 当前表格数据id
+ */
+export const getExamRecordList = async (id: number | string): Promise<{ data: ExamRecordVO[] }> => {
+  await mockDelay(200)
+  return { data: mockExamRecordList[id] || [] }
+}
+
+/**
+ * 审核/驳回操作
+ * POST /examRecord/examApply
+ * @param data { apply, examResult, examOpinion, examuserId }
+ */
+export const examApply = async (data: ExamApplyReqVO) => {
+  await mockDelay(300)
+
+  // 查找对应数据
+  const index = mockDataList.findIndex((item) => String(item.id) === String(data.apply))
+  if (index !== -1) {
+    // 更新审核状态
+    if (data.examResult === '1') {
+      // 审核通过
+      mockDataList[index].applyNode = AuditStatus.APPROVED
+    } else if (data.examResult === '2') {
+      // 驳回
+      mockDataList[index].applyNode = AuditStatus.REJECTED
+    }
+    mockDataList[index].updateTime = new Date().toLocaleString('zh-CN')
+
+    return {
+      code: 200,
+      data: mockDataList[index],
+      msg: data.examResult === '1' ? '审核通过' : '驳回成功'
+    }
+  }
+
+  return {
+    code: 500,
+    data: null,
+    msg: '数据不存在'
+  }
+}
+
 // 导出所有 Mock API
 export default {
   getPageList,
@@ -474,5 +674,7 @@ export default {
   getRejectHistory,
   rejectTrainingPerformance,
   exportTrainingPerformance,
-  getDrillDataList
+  getDrillDataList,
+  getExamRecordList,
+  examApply
 }

@@ -26,7 +26,9 @@ import type {
   RejectReqVO,
   PermissionCheckResponse,
   checkWriteData,
-  UploadDocumentData
+  UploadDocumentData,
+  ExamRecordVO,
+  ExamApplyReqVO
 } from './types'
 
 // ==================== Java 后端 API 实现 ====================
@@ -71,9 +73,10 @@ const javaApi = {
 
   /**
    * 提交审核 - Java 后端
+   * POST /examRecord/submitReview
    */
   submitAudit: async (data: SubmitAuditReqVO) => {
-    return await javaRequest.postOriginal('/getPlan/submitReview', data)
+    return await javaRequest.postOriginal('/examRecord/submitReview', data)
   },
 
   /**
@@ -155,6 +158,24 @@ const javaApi = {
    */
   getDrillDataList: async (_params?: any) => {
     return Promise.resolve([])
+  },
+
+  /**
+   * 获取审核记录列表 - Java 后端
+   * GET /examRecord/examApply
+   * @param id 当前表格数据id
+   */
+  getExamRecordList: async (id: number | string): Promise<{ data: ExamRecordVO[] }> => {
+    return await javaRequest.get('/examRecord/examApply', { id })
+  },
+
+  /**
+   * 审核/驳回操作 - Java 后端
+   * POST /examRecord/examApply
+   * @param data 审核/驳回参数
+   */
+  examApply: async (data: ExamApplyReqVO) => {
+    return await javaRequest.postOriginal('/examRecord/examApply', data)
   }
 }
 
@@ -166,6 +187,7 @@ const mockApi = {
     const { getPageList } = await import('@/mock/training/performance')
     const res = await getPageList(params)
     // 返回 data 部分，与 javaRequest 响应拦截器处理后格式一致
+
     return res.data
   },
 
@@ -239,6 +261,16 @@ const mockApi = {
   getDrillDataList: async (params?: any) => {
     const { getDrillDataList } = await import('@/mock/training/performance')
     return getDrillDataList(params)
+  },
+
+  getExamRecordList: async (id: number | string): Promise<{ data: ExamRecordVO[] }> => {
+    const { getExamRecordList } = await import('@/mock/training/performance')
+    return getExamRecordList(id)
+  },
+
+  examApply: async (data: ExamApplyReqVO) => {
+    const { examApply } = await import('@/mock/training/performance')
+    return examApply(data)
   }
 }
 
@@ -318,6 +350,20 @@ export const exportTrainingPerformance = api.exportTrainingPerformance
  * 获取演训数据列表
  */
 export const getDrillDataList = api.getDrillDataList
+
+/**
+ * 获取审核记录列表
+ * GET /examRecord/examApply
+ * @param id 当前表格数据id
+ */
+export const getExamRecordList = api.getExamRecordList
+
+/**
+ * 审核/驳回操作
+ * POST /examRecord/examApply
+ * @param data 审核/驳回参数 { apply, examResult, examOpinion, examuserId }
+ */
+export const examApply = api.examApply
 
 // ==================== 兼容旧接口 ====================
 

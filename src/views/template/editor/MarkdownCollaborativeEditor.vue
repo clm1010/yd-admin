@@ -106,40 +106,15 @@
       </el-drawer>
     </div>
 
-    <!-- 提交审核弹窗 -->
-    <el-dialog
+    <!-- 审核流配置弹窗 -->
+    <AuditFlowDialog
       v-model="auditDialogVisible"
-      title="提交审核"
-      width="500px"
-      :close-on-click-modal="false"
-    >
-      <el-form ref="auditFormRef" :model="auditFormData" label-width="100px">
-        <el-form-item label="审核人">
-          <el-select v-model="auditFormData.auditor" placeholder="请选择审核人" class="w-full">
-            <el-option
-              v-for="item in auditorOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="审核说明">
-          <el-input
-            v-model="auditFormData.comment"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入审核说明"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="auditDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleAuditSubmit" :loading="auditLoading">
-          确认提交
-        </el-button>
-      </template>
-    </el-dialog>
+      :document-id="documentId"
+      :flow-list="auditFlowList"
+      :user-options="userOptions"
+      :loading="auditLoading"
+      @submit="handleAuditSubmit"
+    />
   </div>
 </template>
 
@@ -151,6 +126,7 @@ import dayjs from 'dayjs'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 import { Icon } from '@/components/Icon'
+import AuditFlowDialog from '@/components/AuditFlowDialog/index.vue'
 import MarkdownCollaborationPanel from './components/MarkdownCollaborationPanel.vue'
 import MarkdownEditor from './components/MarkdownEditor.vue'
 import { useCollaborationUserStore } from '@/store/modules/collaborationUser'
@@ -159,7 +135,8 @@ import {
   getReferenceMaterials,
   saveMarkdownFile,
   submitAudit,
-  type MarkdownDocumentInfo
+  type MarkdownDocumentInfo,
+  type SubmitAuditReqVO
 } from './api/markdownApi'
 
 // Props
@@ -236,16 +213,35 @@ const currentMaterial = ref<any>(null)
 // 审核弹窗
 const auditDialogVisible = ref(false)
 const auditLoading = ref(false)
-const auditFormData = reactive({
-  auditor: '',
-  comment: ''
-})
 
-// 审核人选项
-const auditorOptions = [
-  { label: '审核员A', value: 'auditor_a' },
-  { label: '审核员B', value: 'auditor_b' },
-  { label: '审核员C', value: 'auditor_c' }
+// 审核流程列表数据
+const auditFlowList = [
+  {
+    flowId: 'flow1',
+    flowName: '模板审批流1',
+    nodes: [
+      { nodeId: 'node1', nodeName: '节点1', users: [] as string[] },
+      { nodeId: 'node2', nodeName: '节点2', users: ['user1', 'user2'] },
+      { nodeId: 'node3', nodeName: '节点3', users: ['user5'] }
+    ]
+  },
+  {
+    flowId: 'flow2',
+    flowName: '模板审批流2',
+    nodes: [
+      { nodeId: 'node1', nodeName: '节点1', users: [] as string[] },
+      { nodeId: 'node2', nodeName: '节点2', users: [] as string[] }
+    ]
+  }
+]
+
+// 用户选项列表
+const userOptions = [
+  { label: 'user1', value: 'user1' },
+  { label: 'user2', value: 'user2' },
+  { label: 'user3', value: 'user3' },
+  { label: 'user4', value: 'user4' },
+  { label: 'user5', value: 'user5' }
 ]
 
 // Yjs 和 WebSocket Provider
@@ -437,29 +433,26 @@ const handleSave = async () => {
   }
 }
 
-// 提交审核
+// 打开提交审核弹窗
 const handleSubmitAudit = () => {
-  auditFormData.auditor = ''
-  auditFormData.comment = ''
   auditDialogVisible.value = true
 }
 
-// 审核提交
-const handleAuditSubmit = async () => {
-  if (!auditFormData.auditor) {
-    ElMessage.warning('请选择审核人')
-    return
-  }
-
+// 提交审核
+const handleAuditSubmit = async (data: SubmitAuditReqVO) => {
   auditLoading.value = true
   try {
-    await submitAudit({
-      id: documentId.value,
-      auditor: auditFormData.auditor,
-      comment: auditFormData.comment
-    })
-    ElMessage.success('提交审核成功')
-    auditDialogVisible.value = false
+    console.log('提交审核参数:', data)
+    const result = await submitAudit(data)
+    console.log('提交审核结果:', result)
+
+    // 处理响应
+    if (result && (result.code === 200 || result.code === 0)) {
+      ElMessage.success(result.msg || '提交审核成功')
+      auditDialogVisible.value = false
+    } else {
+      ElMessage.error(result?.msg || '提交审核失败')
+    }
   } catch (error: any) {
     console.error('提交审核失败:', error)
     ElMessage.error(error.message || '提交审核失败')

@@ -3,6 +3,7 @@
  * 直接调用 Java 后端，导出功能使用前端工具
  * WebSocket 协同编辑仍然通过 collaborative-middleware
  */
+import { USE_MOCK } from '@/config/apiConfig'
 import { javaRequest } from '@/config/axios/javaService'
 import {
   exportToHtml,
@@ -10,6 +11,21 @@ import {
   downloadBlob,
   DocumentExportInfo
 } from '@/utils/documentExport'
+
+// 提交审核请求参数接口
+export interface SubmitAuditReqVO {
+  id: number | string // 文档ID
+  flowId: string // 流程ID
+  auditors: Record<string, string[]> // 节点审核人 { node1: ['user1'], node2: ['user2', 'user3'] }
+  comment?: string // 审核说明
+}
+
+// 提交审核响应接口
+export interface SubmitAuditResponse {
+  code: number
+  data?: any
+  msg?: string
+}
 
 // 文档信息接口
 export interface DocumentInfo {
@@ -63,10 +79,10 @@ export interface DocConvertResponse {
 /**
  * 转换 .doc 文件为 HTML - 调用 Java 后端
  * POST /getPlan/convertDoc
- * 
+ *
  * 说明：由于前端 mammoth.js 只支持 .docx 格式，旧版 .doc 格式需要后端转换
  * 后端可使用 Apache POI 或 LibreOffice 进行转换
- * 
+ *
  * @param file .doc 文件
  * @returns 转换后的 HTML 内容
  */
@@ -269,3 +285,36 @@ export const deleteDocument = async (docId: string): Promise<boolean> => {
 export const getDocumentList = async (): Promise<DocumentInfo[]> => {
   return Array.from(documentCache.values())
 }
+
+// ==================== 提交审核 API ====================
+
+/**
+ * 提交审核 - Java 后端
+ * POST /examRecord/submitReview
+ * @param data 审核参数
+ */
+const submitAuditJava = async (data: SubmitAuditReqVO): Promise<SubmitAuditResponse> => {
+  return await javaRequest.postOriginal('/examRecord/submitReview', data)
+}
+
+/**
+ * 提交审核 - Mock 实现
+ * @param data 审核参数
+ */
+const submitAuditMock = async (data: SubmitAuditReqVO): Promise<SubmitAuditResponse> => {
+  console.log('Mock 提交审核:', data)
+  // 模拟延迟
+  await new Promise((resolve) => setTimeout(resolve, 500))
+  return {
+    code: 200,
+    data: { success: true },
+    msg: '提交审核成功'
+  }
+}
+
+/**
+ * 提交审核（自动切换 Mock/Java）
+ * POST /examRecord/submitReview
+ * @param data 审核参数 { id, flowId, auditors, comment }
+ */
+export const submitAudit = USE_MOCK ? submitAuditMock : submitAuditJava

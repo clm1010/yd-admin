@@ -10,14 +10,6 @@
 
     <!-- 工具栏和搜索栏 -->
     <ContentWrap>
-      <!-- 工具栏 -->
-      <div class="mb-4 flex gap-3 items-center">
-        <el-button type="primary" @click="handleAdd">
-          <Icon icon="ep:plus" class="mr-1" />
-          新建
-        </el-button>
-      </div>
-
       <!-- 搜索栏 -->
       <el-form
         class="-mb-15px"
@@ -90,12 +82,16 @@
 
     <!-- 标签页和表格 -->
     <ContentWrap class="mt-4">
+      <el-button type="primary" @click="handleAdd">
+        <Icon icon="ep:plus" class="mr-1" />
+        新建
+      </el-button>
       <el-button type="danger" plain :disabled="!canBatchDelete" @click="handleBatchDelete">
         <Icon icon="ep:delete" class="mr-1" />
         批量删除 {{ selectedIds.length > 0 ? `(${selectedIds.length})` : '' }}
       </el-button>
       <!-- 标签页 -->
-      <el-tabs v-model="activeTab" @tab-click="handleTabClick">
+      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
         <el-tab-pane label="最近文档" name="recent" />
         <el-tab-pane label="审核列表" name="review" />
         <el-tab-pane label="文档发布" name="publish" />
@@ -129,6 +125,17 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="审核状态" prop="auditStatus" align="center" width="120">
+          <template #default="scope">
+            <div class="flex items-center justify-center">
+              <div
+                :class="getAuditStatusClass(scope.row.auditStatus)"
+                class="w-2 h-2 rounded-full mr-2"
+              ></div>
+              {{ getAuditStatusText(scope.row.auditStatus) }}
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column
           label="描述"
           prop="description"
@@ -138,37 +145,91 @@
         />
         <el-table-column label="创建时间" prop="createTime" align="center" width="180" />
         <el-table-column label="创建人" prop="createBy" align="center" width="120" />
-        <el-table-column label="操作" align="center" width="280" fixed="right">
+        <el-table-column label="操作" align="center" width="320" fixed="right">
           <template #default="scope">
-            <el-button link type="primary" @click="handleEditData(scope.row)">
-              <Icon icon="ep:edit-pen" />
-              编辑
-            </el-button>
-            <el-button link type="primary" @click="handleEdit(scope.row)">
-              <Icon icon="ep:edit" />
-              写作
-            </el-button>
-            <el-button
-              v-if="scope.row.auditStatus === '待提交'"
-              link
-              type="primary"
-              @click="handleSubmitAudit(scope.row)"
-            >
-              <Icon icon="ep:upload" />
-              提交审核
-            </el-button>
-            <el-button v-else-if="scope.row.auditStatus === '审核中'" link type="warning" disabled>
-              <Icon icon="ep:clock" />
-              审核中
-            </el-button>
-            <el-button v-else-if="scope.row.auditStatus === '审核通过'" link type="success">
-              <Icon icon="ep:check" />
-              审核通过
-            </el-button>
-            <el-button link type="danger" @click="handleDelete(scope.row)">
-              <Icon icon="ep:delete" />
-              删除
-            </el-button>
+            <!-- 编辑中状态(1)显示：编辑、写作、提交审核、删除 -->
+            <template v-if="scope.row.auditStatus === '1'">
+              <el-button link type="primary" @click="handleEditData(scope.row)">
+                <Icon icon="ep:edit-pen" />
+                编辑
+              </el-button>
+              <el-button link type="primary" @click="handleEdit(scope.row)">
+                <Icon icon="ep:edit" />
+                写作
+              </el-button>
+              <el-button link type="primary" @click="handleSubmitAudit(scope.row)">
+                <Icon icon="ep:upload" />
+                提交审核
+              </el-button>
+              <el-button link type="danger" @click="handleDelete(scope.row)">
+                <Icon icon="ep:delete" />
+                删除
+              </el-button>
+            </template>
+
+            <!-- 审核中状态(2)显示：审核、驳回、审核记录 -->
+            <template v-else-if="scope.row.auditStatus === '2'">
+              <el-button link type="success" @click="handleApprove(scope.row)">
+                <Icon icon="ep:check" />
+                审核
+              </el-button>
+              <el-button link type="danger" @click="openRejectDialog(scope.row)">
+                <Icon icon="ep:close" />
+                驳回
+              </el-button>
+              <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
+                <Icon icon="ep:document" />
+                审核记录
+              </el-button>
+            </template>
+
+            <!-- 审核通过状态(3)显示：发布按钮 + 审核记录 -->
+            <template v-else-if="scope.row.auditStatus === '3'">
+              <el-button link type="primary" @click="handlePublish(scope.row)">
+                <Icon icon="ep:promotion" />
+                发布
+              </el-button>
+              <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
+                <Icon icon="ep:document" />
+                审核记录
+              </el-button>
+            </template>
+
+            <!-- 发布状态(4)显示：已发布 + 审核记录 -->
+            <template v-else-if="scope.row.auditStatus === '4'">
+              <el-button link type="success" disabled>
+                <Icon icon="ep:check" />
+                已发布
+              </el-button>
+              <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
+                <Icon icon="ep:document" />
+                审核记录
+              </el-button>
+            </template>
+
+            <!-- 驳回状态(5)显示：编辑、写作、提交审核、删除、审核记录 -->
+            <template v-else-if="scope.row.auditStatus === '5'">
+              <el-button link type="primary" @click="handleEditData(scope.row)">
+                <Icon icon="ep:edit-pen" />
+                编辑
+              </el-button>
+              <el-button link type="primary" @click="handleEdit(scope.row)">
+                <Icon icon="ep:edit" />
+                写作
+              </el-button>
+              <el-button link type="primary" @click="handleSubmitAudit(scope.row)">
+                <Icon icon="ep:upload" />
+                提交审核
+              </el-button>
+              <el-button link type="danger" @click="handleDelete(scope.row)">
+                <Icon icon="ep:delete" />
+                删除
+              </el-button>
+              <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
+                <Icon icon="ep:document" />
+                审核记录
+              </el-button>
+            </template>
           </template>
         </el-table-column>
       </el-table>
@@ -266,38 +327,80 @@
       </template>
     </el-dialog>
 
-    <!-- 提交审核弹窗 -->
-    <el-dialog
+    <!-- 审核流配置弹窗 -->
+    <AuditFlowDialog
       v-model="auditDialogVisible"
-      title="提交审核"
+      :document-id="currentAuditId"
+      :flow-list="auditFlowList"
+      :user-options="userOptions"
+      :loading="auditLoading"
+      @submit="handleAuditSubmit"
+    />
+
+    <!-- 驳回原因弹窗 -->
+    <el-dialog
+      v-model="rejectDialogVisible"
+      title="驳回原因"
       width="500px"
       :close-on-click-modal="false"
+      append-to-body
     >
-      <el-form ref="auditFormRef" :model="auditFormData" label-width="100px">
-        <el-form-item label="审核人">
-          <el-select v-model="auditFormData.auditor" placeholder="请选择审核人" class="w-full">
-            <el-option
-              v-for="item in auditorOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="审核说明">
+      <el-form label-position="top">
+        <el-form-item label="请输入驳回原因" required>
           <el-input
-            v-model="auditFormData.comment"
+            v-model="rejectReason"
             type="textarea"
-            :rows="3"
-            placeholder="请输入审核说明"
+            :rows="6"
+            placeholder="请输入驳回原因"
+            resize="none"
           />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="auditDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleAuditSubmit" :loading="auditLoading"
+        <el-button @click="rejectDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleRejectSubmit" :loading="rejectLoading"
           >确认提交</el-button
         >
+      </template>
+    </el-dialog>
+
+    <!-- 审核记录弹窗 -->
+    <el-dialog
+      v-model="examRecordDialogVisible"
+      title="审核记录"
+      width="900px"
+      :close-on-click-modal="false"
+    >
+      <el-table
+        v-loading="examRecordLoading"
+        :data="examRecordList"
+        border
+        stripe
+        style="width: 100%"
+        max-height="400px"
+      >
+        <el-table-column prop="examNode" label="审核节点" width="100" align="center" />
+        <el-table-column prop="examResult" label="审核结果" width="100" align="center">
+          <template #default="scope">
+            <el-tag :type="scope.row.examResult === '1' ? 'success' : 'danger'">
+              {{ scope.row.examResult === '1' ? '通过' : '驳回' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="examOpinion"
+          label="审核意见"
+          min-width="200"
+          align="left"
+          show-overflow-tooltip
+        />
+        <el-table-column prop="examofficeName" label="审核部门" width="120" align="center" />
+        <el-table-column prop="examUserid" label="审批用户" width="100" align="center" />
+        <el-table-column prop="nextUserid" label="下一审批人" width="100" align="center" />
+        <el-table-column prop="createTime" label="审核时间" width="160" align="center" />
+      </el-table>
+      <template #footer>
+        <el-button @click="examRecordDialogVisible = false">关闭</el-button>
       </template>
     </el-dialog>
   </div>
@@ -310,6 +413,7 @@ import * as TemplateApi from '@/api/template/management'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import { useCollaborationUserStore } from '@/store/modules/collaborationUser'
 import { isEmpty, isNil, isString, isObject, pickBy, filter, map, every } from 'lodash-es'
+import AuditFlowDialog from '@/components/AuditFlowDialog/index.vue'
 import {
   templateCategories,
   templateSubCategories,
@@ -335,11 +439,14 @@ const tableRef = ref()
 const selectedIds = ref<(number | string)[]>([])
 const selectedRows = ref<TemplateApi.TemplateVO[]>([])
 
-// 计算属性：判断是否可以批量删除（只有选中的数据都是"待提交"状态才能删除）
+// 计算属性：判断是否可以批量删除（只有选中的数据都是"编辑中"(1)或"驳回"(5)状态才能删除）
 const canBatchDelete = computed(() => {
   if (isEmpty(selectedRows.value)) return false
   // 如果数据没有 auditStatus 字段，则允许删除（兼容旧数据）
-  return every(selectedRows.value, (row) => !row.auditStatus || row.auditStatus === '待提交')
+  return every(
+    selectedRows.value,
+    (row) => !row.auditStatus || row.auditStatus === '1' || row.auditStatus === '5'
+  )
 })
 
 // 当前标签页
@@ -391,17 +498,36 @@ const uploadFile = ref<File | null>(null)
 
 // 审核弹窗
 const auditDialogVisible = ref(false)
-const auditFormData = reactive({
-  id: undefined as number | string | undefined,
-  auditor: '',
-  comment: ''
-})
+const currentAuditId = ref<number | string>(0)
 
-// 审核人选项
-const auditorOptions = [
-  { label: '审核员A', value: 'auditor_a' },
-  { label: '审核员B', value: 'auditor_b' },
-  { label: '审核员C', value: 'auditor_c' }
+// 审核流程列表数据（传递给 AuditFlowDialog 组件）
+const auditFlowList = [
+  {
+    flowId: 'flow1',
+    flowName: '模板审批流1',
+    nodes: [
+      { nodeId: 'node1', nodeName: '节点1', users: [] as string[] },
+      { nodeId: 'node2', nodeName: '节点2', users: ['user1', 'user2'] },
+      { nodeId: 'node3', nodeName: '节点3', users: ['user5'] }
+    ]
+  },
+  {
+    flowId: 'flow2',
+    flowName: '模板审批流2',
+    nodes: [
+      { nodeId: 'node1', nodeName: '节点1', users: [] as string[] },
+      { nodeId: 'node2', nodeName: '节点2', users: [] as string[] }
+    ]
+  }
+]
+
+// 用户选项（用于审核人选择）
+const userOptions = [
+  { label: 'user1', value: 'user1' },
+  { label: 'user2', value: 'user2' },
+  { label: 'user3', value: 'user3' },
+  { label: 'user4', value: 'user4' },
+  { label: 'user5', value: 'user5' }
 ]
 
 // 状态显示处理（兼容 "0"/"1" 和 "启用"/"禁用" 两种格式）
@@ -414,6 +540,39 @@ const getStatusText = (status: string) => {
 const getStatusType = (status: string) => {
   if (status === '0' || status === '启用') return 'success'
   return 'info'
+}
+
+// 审核状态文本映射（编辑中:1、审核中:2、审核通过:3、发布:4、驳回:5）
+const auditStatusTextMap: Record<string, string> = {
+  '1': '编辑中',
+  '2': '审核中',
+  '3': '审核通过',
+  '4': '发布',
+  '5': '驳回'
+}
+
+// 获取审核状态文本
+const getAuditStatusText = (status?: string) => {
+  if (!status) return '编辑中'
+  return auditStatusTextMap[status] || status
+}
+
+// 获取审核状态样式
+const getAuditStatusClass = (status?: string) => {
+  switch (status) {
+    case '1': // 编辑中
+      return 'bg-red-500'
+    case '2': // 审核中
+      return 'bg-orange-500'
+    case '3': // 审核通过
+      return 'bg-green-500'
+    case '4': // 发布
+      return 'bg-blue-500'
+    case '5': // 驳回
+      return 'bg-gray-400'
+    default:
+      return 'bg-gray-500'
+  }
 }
 
 // 获取列表数据
@@ -473,8 +632,8 @@ const resetQuery = () => {
   handleQuery()
 }
 
-// 标签页切换
-const handleTabClick = () => {
+// 标签页切换（使用 tab-change 事件，在值更新后触发）
+const handleTabChange = () => {
   queryParams.pageNo = 1
   // 清空选中状态
   selectedIds.value = []
@@ -732,13 +891,13 @@ const handleBatchDelete = async () => {
     return
   }
 
-  // 检查是否所有选中的数据都是"待提交"状态
+  // 检查是否所有选中的数据都是"编辑中"(1)或"驳回"(5)状态
   const notDeletableRows = filter(
     selectedRows.value,
-    (row) => row.auditStatus && row.auditStatus !== '待提交'
+    (row) => row.auditStatus && row.auditStatus !== '1' && row.auditStatus !== '5'
   )
   if (!isEmpty(notDeletableRows)) {
-    ElMessage.warning('只能删除"待提交"状态的模板，请重新选择')
+    ElMessage.warning('只能删除"编辑中"或"驳回"状态的模板，请重新选择')
     return
   }
 
@@ -794,36 +953,166 @@ const handleFileRemove = () => {
   uploadFile.value = null
 }
 
-// 提交审核
+// 提交审核（打开审核流配置弹窗）
 const handleSubmitAudit = (row: TemplateApi.TemplateVO) => {
-  auditFormData.id = row.id
-  auditFormData.auditor = ''
-  auditFormData.comment = ''
+  currentAuditId.value = row.id || 0
   auditDialogVisible.value = true
 }
 
-// 审核提交
-const handleAuditSubmit = async () => {
-  if (!auditFormData.auditor) {
-    ElMessage.warning('请选择审核人')
-    return
-  }
-
+// 审核提交（接收来自 AuditFlowDialog 组件的数据）
+const handleAuditSubmit = async (submitData: {
+  id: number | string
+  flowId: string
+  auditors: Record<string, string[]>
+  comment: string
+}) => {
   auditLoading.value = true
   try {
-    await TemplateApi.submitAudit({
-      id: auditFormData.id!,
-      auditor: auditFormData.auditor,
-      comment: auditFormData.comment
-    })
-    ElMessage.success('提交审核成功')
-    auditDialogVisible.value = false
-    getList()
+    console.log('提交审核参数:', submitData)
+    const result = await TemplateApi.submitAudit(submitData)
+    console.log('提交审核结果:', result)
+
+    // 处理响应 - 兼容两种格式
+    if (isObject(result) && !isNil(result)) {
+      const res = result as { code?: number; msg?: string }
+      if (res.code === 200 || res.code === 0) {
+        ElMessage.success(res.msg || '提交审核成功')
+        auditDialogVisible.value = false
+        getList()
+      } else {
+        ElMessage.error(res.msg || '提交审核失败')
+      }
+    } else {
+      // 直接成功
+      ElMessage.success('提交审核成功')
+      auditDialogVisible.value = false
+      getList()
+    }
   } catch (error: any) {
     console.error('提交审核失败:', error)
     ElMessage.error(error.message || '提交审核失败')
   } finally {
     auditLoading.value = false
+  }
+}
+
+// 发布模板
+const handlePublish = async (row: TemplateApi.TemplateVO) => {
+  try {
+    await ElMessageBox.confirm(`确认要发布模板"${row.templateName}"吗？`, '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
+    // TODO: 调用发布接口，传递 row.id
+    console.log('发布模板:', row.id)
+    ElMessage.success('发布成功')
+    getList()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error('发布失败')
+    }
+  }
+}
+
+// 驳回弹窗相关
+const rejectDialogVisible = ref(false)
+const rejectLoading = ref(false)
+const rejectReason = ref('')
+const currentRejectRow = ref<TemplateApi.TemplateVO>()
+
+// 打开驳回弹窗
+const openRejectDialog = (row: TemplateApi.TemplateVO) => {
+  if (!row.id) return
+  currentRejectRow.value = row
+  rejectDialogVisible.value = true
+  rejectReason.value = ''
+}
+
+// 提交驳回 - POST /examRecord/examTem
+const handleRejectSubmit = async () => {
+  if (isEmpty(rejectReason.value.trim())) {
+    ElMessage.warning('请输入驳回原因')
+    return
+  }
+
+  if (isNil(currentRejectRow.value?.id)) return
+
+  rejectLoading.value = true
+  try {
+    // 获取当前用户ID
+    const collaborationUser = collaborationUserStore.getOrCreateUser()
+    const userId = collaborationUser.id || 'admin'
+
+    await TemplateApi.examApply({
+      apply: currentRejectRow.value.id,
+      examResult: '2', // 驳回
+      examOpinion: rejectReason.value,
+      examuserId: userId
+    })
+    ElMessage.success('驳回成功')
+    rejectDialogVisible.value = false
+    getList()
+  } catch (error) {
+    console.error('驳回失败:', error)
+    ElMessage.error('驳回失败')
+  } finally {
+    rejectLoading.value = false
+  }
+}
+
+// 审核通过 - POST /examRecord/examTem
+const handleApprove = async (row: TemplateApi.TemplateVO) => {
+  if (!row.id) return
+
+  try {
+    await ElMessageBox.confirm('确认审核通过该模板吗？', '审核确认', {
+      confirmButtonText: '确认提交',
+      cancelButtonText: '取消',
+      type: 'info'
+    })
+
+    // 获取当前用户ID
+    const collaborationUser = collaborationUserStore.getOrCreateUser()
+    const userId = collaborationUser.id || 'admin'
+
+    await TemplateApi.examApply({
+      apply: row.id,
+      examResult: '1', // 通过
+      examOpinion: '',
+      examuserId: userId
+    })
+    ElMessage.success('审核通过')
+    getList()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('审核失败:', error)
+      ElMessage.error('审核失败')
+    }
+  }
+}
+
+// 审核记录弹窗相关
+const examRecordDialogVisible = ref(false)
+const examRecordLoading = ref(false)
+const examRecordList = ref<TemplateApi.ExamRecordVO[]>([])
+
+// 打开审核记录弹窗
+const openExamRecordDialog = async (row: TemplateApi.TemplateVO) => {
+  if (!row.id) return
+  examRecordDialogVisible.value = true
+  examRecordLoading.value = true
+  examRecordList.value = []
+
+  try {
+    const res = await TemplateApi.getExamRecordList(row.id)
+    examRecordList.value = res.data || []
+  } catch (error) {
+    console.error('获取审核记录失败:', error)
+    ElMessage.error('获取审核记录失败')
+  } finally {
+    examRecordLoading.value = false
   }
 }
 

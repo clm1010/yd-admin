@@ -22,7 +22,9 @@ import type {
   SubmitAuditReqVO,
   ImportTemplateData,
   PermissionCheckReqVO,
-  PermissionCheckResponse
+  PermissionCheckResponse,
+  ExamRecordVO,
+  ExamApplyReqVO
 } from './types'
 
 // ==================== Java 后端 API 实现 ====================
@@ -90,11 +92,11 @@ const javaApi = {
   },
 
   /**
-   * 提交审核
+   * 提交审核 - Java 后端
+   * POST /examRecord/TemSubmit
    */
   submitAudit: async (data: SubmitAuditReqVO) => {
-    console.log('提交审核:', data)
-    return Promise.resolve({ success: true, message: '提交审核成功' })
+    return await javaRequest.postOriginal('/examRecord/TemSubmit', data)
   },
 
   /**
@@ -148,6 +150,24 @@ const javaApi = {
     formData.append('id', id)
     formData.append('file', file)
     return await javaRequest.upload('/tbTemplate/saveFile', formData)
+  },
+
+  /**
+   * 获取审核记录列表 - Java 后端
+   * GET /examRecord/examApply
+   * @param id 当前表格数据id
+   */
+  getExamRecordList: async (id: number | string): Promise<{ data: ExamRecordVO[] }> => {
+    return await javaRequest.get('/examRecord/examApply', { id })
+  },
+
+  /**
+   * 审核/驳回操作 - Java 后端
+   * POST /examRecord/examTem
+   * @param data 审核/驳回参数
+   */
+  examApply: async (data: ExamApplyReqVO) => {
+    return await javaRequest.postOriginal('/examRecord/examTem', data)
   }
 }
 
@@ -216,6 +236,16 @@ const mockApi = {
     const { saveTemplateFile } = await import('@/mock/template/management')
     const res = await saveTemplateFile(id, file)
     return res
+  },
+
+  getExamRecordList: async (id: number | string): Promise<{ data: ExamRecordVO[] }> => {
+    const { getExamRecordList } = await import('@/mock/template/management')
+    return getExamRecordList(id)
+  },
+
+  examApply: async (data: ExamApplyReqVO) => {
+    const { examApply } = await import('@/mock/template/management')
+    return examApply(data)
   }
 }
 
@@ -294,6 +324,20 @@ export const saveDocument = api.saveDocument
  * @returns 保存结果
  */
 export const saveTemplateFile = api.saveTemplateFile
+
+/**
+ * 获取审核记录列表
+ * GET /examRecord/examApply
+ * @param id 当前表格数据id
+ */
+export const getExamRecordList = api.getExamRecordList
+
+/**
+ * 审核/驳回操作
+ * POST /examRecord/examTem
+ * @param data 审核/驳回参数 { apply, examResult, examOpinion, examuserId }
+ */
+export const examApply = api.examApply
 
 // 重新导出分类配置
 export { templateCategories } from '@/views/template/management/config/categories'

@@ -3,6 +3,7 @@
  * 直接调用 Java 后端，导出功能使用前端工具
  * WebSocket 协同编辑仍然通过 collaborative-middleware
  */
+import { USE_MOCK } from '@/config/apiConfig'
 import { javaRequest } from '@/config/axios/javaService'
 import {
   exportToHtml,
@@ -10,6 +11,21 @@ import {
   downloadBlob,
   DocumentExportInfo
 } from '@/utils/documentExport'
+
+// 提交审核请求参数接口
+export interface SubmitAuditReqVO {
+  id: number | string // 模板ID
+  flowId: string // 流程ID
+  auditors: Record<string, string[]> // 节点审核人 { node1: ['user1'], node2: ['user2', 'user3'] }
+  comment?: string // 审核说明
+}
+
+// 提交审核响应接口
+export interface SubmitAuditResponse {
+  code: number
+  data?: any
+  msg?: string
+}
 
 // Markdown 文档信息接口
 export interface MarkdownDocumentInfo {
@@ -95,23 +111,35 @@ export const saveMarkdownFile = async (
 }
 
 /**
- * 提交审核 - 直接调用 Java 后端
- * POST /template/submitAudit
- * @param params 审核参数
+ * 提交审核 - Java 后端
+ * POST /examRecord/TemSubmit
+ * @param data 审核参数
  */
-export const submitAudit = async (params: {
-  id: string
-  auditor: string
-  comment?: string
-}): Promise<any> => {
-  try {
-    const res = await javaRequest.post('/template/submitAudit', params)
-    return res
-  } catch (error) {
-    console.error('提交审核失败:', error)
-    throw error
+const submitAuditJava = async (data: SubmitAuditReqVO): Promise<SubmitAuditResponse> => {
+  return await javaRequest.postOriginal('/examRecord/TemSubmit', data)
+}
+
+/**
+ * 提交审核 - Mock 实现
+ * @param data 审核参数
+ */
+const submitAuditMock = async (data: SubmitAuditReqVO): Promise<SubmitAuditResponse> => {
+  console.log('Mock 提交审核:', data)
+  // 模拟延迟
+  await new Promise((resolve) => setTimeout(resolve, 500))
+  return {
+    code: 200,
+    data: { success: true },
+    msg: '提交审核成功'
   }
 }
+
+/**
+ * 提交审核（自动切换 Mock/Java）
+ * POST /examRecord/TemSubmit
+ * @param data 审核参数 { id, flowId, auditors, comment }
+ */
+export const submitAudit = USE_MOCK ? submitAuditMock : submitAuditJava
 
 // ==================== 前端实现的功能 ====================
 
