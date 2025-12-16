@@ -68,6 +68,7 @@
     "benz-amr-recorder": "^1.1.5",
     "bpmn-js-token-simulation": "^0.36.0",
     "camunda-bpmn-moddle": "^7.0.1",
+    "cfb": "^1.2.2",
     "cropperjs": "^1.6.1",
     "crypto-js": "^4.2.0",
     "dayjs": "^1.11.10",

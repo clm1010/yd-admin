@@ -11,7 +11,7 @@
     <!-- 工具栏和搜索栏 -->
     <ContentWrap>
       <!-- 工具栏 -->
-      <div class="mb-4 flex gap-3">
+      <div class="mb-4 flex gap-3 items-center">
         <el-button type="primary" @click="handleAdd">
           <Icon icon="ep:plus" class="mr-1" />
           新建
@@ -26,9 +26,9 @@
         :inline="true"
         label-width="80px"
       >
-        <el-form-item label="日期范围" prop="dateRange">
+        <el-form-item label="创建时间" prop="createTime">
           <el-date-picker
-            v-model="dateRange"
+            v-model="createTimeRange"
             type="daterange"
             start-placeholder="开始时间"
             end-placeholder="结束时间"
@@ -44,15 +44,31 @@
             class="!w-200px"
           />
         </el-form-item>
-        <el-form-item label="模板分类" prop="temSubclass">
+        <el-form-item label="模板分类" prop="temCategory">
           <el-select
-            v-model="queryParams.temSubclass"
+            v-model="queryParams.temCategory"
             placeholder="请选择"
             clearable
             class="!w-200px"
           >
             <el-option
-              v-for="item in categoryOptions"
+              v-for="item in templateCategories"
+              :key="item.id"
+              :label="item.name"
+              :value="item.name"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="模板子类" prop="temSubclass">
+          <el-select
+            v-model="queryParams.temSubclass"
+            placeholder="模板子类"
+            clearable
+            class="!w-150px"
+            @change="handleQuery"
+          >
+            <el-option
+              v-for="item in subCategoryOptions"
               :key="item.id"
               :label="item.name"
               :value="item.id"
@@ -96,9 +112,16 @@
         <el-table-column type="selection" width="55" align="center" />
         <el-table-column label="序号" type="index" width="60" align="center" />
         <el-table-column label="模板名称" prop="templateName" align="center" min-width="150" />
-        <el-table-column label="模板子类" prop="temSubclass" align="center" width="120" />
-        <el-table-column label="模板状态" prop="temStatus" align="center" width="100" />
-        <el-table-column label="文件id" prop="fileId" align="center" width="100" />
+        <el-table-column label="模板分类" prop="temCategory" align="center" min-width="120">
+          <template #default>
+            {{ templateCategories[0]?.name || '筹划文档' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="模板子类" prop="temSubclass" align="center" width="120">
+          <template #default="scope">
+            {{ getSubCategoryNameById(scope.row.temSubclass) || scope.row.temSubclass }}
+          </template>
+        </el-table-column>
         <el-table-column label="模板状态" prop="temStatus" align="center" width="100">
           <template #default="scope">
             <el-tag :type="getStatusType(scope.row.temStatus)">
@@ -172,6 +195,16 @@
       <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
         <el-form-item label="模板名称" prop="templateName">
           <el-input v-model="formData.templateName" placeholder="请输入模板名称" clearable />
+        </el-form-item>
+        <el-form-item label="模板分类" prop="temCategory">
+          <el-select v-model="formData.temCategory" placeholder="请选择" clearable class="w-full">
+            <el-option
+              v-for="item in templateCategories"
+              :key="item.id"
+              :label="item.name"
+              :value="item.name"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="模板子类" prop="temSubclass">
           <el-select v-model="formData.temSubclass" placeholder="请选择" clearable class="w-full">
@@ -277,6 +310,11 @@ import * as TemplateApi from '@/api/template/management'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import { useCollaborationUserStore } from '@/store/modules/collaborationUser'
 import { isEmpty, isNil, isString, isObject, pickBy, filter, map, every } from 'lodash-es'
+import {
+  templateCategories,
+  templateSubCategories,
+  getSubCategoryNameById
+} from './config/categories'
 
 defineOptions({ name: 'TemplateManagement' })
 
@@ -307,8 +345,8 @@ const canBatchDelete = computed(() => {
 // 当前标签页
 const activeTab = ref('recent')
 
-// 日期范围（用于日期选择器）
-const dateRange = ref<string[]>([])
+// 日期范围（用于日期选择器，数组格式）
+const createTimeRange = ref<string[]>([])
 
 // 查询参数
 const queryParams = reactive<TemplateApi.TemplatePageReqVO>({
@@ -322,9 +360,9 @@ const queryParams = reactive<TemplateApi.TemplatePageReqVO>({
 
 const queryFormRef = ref()
 
-// 分类选项
-const categoryOptions = ref<TemplateApi.TemplateCategoryVO[]>([])
-const subCategoryOptions = ref<TemplateApi.TemplateCategoryVO[]>([])
+// 分类选项（使用本地配置）
+const categoryOptions = ref(templateCategories)
+const subCategoryOptions = ref(templateSubCategories)
 
 // 新建/编辑弹窗
 const dialogVisible = ref(false)
@@ -337,11 +375,13 @@ const formData = reactive({
   temSubclass: '',
   description: '',
   temStatus: '启用',
+  temCategory: '',
   creationMethod: 'new' as 'new' | 'upload'
 })
 
 const formRules = {
   templateName: [{ required: true, message: '请输入模板名称', trigger: 'blur' }],
+  temCategory: [{ required: true, message: '请选择模板分类', trigger: 'change' }],
   temSubclass: [{ required: true, message: '请选择模板子类', trigger: 'change' }]
 }
 
@@ -380,14 +420,15 @@ const getStatusType = (status: string) => {
 const getList = async () => {
   loading.value = true
   try {
-    // 处理日期范围，转换为 "2025-12-10, 2025-12-11" 格式
+    // 复制查询参数
     const params = {
       ...queryParams,
-      tabType: activeTab.value,
-      createTime:
-        !isEmpty(dateRange.value) && dateRange.value.length === 2
-          ? dateRange.value.join(', ')
-          : undefined
+      tabType: activeTab.value
+    } as Record<string, any>
+
+    // 将 createTimeRange 数组转换为字符串格式 '2025-10-10,2025-12-12'
+    if (Array.isArray(createTimeRange.value) && createTimeRange.value.length === 2) {
+      params.createTime = createTimeRange.value.join(',')
     }
 
     // 使用 lodash pickBy 移除空值
@@ -395,6 +436,8 @@ const getList = async () => {
       if (Array.isArray(value)) return !isEmpty(value)
       return !isNil(value) && value !== ''
     })
+
+    console.log('查询参数', cleanParams)
 
     const data = await TemplateApi.getPageList(cleanParams as TemplateApi.TemplatePageReqVO)
     list.value = data.list || []
@@ -407,18 +450,10 @@ const getList = async () => {
   }
 }
 
-// 获取分类数据
-const getCategories = async () => {
-  try {
-    const data = await TemplateApi.getCategories()
-    categoryOptions.value = data
-    subCategoryOptions.value = filter(
-      data,
-      (item: TemplateApi.TemplateCategoryVO) => item.id !== '0'
-    )
-  } catch (error) {
-    console.error('获取分类失败:', error)
-  }
+// 初始化分类数据（使用本地配置）
+const initCategories = () => {
+  categoryOptions.value = templateCategories
+  subCategoryOptions.value = templateSubCategories
 }
 
 // 查询
@@ -430,10 +465,10 @@ const handleQuery = () => {
 // 重置
 const resetQuery = () => {
   queryFormRef.value?.resetFields()
-  dateRange.value = []
   queryParams.templateName = undefined
   queryParams.temSubclass = undefined
   queryParams.createTime = undefined
+  createTimeRange.value = []
   activeTab.value = 'recent'
   handleQuery()
 }
@@ -464,6 +499,7 @@ const handleAdd = () => {
   Object.assign(formData, {
     id: undefined,
     templateName: '',
+    temCategory: '',
     temSubclass: '',
     description: '',
     temStatus: '启用',
@@ -590,13 +626,22 @@ const handleSave = async () => {
 
     if (formData.id) {
       // 编辑模式
-      await TemplateApi.updateTemplate(formData as TemplateApi.TemplateVO)
+      const updateData: TemplateApi.TemplateVO = {
+        id: formData.id,
+        templateName: formData.templateName,
+        temCategory: formData.temCategory,
+        temSubclass: formData.temSubclass,
+        temStatus: formData.temStatus,
+        description: formData.description
+      }
+      await TemplateApi.updateTemplate(updateData)
       ElMessage.success('更新成功')
     } else {
       // 新建模式
       // 构建保存数据
       const saveData: any = {
         templateName: formData.templateName,
+        temCategory: formData.temCategory,
         temSubclass: formData.temSubclass,
         description: formData.description,
         temStatus: formData.temStatus
@@ -784,7 +829,7 @@ const handleAuditSubmit = async () => {
 
 // 页面初始化
 onMounted(() => {
-  getCategories()
+  initCategories()
   getList()
 })
 
@@ -794,8 +839,6 @@ onUnmounted(() => {
   selectedRows.value = []
   selectedIds.value = []
   list.value = []
-  categoryOptions.value = []
-  subCategoryOptions.value = []
 })
 </script>
 

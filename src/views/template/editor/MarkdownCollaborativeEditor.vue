@@ -376,14 +376,26 @@ const htmlToMarkdown = (htmlContent: string): string => {
 /**
  * 将 HTML 内容转换为 Markdown 文件的 Blob
  * @param htmlContent HTML 内容
- * @returns Blob 文件流（Markdown 格式）
+ * @returns Blob 文件流（Markdown 格式，带 UTF-8 BOM）
  */
 const htmlToMarkdownBlob = (htmlContent: string): Blob => {
   // 将 HTML 转换为 Markdown
   const markdownContent = htmlToMarkdown(htmlContent)
 
-  return new Blob([markdownContent], {
-    type: 'text/markdown;charset=utf-8'
+  // 使用 TextEncoder 将字符串转换为 UTF-8 字节数组
+  const encoder = new TextEncoder()
+  const contentBytes = encoder.encode(markdownContent)
+
+  // UTF-8 BOM: 0xEF, 0xBB, 0xBF
+  const bom = new Uint8Array([0xef, 0xbb, 0xbf])
+
+  // 合并 BOM 和内容
+  const blobContent = new Uint8Array(bom.length + contentBytes.length)
+  blobContent.set(bom, 0)
+  blobContent.set(contentBytes, bom.length)
+
+  return new Blob([blobContent], {
+    type: 'text/markdown'
   })
 }
 
@@ -805,10 +817,16 @@ onBeforeUnmount(() => {
   // 标记组件已销毁，防止异步回调继续执行
   isComponentDestroyed = true
 
-  // 清理 setTimeout
+  // 清理 syncTimeout
   if (syncTimeoutId) {
     clearTimeout(syncTimeoutId)
     syncTimeoutId = null
+  }
+
+  // 清理 updateCollaboratorsTimer（防抖定时器）
+  if (updateCollaboratorsTimer) {
+    clearTimeout(updateCollaboratorsTimer)
+    updateCollaboratorsTimer = null
   }
 
   // 清理编辑器实例引用
@@ -820,6 +838,8 @@ onBeforeUnmount(() => {
     try {
       // 移除所有事件监听器
       provider.awareness.off('change', updateCollaborators)
+      provider.off('status', () => {})
+      provider.off('sync', () => {})
       // 移除用户状态
       provider.awareness.setLocalStateField('user', null)
     } catch (e) {
@@ -845,6 +865,7 @@ onBeforeUnmount(() => {
   referenceMaterials.value = []
   documentInfo.value = null
   currentMaterial.value = null
+  initialMarkdownContent.value = ''
 
   console.log('Markdown 协同编辑组件已清理')
 })

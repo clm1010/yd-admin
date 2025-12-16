@@ -26,31 +26,83 @@
           :model="queryParams"
           ref="queryFormRef"
           :inline="true"
-          label-width="68px"
+          label-width="100px"
         >
           <el-row>
             <el-col :span="24">
-              <el-form-item label="方案名称" prop="name">
+              <el-form-item label="方案名称" prop="planName">
                 <el-input
-                  v-model="queryParams.name"
+                  v-model="queryParams.planName"
                   placeholder="请输入"
                   clearable
                   class="!w-200px"
                 />
               </el-form-item>
-              <el-form-item label="上传时间" prop="uploadTime">
-                <el-date-picker
-                  v-model="queryParams.uploadTime"
-                  type="daterange"
-                  start-placeholder="请选择"
-                  end-placeholder="请选择"
-                  value-format="YYYY-MM-DD"
-                  class="!w-240px"
+              <el-form-item label="演训主题" prop="exerciseTheme">
+                <el-input
+                  v-model="queryParams.exerciseTheme"
+                  placeholder="请输入"
+                  clearable
+                  class="!w-200px"
                 />
               </el-form-item>
-              <el-form-item label="文档状态" prop="status">
+              <el-form-item label="演训类型" prop="exerciseType">
                 <el-select
-                  v-model="queryParams.status"
+                  v-model="queryParams.exerciseType"
+                  placeholder="请选择"
+                  clearable
+                  class="!w-200px"
+                >
+                  <el-option label="大学年度演训" value="DXNDYX" />
+                  <el-option label="联合类" value="LHL" />
+                  <el-option label="作战类" value="ZUOZL" />
+                  <el-option label="政治类" value="ZZL" />
+                  <el-option label="经济类" value="JJL" />
+                  <el-option label="认知类" value="RZL" />
+                  <el-option label="文化类" value="WHL" />
+                  <el-option label="后装类" value="HZL" />
+                  <el-option label="国际防务类" value="GJFWL" />
+                  <el-option label="网络类" value="WLL" />
+                  <el-option label="电磁类" value="DCL" />
+                  <el-option label="太空类" value="TKL" />
+                </el-select>
+              </el-form-item>
+
+              <el-form-item label="演训等级" prop="level">
+                <el-select
+                  v-model="queryParams.level"
+                  placeholder="请选择"
+                  clearable
+                  class="!w-200px"
+                >
+                  <el-option label="战略级" value="ZLJ" />
+                  <el-option label="战役级" value="ZYJ" />
+                  <el-option label="战术级" value="ZSJ" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <el-col :span="24">
+              <el-form-item label="所属学院" prop="">
+                <el-select
+                  v-model="queryParams.collegeCode"
+                  placeholder="请选择"
+                  clearable
+                  class="!w-200px"
+                >
+                  <el-option label="国防大学" value="GFDX" />
+                  <el-option label="联合作战学院" value="LHZZXY" />
+                  <el-option label="国家安全学院" value="GJAQXY" />
+                  <el-option label="联合勤务学院" value="LHQWXY" />
+                  <el-option label="国际防务学院" value="GJFWXY" />
+                  <el-option label="军事管理学院" value="SGLXY" />
+                  <el-option label="政治学院" value="ZZXY" />
+                  <el-option label="军事文华学院" value="JSWHXY" />
+                  <el-option label="研究生院" value="YJSY" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="审核状态" prop="applyNode">
+                <el-select
+                  v-model="queryParams.applyNode"
                   placeholder="请选择"
                   clearable
                   class="!w-200px"
@@ -62,51 +114,17 @@
                   <el-option label="发布" value="published" />
                 </el-select>
               </el-form-item>
-            </el-col>
-            <el-col :span="24">
-              <el-form-item label="演训主题" prop="drillTheme">
-                <el-input
-                  v-model="queryParams.drillTheme"
-                  placeholder="请输入"
-                  clearable
-                  class="!w-200px"
+              <el-form-item label="上传时间" prop="createTime">
+                <el-date-picker
+                  v-model="queryParams.createTime"
+                  type="daterange"
+                  start-placeholder="请选择"
+                  end-placeholder="请选择"
+                  value-format="YYYY-MM-DD"
+                  class="!w-240px"
                 />
               </el-form-item>
-              <el-form-item label="演训类型" prop="drillType">
-                <el-select
-                  v-model="queryParams.drillType"
-                  placeholder="请选择"
-                  clearable
-                  class="!w-200px"
-                >
-                  <el-option label="类型A" value="A" />
-                  <el-option label="类型B" value="B" />
-                </el-select>
-              </el-form-item>
-              <el-form-item label="演训等级" prop="drillLevel">
-                <el-select
-                  v-model="queryParams.drillLevel"
-                  placeholder="请选择"
-                  clearable
-                  class="!w-200px"
-                >
-                  <el-option label="战略级" value="strategy" />
-                  <el-option label="战术级" value="tactics" />
-                </el-select>
-              </el-form-item>
-              <el-form-item label="文档类型" prop="docType">
-                <el-select
-                  v-model="queryParams.docType"
-                  placeholder="请选择"
-                  clearable
-                  class="!w-200px"
-                >
-                  <el-option label="类型1" value="1" />
-                  <el-option label="类型2" value="2" />
-                </el-select>
-              </el-form-item>
-
-              <el-form-item class="float-right">
+              <el-form-item label="" class="">
                 <el-button type="primary" @click="handleQuery">
                   <Icon icon="ep:search" class="mr-1" />
                   查询
@@ -155,26 +173,41 @@
         <el-table v-loading="loading" :data="list" @selection-change="handleSelectionChange" stripe>
           <el-table-column type="selection" width="55" />
           <el-table-column label="序号" type="index" width="60" align="center" />
-          <el-table-column label="方案名称" prop="name" align="center" min-width="150" />
-          <el-table-column label="所属学院" prop="college" align="center" width="120" />
-          <el-table-column label="文档分类" prop="docCategory" align="center" width="120" />
-          <el-table-column label="演训等级" prop="drillLevel" align="center" width="100" />
-          <el-table-column
-            label="作者"
-            prop="author"
-            align="center"
-            width="150"
-            show-overflow-tooltip
-          />
-          <el-table-column label="权限范围" prop="scope" align="center" width="100" />
-          <el-table-column label="审核状态" prop="status" align="center" width="120">
+          <el-table-column label="方案名称" prop="planName" align="center" min-width="200" />
+          <el-table-column label="所属学院" prop="collegeCode" align="center" width="120">
+            <template #default="scope">
+              {{ getCollegeLabel(scope.row.collegeCode) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="文档分类" prop="fileType" align="center" width="120">
+            <template #default="scope">
+              {{ getFileTypeLabel(scope.row.fileType) }}
+            </template>
+          </el-table-column>
+
+          <el-table-column label="演训主题" prop="exerciseTheme" align="center" width="120">
+            <template #default="scope">
+              {{ getExerciseThemeLabel(scope.row.exerciseTheme) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="演训类型" prop="exerciseType" align="center" width="120">
+            <template #default="scope">
+              {{ getExerciseTypeLabel(scope.row.exerciseType) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="演训等级" prop="level" align="center" width="100">
+            <template #default="scope">
+              {{ getLevelLabel(scope.row.level) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="审核状态" prop="applyNode" align="center" width="120">
             <template #default="scope">
               <div class="flex items-center justify-center">
                 <div
-                  :class="getStatusClass(scope.row.status)"
+                  :class="getStatusClass(scope.row.applyNode)"
                   class="w-2 h-2 rounded-full mr-2"
                 ></div>
-                {{ scope.row.status }}
+                {{ getApplyNodeLabel(scope.row.applyNode) }}
               </div>
             </template>
           </el-table-column>
@@ -182,7 +215,7 @@
           <el-table-column label="操作" align="center" width="280" fixed="right">
             <template #default="scope">
               <!-- 编辑中状态显示：编辑、写作、审核、删除 -->
-              <div v-if="scope.row.status === '编辑中'">
+              <div v-if="scope.row.applyNode === '编辑中'">
                 <el-button link type="primary" @click="handleEditData(scope.row)">
                   <Icon icon="ep:edit-pen" />
                   编辑
@@ -202,13 +235,13 @@
               </div>
 
               <!-- 待审核或驳回状态显示：审核 -->
-              <div v-else-if="scope.row.status === '待审核' || scope.row.status === '驳回'">
+              <div v-else-if="scope.row.applyNode === '待审核' || scope.row.applyNode === '驳回'">
                 <el-button link type="primary" @click="openAuditDialog(scope.row)">
                   <Icon icon="ep:upload" />
                   审核
                 </el-button>
                 <el-button
-                  v-if="scope.row.status === '驳回'"
+                  v-if="scope.row.applyNode === '驳回'"
                   link
                   type="danger"
                   @click="openRejectDialog(scope.row)"
@@ -219,7 +252,7 @@
               </div>
 
               <!-- 审核通过状态显示：发布 -->
-              <div v-else-if="scope.row.status === '审核通过'">
+              <div v-else-if="scope.row.applyNode === '审核通过'">
                 <el-button link type="primary" @click="openPublishDialog(scope.row)">
                   <Icon icon="ep:promotion" />
                   发布
@@ -275,6 +308,17 @@
         </el-select>
       </el-form-item>
 
+      <el-form-item label="所属学院" prop="collegeCode">
+        <el-select v-model="formData.collegeCode" placeholder="请选择" clearable class="w-full">
+          <el-option
+            v-for="item in collegeOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+      </el-form-item>
+
       <el-form-item label="简介">
         <el-input v-model="formData.brief" type="textarea" :rows="3" placeholder="请输入" />
       </el-form-item>
@@ -288,7 +332,7 @@
           class="w-full"
         >
           <el-option
-            v-for="item in editableUserOptions"
+            v-for="item in activeUserOptions"
             :key="item.value"
             :label="item.label"
             :value="item.value"
@@ -592,20 +636,19 @@ const selectedRows = ref<PerformanceApi.TrainingPerformanceVO[]>([])
 // 计算属性：判断是否可以批量删除（只有选中的数据都是"编辑中"状态才能删除）
 const canBatchDelete = computed(() => {
   if (isEmpty(selectedRows.value)) return false
-  return every(selectedRows.value, (row) => row.status === '编辑中')
+  return every(selectedRows.value, (row) => row.applyNode === '编辑中')
 })
 
 const queryParams = reactive<PerformanceApi.TrainingPerformancePageReqVO>({
   pageNo: 1,
   pageSize: 10,
-  name: undefined,
-  uploadTime: [],
-  status: undefined,
-  docCategory: undefined,
+  planName: undefined,
+  createTime: undefined,
+  applyNode: undefined,
   fileType: undefined, // 左侧文档分类
-  drillTheme: undefined,
-  drillType: undefined,
-  drillLevel: undefined,
+  exerciseTheme: undefined,
+  exerciseType: undefined,
+  level: undefined,
   docType: undefined
 })
 
@@ -621,9 +664,9 @@ const getList = async () => {
       return !isNil(value) && value !== ''
     }) as Record<string, any>
 
-    // 将 uploadTime 数组转换为字符串格式 '2025-12-10, 2025-12-11'
-    if (isArray(params.uploadTime) && params.uploadTime.length === 2) {
-      params.uploadTime = params.uploadTime.join(', ')
+    // 将 createTime 数组转换为字符串格式 '2025-10-10,2025-12-12'
+    if (isArray(params.createTime) && params.createTime.length === 2) {
+      params.createTime = params.createTime.join(',')
     }
 
     // 添加标签页类型参数
@@ -631,9 +674,107 @@ const getList = async () => {
       activeTab.value === 'review' ? 'review' : activeTab.value === 'publish' ? 'publish' : 'recent'
 
     console.log('查询参数:', params)
-    const data = await PerformanceApi.getPageList(params as any)
-    list.value = data.list || []
-    total.value = data.total || 0
+    // const data = await PerformanceApi.getPageList(params as any)
+    // list.value = data.list || []
+    list.value = [
+      {
+        id: 1,
+        drillDataId: 'drill-001',
+        drillDataName: '2024年度联合作战演练',
+        planName: '联合作战演练筹划方案',
+        collegeCode: 'LHZZXY',
+        fileType: '演训方案',
+        activeUser: 'admin,staff_a',
+        description: '本方案用于指导2024年度联合作战演练的组织实施',
+        level: 'ZLJ',
+        exerciseType: 'LHL',
+        exerciseTheme: '联合作战',
+        docType: 'doc',
+        createBy: 'admin',
+        applyNode: '编辑中',
+        createTime: '2024-12-10 09:30:00',
+        updateTime: '2024-12-12 14:20:00',
+        delFlg: '0'
+      },
+      {
+        id: 2,
+        drillDataId: 'drill-002',
+        drillDataName: '战略级演训项目',
+        planName: '战略级综合演练方案',
+        collegeCode: 'GFDX',
+        fileType: '作战计划',
+        activeUser: 'staff_b',
+        description: '战略级综合演练的总体方案设计',
+        level: 'ZLJ',
+        exerciseType: 'ZUOZL',
+        exerciseTheme: '战略演练',
+        docType: 'doc',
+        createBy: 'staff_b',
+        applyNode: '待审核',
+        createTime: '2024-12-08 10:00:00',
+        updateTime: '2024-12-11 16:45:00',
+        delFlg: '0'
+      },
+      {
+        id: 3,
+        drillDataId: 'drill-003',
+        drillDataName: '网络安全演练',
+        planName: '网络攻防演练实施方案',
+        collegeCode: 'GJAQXY',
+        fileType: '导调计划',
+        activeUser: 'admin',
+        description: '网络空间安全攻防演练方案',
+        level: 'YXJ',
+        exerciseType: 'WLL',
+        exerciseTheme: '网络安全',
+        docType: 'doc',
+        createBy: 'admin',
+        applyNode: '审核通过',
+        createTime: '2024-12-05 08:30:00',
+        updateTime: '2024-12-10 11:20:00',
+        delFlg: '0'
+      },
+      {
+        id: 4,
+        drillDataId: 'drill-004',
+        drillDataName: '后勤保障演练',
+        planName: '联合勤务保障方案',
+        collegeCode: 'LHQWXY',
+        fileType: '作战文书',
+        activeUser: 'staff_a,staff_b',
+        description: '后勤保障体系综合演练方案',
+        level: 'ZSJ',
+        exerciseType: 'HZL',
+        exerciseTheme: '后勤保障',
+        docType: 'doc',
+        createBy: 'staff_a',
+        applyNode: '发布成功',
+        createTime: '2024-12-01 14:00:00',
+        updateTime: '2024-12-09 09:15:00',
+        delFlg: '0'
+      },
+      {
+        id: 5,
+        drillDataId: 'drill-005',
+        drillDataName: '电磁频谱管控演练',
+        planName: '电磁环境管控方案',
+        collegeCode: 'SGLXY',
+        fileType: '企图立案',
+        activeUser: 'admin',
+        description: '复杂电磁环境下的频谱管控方案',
+        level: 'YXJ',
+        exerciseType: 'DCL',
+        exerciseTheme: '电磁管控',
+        docType: 'doc',
+        createBy: 'admin',
+        applyNode: '驳回',
+        createTime: '2024-11-28 11:30:00',
+        updateTime: '2024-12-08 15:40:00',
+        delFlg: '0'
+      }
+    ]
+    // total.value = data.total || 0
+    total.value = 5 || 0
   } catch (error) {
     console.error('获取数据失败:', error)
     ElMessage.error('获取数据失败，请确保后端服务已启动')
@@ -645,8 +786,8 @@ const getList = async () => {
 // 获取文档分类
 const getCategories = async () => {
   try {
-    const data = await PerformanceApi.getDocCategories()
-    categories.value = data
+    const res = await PerformanceApi.getDocCategories()
+    categories.value = res.data || []
   } catch (error) {
     console.error('获取分类失败:', error)
     ElMessage.error('获取文档分类失败，请确保后端服务已启动')
@@ -703,6 +844,7 @@ const formData = reactive({
   drillDataName: '', // 演训数据名称（回显用）
   name: '', // 筹划方案名称
   docCategory: '', // 文档分类
+  collegeCode: '', // 所属学院
   brief: '', // 简介
   editableUser: [], // 可编辑用户
   creationMethod: 'new' // 创建方式: new, upload
@@ -731,7 +873,7 @@ const docCategoryOptions = computed(() => {
   }))
 })
 
-    // 演训类型
+// 演训类型
 const exerciseTypeOptions = [
   { label: '大学年度演训', value: 'DXNDYX' },
   { label: '联合类', value: 'LHL' },
@@ -745,18 +887,10 @@ const exerciseTypeOptions = [
   { label: '网络类', value: 'WLL' },
   { label: '电磁类', value: 'DCL' },
   { label: '太空类', value: 'TKL' }
+]
 
 // 演训主题
-const exerciseThemeOptions = [
-  { label: '经济类', value: 'JJL' },
-  { label: '认知类', value: 'RZL' },
-  { label: '文化类', value: 'WHL' },
-  { label: '后装类', value: 'HZL' },
-  { label: '国际防务类', value: 'GJFWL' },
-  { label: '网络类', value: 'WLL' },
-  { label: '电磁类', value: 'DCL' },
-  { label: '太空类', value: 'TKL' }
-]
+const exerciseThemeOptions = [{ label: '联合作战训练', value: 'LHZZ' }]
 
 // 演训等级
 const levelOptions = [
@@ -765,7 +899,7 @@ const levelOptions = [
   { label: '战术级', value: 'ZSJ' }
 ]
 
-  // 所属学院
+// 所属学院
 const collegeOptions = [
   { label: '国防大学', value: 'GFDX' },
   { label: '联合作战学院', value: 'LHZZXY' },
@@ -776,6 +910,7 @@ const collegeOptions = [
   { label: '政治学院', value: 'ZZXY' },
   { label: '军事文华学院', value: 'JSWHXY' },
   { label: '研究生院', value: 'YJSY' }
+]
 
 // 可编辑用户
 const activeUserOptions = [
@@ -888,6 +1023,7 @@ const handleAdd = () => {
     drillDataName: '',
     name: '',
     docCategory: '',
+    collegeCode: '',
     brief: '',
     editableUser: [],
     creationMethod: 'new'
@@ -911,11 +1047,12 @@ const handleEditData = (row: PerformanceApi.TrainingPerformanceVO) => {
   // 填充表单数据
   Object.assign(formData, {
     drillDataId: row.drillDataId || '',
-    drillDataName: row.drillDataName || row.name || '',
-    name: row.name || '',
-    docCategory: row.docCategory || '',
-    brief: row.brief || '',
-    editableUser: row.editableUser ? row.editableUser.split(',') : []
+    drillDataName: row.drillDataName || row.planName || '',
+    name: row.planName || '',
+    docCategory: row.fileType || '',
+    collegeCode: row.collegeCode || '',
+    brief: row.description || '',
+    editableUser: row.activeUser ? row.activeUser.split(',') : []
     // 编辑模式不设置 creationMethod
   })
 
@@ -951,16 +1088,16 @@ const handleSave = async () => {
 
     // 编辑模式
     if (isEditMode.value) {
-      // 构建编辑数据（不传递 creationMethod）
+      // 构建编辑数据（不传递 creationMethod），映射到标准字段名
       const editData: any = {
         id: currentEditId.value,
         drillDataId: formData.drillDataId,
         drillDataName: formData.drillDataName,
-        name: formData.name,
-        docCategory: formData.docCategory,
-        brief: formData.brief,
-        editableUser: formData.editableUser.join(','),
-        fileType: fileType
+        planName: formData.name, // 映射 name -> planName
+        fileType: fileType, // 使用分类 id
+        collegeCode: formData.collegeCode, // 所属学院
+        description: formData.brief, // 映射 brief -> description
+        activeUser: formData.editableUser.join(',') // 映射 editableUser -> activeUser
       }
 
       await PerformanceApi.updatePerformanceData(editData)
@@ -971,17 +1108,17 @@ const handleSave = async () => {
     }
 
     // 新建模式
-    // 构建保存数据
+    // 构建保存数据，映射到标准字段名
     const saveData: any = {
       drillDataId: formData.drillDataId,
       drillDataName: formData.drillDataName,
-      name: formData.name,
-      docCategory: formData.docCategory,
-      brief: formData.brief,
-      editableUser: formData.editableUser.join(','), // 数组转字符串
+      planName: formData.name, // 映射 name -> planName
+      fileType: formData.docCategory, // 映射 docCategory -> fileType
+      collegeCode: formData.collegeCode, // 所属学院
+      description: formData.brief, // 映射 brief -> description
+      activeUser: formData.editableUser.join(','), // 映射 editableUser -> activeUser
       creationMethod: formData.creationMethod,
-      fileType: fileType, // 新建文档和上传文档都传递 fileType
-      author: 'admin' // 当前用户
+      createBy: 'admin' // 当前用户
     }
 
     // 判断创建方式
@@ -1309,7 +1446,7 @@ const openRejectDialog = async (row: PerformanceApi.TrainingPerformanceVO) => {
   // 获取历史记录
   try {
     const res = await PerformanceApi.getRejectHistory(row.id)
-    rejectHistoryList.value = res
+    rejectHistoryList.value = res.data || []
   } catch (error) {
     console.error('获取驳回历史失败:', error)
     rejectHistoryList.value = []
@@ -1375,7 +1512,7 @@ const handleBatchDelete = async () => {
   }
 
   // 检查是否所有选中的数据都是"编辑中"状态
-  const notEditingRows = filter(selectedRows.value, (row) => row.status !== '编辑中')
+  const notEditingRows = filter(selectedRows.value, (row) => row.applyNode !== '编辑中')
   if (!isEmpty(notEditingRows)) {
     ElMessage.warning('只能删除"编辑中"状态的数据，请重新选择')
     return
@@ -1408,13 +1545,53 @@ const handleBatchDelete = async () => {
   }
 }
 
+// 标签转换函数
+const getCollegeLabel = (code?: string) => {
+  if (!code) return ''
+  const option = collegeOptions.find((item) => item.value === code)
+  return option?.label || code
+}
+
+const getFileTypeLabel = (fileType?: string) => {
+  if (!fileType) return ''
+  const category = categories.value.find(
+    (item) => item.fileType === fileType || item.id === fileType
+  )
+  return category?.fileType || fileType
+}
+
+const getLevelLabel = (level?: string) => {
+  if (!level) return ''
+  const option = levelOptions.find((item) => item.value === level)
+  return option?.label || level
+}
+
+const getExerciseThemeLabel = (theme?: string) => {
+  if (!theme) return ''
+  const option = exerciseThemeOptions.find((item) => item.value === theme)
+  return option?.label || theme
+}
+
+const getExerciseTypeLabel = (type?: string) => {
+  if (!type) return ''
+  const option = exerciseTypeOptions.find((item) => item.value === type)
+  return option?.label || type
+}
+
+const getApplyNodeLabel = (applyNode?: string) => {
+  if (!applyNode) return ''
+  // 直接返回，因为后端返回的已经是中文
+  return applyNode
+}
+
 // 状态样式
-const getStatusClass = (status: string) => {
+const getStatusClass = (status?: string) => {
   switch (status) {
     case '编辑中':
       return 'bg-red-500'
     case '审核通过':
       return 'bg-green-500'
+    case '发布':
     case '发布成功':
       return 'bg-blue-500'
     case '待审核':
@@ -1452,9 +1629,5 @@ onUnmounted(() => {
 :deep(.el-menu-item.is-active) {
   background-color: var(--el-color-primary-light-9);
   color: var(--el-color-primary);
-}
-
-:deep(.el-table) {
-  font-size: 14px;
 }
 </style>

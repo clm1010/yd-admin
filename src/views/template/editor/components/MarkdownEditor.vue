@@ -134,7 +134,11 @@
         >
           <Icon icon="mdi:code-braces" />
         </button>
-        <button class="toolbar-btn" @click="editor?.chain().focus().setHorizontalRule().run()" title="分割线">
+        <button
+          class="toolbar-btn"
+          @click="editor?.chain().focus().setHorizontalRule().run()"
+          title="分割线"
+        >
           <Icon icon="mdi:minus" />
         </button>
         <div class="toolbar-divider"></div>
@@ -299,7 +303,11 @@ const handleHeading = (level: string) => {
   if (levelNum === 0) {
     editor.value.chain().focus().setParagraph().run()
   } else {
-    editor.value.chain().focus().toggleHeading({ level: levelNum as 1 | 2 | 3 }).run()
+    editor.value
+      .chain()
+      .focus()
+      .toggleHeading({ level: levelNum as 1 | 2 | 3 })
+      .run()
   }
 }
 
@@ -407,6 +415,9 @@ onBeforeUnmount(() => {
       console.warn('销毁编辑器时出错:', e)
     }
   }
+
+  // 清理 DOM 引用
+  contentWrapperRef.value = null
 })
 
 // 暴露编辑器实例和方法
@@ -715,4 +726,3 @@ defineExpose({
   background-color: var(--selection-color, rgba(37, 99, 235, 0.2));
 }
 </style>
-

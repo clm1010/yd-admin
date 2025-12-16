@@ -1,7 +1,58 @@
 /**
  * Word 文档解析工具
  * 提取公共的 Word 文档解析和 HTML 清理功能
+ * 仅支持 .docx 格式（不支持旧版 .doc 格式）
  */
+
+/**
+ * 文件格式类型
+ */
+export type WordFileFormat = 'doc' | 'docx' | 'unknown'
+
+/**
+ * 检测文件是否为旧版 .doc 格式（OLE/CFB 复合文档）
+ * OLE 文件头: D0 CF 11 E0 A1 B1 1A E1
+ * @param bytes 文件字节数组
+ * @returns 是否为 .doc 格式
+ */
+export const isDocFormat = (bytes: Uint8Array): boolean => {
+  if (bytes.length < 8) return false
+  // OLE/CFB 文件头魔数
+  return (
+    bytes[0] === 0xd0 &&
+    bytes[1] === 0xcf &&
+    bytes[2] === 0x11 &&
+    bytes[3] === 0xe0 &&
+    bytes[4] === 0xa1 &&
+    bytes[5] === 0xb1 &&
+    bytes[6] === 0x1a &&
+    bytes[7] === 0xe1
+  )
+}
+
+/**
+ * 检测 Word 文件格式
+ * @param bytes 文件字节数组
+ * @param filename 文件名（可选，用于辅助判断）
+ * @returns 文件格式
+ */
+export const detectWordFormat = (bytes: Uint8Array, filename?: string): WordFileFormat => {
+  // 检查 ZIP 格式 (.docx)
+  if (isZipFormat(bytes)) {
+    return 'docx'
+  }
+  // 检查 OLE 格式 (.doc)
+  if (isDocFormat(bytes)) {
+    return 'doc'
+  }
+  // 通过文件扩展名辅助判断
+  if (filename) {
+    const ext = filename.toLowerCase().split('.').pop()
+    if (ext === 'docx') return 'docx'
+    if (ext === 'doc') return 'doc'
+  }
+  return 'unknown'
+}
 
 /**
  * 清理 Word 导出的 HTML - 保持更好的排版
@@ -107,16 +158,60 @@ export const mammothStyleMap = [
 export type ParseProgressCallback = (progress: number, text: string) => void
 
 /**
- * 使用 mammoth 解析 Word 文档
+ * 使用 mammoth 解析 Word 文档 (.docx 格式)
+ * 注意：mammoth 只支持 .docx 格式，不支持旧版 .doc 格式
  * @param arrayBuffer Word 文档的 ArrayBuffer
  * @param onProgress 可选的进度回调函数
  * @returns 解析后的 HTML 内容
+ * @throws 如果是 .doc 格式，抛出特定错误
  */
 export const parseWordDocument = async (
   arrayBuffer: ArrayBuffer,
   onProgress?: ParseProgressCallback
 ): Promise<string> => {
   try {
+    // 更新进度：20% - 检测文件格式
+    onProgress?.(20, '正在检测文件格式...')
+
+    // 检测文件格式
+    const bytes = new Uint8Array(arrayBuffer)
+    const format = detectWordFormat(bytes)
+
+    if (format === 'doc') {
+      // 旧版 .doc 格式，抛出特定错误，让调用方处理
+      const error = new Error('DOC_FORMAT_NOT_SUPPORTED')
+      ;(error as any).isDocFormat = true
+      throw error
+    }
+
+    // 如果格式为 unknown，尝试作为 HTML 解析（可能是 Word 兼容的 HTML 文件）
+    if (format === 'unknown') {
+      console.log('格式未知，尝试作为 HTML 解析...')
+      const decoder = new TextDecoder('utf-8')
+      const text = decoder.decode(bytes)
+      const trimmedText = text.trim()
+
+      // 检查是否是 HTML 格式
+      if (
+        trimmedText.startsWith('<!DOCTYPE') ||
+        trimmedText.startsWith('<html') ||
+        trimmedText.startsWith('<HTML') ||
+        (trimmedText.startsWith('\ufeff') && trimmedText.includes('<html'))
+      ) {
+        console.log('检测到 HTML 格式的 Word 兼容文件')
+        onProgress?.(80, '正在处理 HTML 内容...')
+        // 提取 body 内容
+        const bodyMatch = text.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
+        if (bodyMatch) {
+          return bodyMatch[1].trim()
+        }
+        return text
+      }
+
+      // 不是 HTML 也不是 docx
+      throw new Error('不支持的文件格式，请上传 .docx 文件')
+    }
+
     // 更新进度：30% - 加载解析库
     onProgress?.(30, '正在加载 Word 解析库...')
 
@@ -280,8 +375,51 @@ export const parseFileContent = async (
       mimeType.includes('application/vnd.openxmlformats') ||
       mimeType.includes('application/msword') ||
       mimeType.includes('application/octet-stream') ||
-      isZip
+      isZip ||
+      isDocFormat(bytes)
     ) {
+      // 检测具体格式
+      const format = detectWordFormat(bytes)
+      console.log('检测到文件格式:', format)
+
+      if (format === 'doc') {
+        // 旧版 .doc 格式，抛出特定错误让调用方处理
+        console.log('检测到旧版 .doc 格式，不支持')
+        onProgress?.(25, '检测到旧版 .doc 格式...')
+        const error = new Error('DOC_FORMAT_NOT_SUPPORTED')
+        ;(error as any).isDocFormat = true
+        throw error
+      }
+
+      // 如果格式为 unknown，尝试检测是否为 HTML 格式（Word 兼容的 HTML 文件）
+      if (format === 'unknown') {
+        console.log('格式未知，尝试作为 HTML 解析...')
+        onProgress?.(30, '正在识别文件内容...')
+        const decoder = new TextDecoder('utf-8')
+        const text = decoder.decode(bytes)
+
+        // 检查是否是 HTML 格式（包括 Word 生成的 HTML）
+        const trimmedText = text.trim()
+        if (
+          trimmedText.startsWith('<!DOCTYPE') ||
+          trimmedText.startsWith('<html') ||
+          trimmedText.startsWith('<HTML') ||
+          (trimmedText.startsWith('\ufeff') && trimmedText.includes('<html')) // 带 BOM 的 HTML
+        ) {
+          console.log('检测到 HTML 格式的 Word 兼容文件')
+          onProgress?.(80, '正在处理 HTML 内容...')
+          // 提取 body 内容（如果有的话）
+          const bodyMatch = text.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
+          if (bodyMatch) {
+            return bodyMatch[1].trim()
+          }
+          return text
+        }
+
+        // 不是 HTML，抛出错误
+        throw new Error('不支持的文件格式，请上传 .docx 文件')
+      }
+
       // Word 文档或二进制流，使用 mammoth 解析
       console.log('检测到 Word 文档/二进制流，使用 mammoth 解析...')
       onProgress?.(25, '检测到 Word 文档，准备解析...')

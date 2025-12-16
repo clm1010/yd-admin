@@ -281,20 +281,22 @@ const handleEditorReady = async (editor: any) => {
 }
 
 /**
- * 将 HTML 内容转换为 Word 文档的 Blob
+ * 将 HTML 内容转换为 Word 文档的 Blob（.docx 格式）
+ * 注意：此方法生成的是 HTML 格式的文件，使用 Word 命名空间使其能被 MS Word 正确打开
+ *
  * @param htmlContent HTML 内容
  * @param title 文档标题
- * @returns Blob 文件流
+ * @returns Blob 文件流（带 UTF-8 BOM）
  */
 const htmlToDocxBlob = (htmlContent: string, title: string): Blob => {
   // 构建完整的 HTML 文档，包含 Word 兼容的样式
-  const fullHtml = `
-<!DOCTYPE html>
+  const fullHtml = `<!DOCTYPE html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" 
       xmlns:w="urn:schemas-microsoft-com:office:word" 
       xmlns="http://www.w3.org/TR/REC-html40">
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
   <meta name="ProgId" content="Word.Document">
   <meta name="Generator" content="Microsoft Word">
   <meta name="Originator" content="Microsoft Word">
@@ -313,13 +315,24 @@ const htmlToDocxBlob = (htmlContent: string, title: string): Blob => {
 <body>
 ${htmlContent}
 </body>
-</html>
-  `.trim()
+</html>`
 
-  // 创建 Blob，使用 Word 兼容的 MIME 类型
-  return new Blob([fullHtml], {
-    type: 'application/vnd.ms-word;charset=utf-8'
-  })
+  // 使用 TextEncoder 将字符串转换为 UTF-8 字节数组
+  const encoder = new TextEncoder()
+  const contentBytes = encoder.encode(fullHtml)
+
+  // UTF-8 BOM: 0xEF, 0xBB, 0xBF
+  const bom = new Uint8Array([0xef, 0xbb, 0xbf])
+
+  // 合并 BOM 和内容
+  const blobContent = new Uint8Array(bom.length + contentBytes.length)
+  blobContent.set(bom, 0)
+  blobContent.set(contentBytes, bom.length)
+
+  // 使用 .docx 的 MIME 类型
+  const mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+
+  return new Blob([blobContent], { type: mimeType })
 }
 
 // 保存文档
@@ -334,13 +347,21 @@ const handleSave = async () => {
     // 获取编辑器的 HTML 内容
     const content = editorInstance.value.getHTML()
 
-    // 将 HTML 内容转换为 Word 文档的 Blob
+    // 固定使用 .docx 格式
     const blob = htmlToDocxBlob(content, documentTitle.value)
-
-    console.log('保存文件，文档ID:', documentId.value, '文件大小:', blob.size, 'bytes')
+    const filename = `${documentTitle.value}.docx`
+    console.log(
+      '保存文件，文档ID:',
+      documentId.value,
+      '文件名:',
+      filename,
+      '文件大小:',
+      blob.size,
+      'bytes'
+    )
 
     // 调用保存文档接口
-    const result = await saveDocumentFile(documentId.value, blob, `${documentTitle.value}.doc`)
+    const result = await saveDocumentFile(documentId.value, blob, filename)
 
     if (result.code === 200 || result.status === 200) {
       ElMessage.success('文档已保存')
@@ -665,10 +686,16 @@ onBeforeUnmount(() => {
   // 标记组件已销毁，防止异步回调继续执行
   isComponentDestroyed = true
 
-  // 清理 setTimeout
+  // 清理 syncTimeout
   if (syncTimeoutId) {
     clearTimeout(syncTimeoutId)
     syncTimeoutId = null
+  }
+
+  // 清理 updateCollaboratorsTimer（防抖定时器）
+  if (updateCollaboratorsTimer) {
+    clearTimeout(updateCollaboratorsTimer)
+    updateCollaboratorsTimer = null
   }
 
   // 清理编辑器实例引用
@@ -680,6 +707,8 @@ onBeforeUnmount(() => {
     try {
       // 移除所有事件监听器
       provider.awareness.off('change', updateCollaborators)
+      provider.off('status', () => {})
+      provider.off('sync', () => {})
       // 移除用户状态
       provider.awareness.setLocalStateField('user', null)
     } catch (e) {
@@ -705,6 +734,7 @@ onBeforeUnmount(() => {
   referenceMaterials.value = []
   documentInfo.value = null
   currentMaterial.value = null
+  preloadedContent.value = ''
 
   console.log('协同编辑组件已清理')
 })

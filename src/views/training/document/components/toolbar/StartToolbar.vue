@@ -363,13 +363,13 @@
             drag
             :auto-upload="false"
             :show-file-list="false"
-            accept=".doc,.docx"
+            accept=".docx"
             @change="handleWordFileSelect"
           >
             <Icon icon="mdi:file-word-outline" class="upload-icon" />
             <div class="upload-text">
               <p>将 Word 文档拖到此处，或<em>点击上传</em></p>
-              <p class="upload-hint">支持 .doc 和 .docx 格式</p>
+              <p class="upload-hint">仅支持 .docx 格式</p>
             </div>
           </el-upload>
         </div>
@@ -525,6 +525,7 @@ import ToolbarButton from './ToolbarButton.vue'
 import ColorPicker from './ColorPicker.vue'
 import { fontFamilyOptions, fontSizeOptions, lineHeightOptions } from './types'
 import { useEditor } from './useEditor'
+import { isDocFormat, isZipFormat } from '../../utils/wordParser'
 
 // 获取编辑器实例
 const editor = useEditor()
@@ -728,13 +729,10 @@ const handleWordFileSelect = async (uploadFile: any) => {
   const file = uploadFile.raw || uploadFile
   if (!file) return
 
-  // 验证文件类型
-  const validTypes = [
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/msword'
-  ]
-  if (!validTypes.includes(file.type) && !file.name.match(/\.(docx?|doc)$/i)) {
-    ElMessage.error('请选择有效的 Word 文档 (.doc 或 .docx)')
+  // 验证文件类型 - 仅支持 .docx
+  const validType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  if (file.type !== validType && !file.name.match(/\.docx$/i)) {
+    ElMessage.error('仅支持 .docx 格式，不支持旧版 .doc 格式')
     return
   }
 
@@ -742,10 +740,36 @@ const handleWordFileSelect = async (uploadFile: any) => {
   wordImportLoading.value = true
 
   try {
+    const arrayBuffer = await file.arrayBuffer()
+    const bytes = new Uint8Array(arrayBuffer)
+
+    // 检测文件格式
+    const isDoc = isDocFormat(bytes)
+    const isDocx = isZipFormat(bytes)
+
+    console.log('文件格式检测:', { isDoc, isDocx, filename: file.name })
+
+    // 如果是 .doc 格式，提示不支持
+    if (isDoc) {
+      ElMessage.error('不支持旧版 .doc 格式，请将文件另存为 .docx 格式后重试')
+      wordImportPreview.value = ''
+      wordImportFile.value = null
+      wordImportLoading.value = false
+      return
+    }
+
+    // 验证是否为有效的 .docx 格式
+    if (!isDocx) {
+      ElMessage.error('无效的文件格式，请上传有效的 .docx 文件')
+      wordImportPreview.value = ''
+      wordImportFile.value = null
+      wordImportLoading.value = false
+      return
+    }
+
+    // .docx 格式，使用 mammoth 前端解析
     // 动态导入 mammoth
     const mammoth = await import('mammoth')
-
-    const arrayBuffer = await file.arrayBuffer()
 
     // 配置转换选项 - 增强样式映射以保持更好的排版
     const options: any = {

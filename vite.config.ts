@@ -37,6 +37,22 @@ export default ({ command, mode }: ConfigEnv): UserConfig => {
       //     rewrite: (path) => path.replace(new RegExp(`^/admin-api`), ''),
       //   },
       // },
+      proxy: {
+        '/api': {
+          target: env.VITE_JAVA_API_URL || 'http://192.168.20.199:8081',
+          changeOrigin: true,
+          // 如果后端接口路径不以 /api 开头，取消下面注释来重写路径
+          // rewrite: (path) => path.replace(/^\/api/, ''),
+          configure: (proxy, options) => {
+            proxy.on('proxyReq', (proxyReq, req) => {
+              console.log(`[Proxy] ${req.method} ${req.url} -> ${options.target}${req.url}`)
+            })
+            proxy.on('error', (err, req, res) => {
+              console.error('[Proxy Error]', err.message)
+            })
+          }
+        }
+      }
     },
     // 项目使用的vite插件。 单独提取到build/vite/plugin中管理
     plugins: createVitePlugins(),

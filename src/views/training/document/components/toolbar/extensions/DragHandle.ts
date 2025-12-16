@@ -145,6 +145,9 @@ export const DragHandle = Extension.create<DragHandleOptions>({
       cleanupDrag()
     }
 
+    // 用于存储拖动预览元素的引用（提升到外层作用域）
+    let dragPreviewRef: HTMLElement | null = null
+
     // 清理拖动状态
     const cleanupDrag = () => {
       isDragging = false
@@ -159,8 +162,16 @@ export const DragHandle = Extension.create<DragHandleOptions>({
         if (handle) {
           handle.style.cursor = 'grab'
           handle.style.background = 'transparent'
-          handle.style.color = '#999'
+          // 恢复 SVG 填充色
+          const circles = handle.querySelectorAll('circle')
+          circles.forEach((c) => c.setAttribute('fill', '#999'))
         }
+      }
+
+      // 清理可能遗留的拖动预览元素
+      if (dragPreviewRef && document.body.contains(dragPreviewRef)) {
+        document.body.removeChild(dragPreviewRef)
+        dragPreviewRef = null
       }
 
       hideDragHandle()
@@ -185,7 +196,7 @@ export const DragHandle = Extension.create<DragHandleOptions>({
       const plusBtn = document.createElement('button')
       plusBtn.className = 'drag-handle-plus'
       plusBtn.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>
@@ -203,6 +214,7 @@ export const DragHandle = Extension.create<DragHandleOptions>({
         border-radius: 4px;
         transition: all 0.15s ease;
         padding: 0;
+        flex-shrink: 0;
       `
       plusBtn.title = '点击添加新段落'
 
@@ -210,13 +222,13 @@ export const DragHandle = Extension.create<DragHandleOptions>({
       const handle = document.createElement('div')
       handle.className = 'drag-handle'
       handle.innerHTML = `
-        <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
-          <circle cx="2" cy="2" r="1.5" />
-          <circle cx="8" cy="2" r="1.5" />
-          <circle cx="2" cy="7" r="1.5" />
-          <circle cx="8" cy="7" r="1.5" />
-          <circle cx="2" cy="12" r="1.5" />
-          <circle cx="8" cy="12" r="1.5" />
+        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="14" viewBox="0 0 10 14" style="display: block; pointer-events: none;">
+          <circle cx="2" cy="2" r="1.5" fill="#999" />
+          <circle cx="8" cy="2" r="1.5" fill="#999" />
+          <circle cx="2" cy="7" r="1.5" fill="#999" />
+          <circle cx="8" cy="7" r="1.5" fill="#999" />
+          <circle cx="2" cy="12" r="1.5" fill="#999" />
+          <circle cx="8" cy="12" r="1.5" fill="#999" />
         </svg>
       `
       handle.style.cssText = `
@@ -228,10 +240,23 @@ export const DragHandle = Extension.create<DragHandleOptions>({
         cursor: grab;
         color: #999;
         border-radius: 4px;
-        transition: all 0.15s ease;
+        transition: background 0.15s ease;
+        flex-shrink: 0;
+        background: transparent;
+        border: none;
+        outline: none;
+        box-sizing: border-box;
+        pointer-events: auto;
+        user-select: none;
+        -webkit-user-drag: element;
       `
       handle.setAttribute('draggable', 'true')
       handle.title = '拖动移动段落'
+
+      // 阻止默认的拖动行为，确保我们的自定义拖动生效
+      handle.addEventListener('mousedown', (e) => {
+        e.stopPropagation()
+      })
 
       wrapper.appendChild(plusBtn)
       wrapper.appendChild(handle)
@@ -276,12 +301,16 @@ export const DragHandle = Extension.create<DragHandleOptions>({
 
       handle.addEventListener('mouseenter', () => {
         handle.style.background = '#f0f0f0'
-        handle.style.color = '#666'
+        // 更新 SVG 填充色
+        const circles = handle.querySelectorAll('circle')
+        circles.forEach((c) => c.setAttribute('fill', '#666'))
       })
       handle.addEventListener('mouseleave', () => {
         if (!isDragging) {
           handle.style.background = 'transparent'
-          handle.style.color = '#999'
+          // 恢复 SVG 填充色
+          const circles = handle.querySelectorAll('circle')
+          circles.forEach((c) => c.setAttribute('fill', '#999'))
         }
       })
 
@@ -307,15 +336,23 @@ export const DragHandle = Extension.create<DragHandleOptions>({
 
         handle.style.cursor = 'grabbing'
         handle.style.background = '#e0e0e0'
-        handle.style.color = '#333'
+        // 更新 SVG 填充色
+        const circles = handle.querySelectorAll('circle')
+        circles.forEach((c) => c.setAttribute('fill', '#333'))
 
         // 设置拖动数据
         e.dataTransfer!.effectAllowed = 'move'
         e.dataTransfer!.setData('application/x-tiptap-drag', 'true')
 
+        // 清理之前可能遗留的拖动预览元素
+        if (dragPreviewRef && document.body.contains(dragPreviewRef)) {
+          document.body.removeChild(dragPreviewRef)
+          dragPreviewRef = null
+        }
+
         // 创建拖动预览
-        const dragPreview = currentNode.cloneNode(true) as HTMLElement
-        dragPreview.style.cssText = `
+        dragPreviewRef = currentNode.cloneNode(true) as HTMLElement
+        dragPreviewRef.style.cssText = `
           position: absolute;
           top: -9999px;
           left: -9999px;
@@ -326,18 +363,18 @@ export const DragHandle = Extension.create<DragHandleOptions>({
           max-width: 400px;
           overflow: hidden;
           opacity: 0.9;
+          pointer-events: none;
         `
-        document.body.appendChild(dragPreview)
-        e.dataTransfer!.setDragImage(dragPreview, 20, 20)
+        document.body.appendChild(dragPreviewRef)
+        e.dataTransfer!.setDragImage(dragPreviewRef, 20, 20)
 
-        // 延迟移除预览元素
-        requestAnimationFrame(() => {
-          setTimeout(() => {
-            if (document.body.contains(dragPreview)) {
-              document.body.removeChild(dragPreview)
-            }
-          }, 0)
-        })
+        // 延迟移除预览元素（确保拖动图像已被渲染）
+        setTimeout(() => {
+          if (dragPreviewRef && document.body.contains(dragPreviewRef)) {
+            document.body.removeChild(dragPreviewRef)
+            dragPreviewRef = null
+          }
+        }, 100)
 
         // 添加拖动样式
         currentNode.classList.add('dragging')
@@ -467,13 +504,29 @@ export const DragHandle = Extension.create<DragHandleOptions>({
             document.removeEventListener('dragover', handleDragOver, true)
             document.removeEventListener('dragend', handleDragEnd, true)
 
+            // 清理拖动手柄元素
             if (dragHandleElement) {
               dragHandleElement.remove()
               dragHandleElement = null
             }
+
+            // 清理拖动预览元素
+            if (dragPreviewRef && document.body.contains(dragPreviewRef)) {
+              document.body.removeChild(dragPreviewRef)
+              dragPreviewRef = null
+            }
+
+            // 清理超时定时器
             if (hideTimeout) {
               clearTimeout(hideTimeout)
+              hideTimeout = null
             }
+
+            // 重置状态
+            currentNode = null
+            currentNodePos = null
+            draggedNodeData = null
+            isDragging = false
           }
         }),
         props: {

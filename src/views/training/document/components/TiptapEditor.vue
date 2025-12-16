@@ -620,6 +620,13 @@ onBeforeUnmount(() => {
   // 清理预览相关的引用
   previewContent.value = ''
   pdfPreviewRef.value = null
+  contentWrapperRef.value = null
+
+  // 重置状态
+  saveStatus.value = 'saved'
+  showBackToTop.value = false
+  htmlPreviewVisible.value = false
+  pdfExportVisible.value = false
 })
 
 // 暴露编辑器实例和方法
@@ -1186,37 +1193,74 @@ defineExpose({
   }
 }
 
+// 拖动手柄包装器样式
+:global(.drag-handle-wrapper) {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  z-index: 9999;
+  pointer-events: auto;
+  user-select: none;
+}
+
 // 拖动手柄样式
 :global(.drag-handle) {
-  position: fixed !important;
   width: 20px;
   height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: grab;
-  color: #999;
   border-radius: 4px;
-  transition:
-    opacity 0.15s ease,
-    background 0.15s ease,
-    color 0.15s ease;
-  z-index: 50;
-
-  &:hover {
-    background: #f0f0f0;
-    color: #666;
-  }
+  transition: background 0.15s ease;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  box-sizing: border-box;
+  pointer-events: auto;
+  -webkit-user-drag: element;
+  user-select: none;
 
   &:active {
     cursor: grabbing;
-    background: #e0e0e0;
-    color: #333;
   }
 
   svg {
     width: 10px;
     height: 14px;
+    display: block;
+    pointer-events: none;
+  }
+}
+
+// 添加新段落按钮样式
+:global(.drag-handle-plus) {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #999;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  padding: 0;
+  flex-shrink: 0;
+  pointer-events: auto;
+
+  &:hover {
+    background: #e8f0fe;
+    color: #1a73e8;
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+    pointer-events: none;
   }
 }
 

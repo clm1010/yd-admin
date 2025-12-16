@@ -1,19 +1,15 @@
 /**
  * 文档 API 服务
- * 通过环境变量配置后端地址
- * 开发环境: http://localhost:3001
- * 生产环境: http://192.168.8.100:3001
+ * 直接调用 Java 后端，导出功能使用前端工具
+ * WebSocket 协同编辑仍然通过 collaborative-middleware
  */
-import axios from 'axios'
-
-// 创建专用的 axios 实例，直接连接到文档协作后端
-const documentRequest = axios.create({
-  baseURL: `${import.meta.env.VITE_COLLABORATION_API_URL || 'http://localhost:3001'}/api/document`,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
+import { javaRequest } from '@/config/axios/javaService'
+import {
+  exportToHtml,
+  exportToJson,
+  downloadBlob,
+  DocumentExportInfo
+} from '@/utils/documentExport'
 
 // 文档信息接口
 export interface DocumentInfo {
@@ -46,120 +42,7 @@ export interface ReferenceMaterial {
   content: string
 }
 
-// API 响应格式
-interface ApiResponse<T> {
-  code: number
-  data: T
-  msg: string
-}
-
-/**
- * 保存文档
- * @param params 保存参数
- */
-export const saveDocument = async (params: SaveDocumentParams): Promise<DocumentInfo> => {
-  try {
-    const res = await documentRequest.post<ApiResponse<DocumentInfo>>('/save', params)
-    return res.data.data
-  } catch (error) {
-    console.error('保存文档失败:', error)
-    throw error
-  }
-}
-
-/**
- * 删除文档
- * @param docId 文档ID
- */
-export const deleteDocument = async (docId: string): Promise<boolean> => {
-  try {
-    await documentRequest.delete(`/${docId}`)
-    return true
-  } catch (error) {
-    console.error('删除文档失败:', error)
-    throw error
-  }
-}
-
-/**
- * 获取文档列表
- */
-export const getDocumentList = async (): Promise<DocumentInfo[]> => {
-  try {
-    const res = await documentRequest.get<ApiResponse<DocumentInfo[]>>('/list/all')
-    return res.data.data
-  } catch (error) {
-    console.error('获取文档列表失败:', error)
-    return []
-  }
-}
-
-/**
- * 获取参考素材列表
- * 调用 NestJS 中间层: POST /api/document/:id/materials
- * 中间层代理调用 Java 后端: POST /api/users/getMaterial
- * @param docId 文档ID
- */
-export const getReferenceMaterials = async (docId: string): Promise<ReferenceMaterial[]> => {
-  try {
-    const res = await documentRequest.post<ApiResponse<ReferenceMaterial[]>>(`/${docId}/materials`)
-    return res.data.data || []
-  } catch (error) {
-    console.error('获取参考素材失败:', error)
-    return []
-  }
-}
-
-/**
- * 导出文档为 HTML
- * @param title 文档标题
- * @param content 文档内容
- */
-export const exportDocumentHtml = async (title: string, content: string): Promise<Blob> => {
-  try {
-    const res = await documentRequest.post(
-      '/export/html',
-      { title, content },
-      {
-        responseType: 'blob'
-      }
-    )
-    return res.data
-  } catch (error) {
-    console.error('导出 HTML 失败:', error)
-    throw error
-  }
-}
-
-/**
- * 导出文档为 JSON
- * @param id 文档ID
- * @param title 文档标题
- * @param content 文档内容
- */
-export const exportDocumentJson = async (
-  id: string,
-  title: string,
-  content: string
-): Promise<Blob> => {
-  try {
-    const res = await documentRequest.post(
-      '/export/json',
-      { id, title, content },
-      {
-        responseType: 'blob'
-      }
-    )
-    return res.data
-  } catch (error) {
-    console.error('导出 JSON 失败:', error)
-    throw error
-  }
-}
-
-/**
- * 保存文档响应接口
- */
+// 保存文档响应接口
 export interface SaveDocumentFileResponse {
   code: number
   data: any
@@ -167,9 +50,67 @@ export interface SaveDocumentFileResponse {
   msg?: string
 }
 
+// .doc 转换响应接口
+export interface DocConvertResponse {
+  code: number
+  data: string // 转换后的 HTML 内容
+  status: number
+  msg?: string
+}
+
+// ==================== Java 后端 API 直接调用 ====================
+
 /**
- * 保存文档文件到后端
- * 调用 /api/document/saveDocument 接口
+ * 转换 .doc 文件为 HTML - 调用 Java 后端
+ * POST /getPlan/convertDoc
+ * 
+ * 说明：由于前端 mammoth.js 只支持 .docx 格式，旧版 .doc 格式需要后端转换
+ * 后端可使用 Apache POI 或 LibreOffice 进行转换
+ * 
+ * @param file .doc 文件
+ * @returns 转换后的 HTML 内容
+ */
+export const convertDocToHtml = async (file: File): Promise<string> => {
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const res = await javaRequest.upload<DocConvertResponse>('/getPlan/convertDoc', formData)
+
+    console.log('.doc 转换响应:', res)
+
+    // 处理响应
+    if (res && (res.code === 200 || res.code === 0)) {
+      return res.data || ''
+    }
+
+    throw new Error(res?.msg || '.doc 文件转换失败')
+  } catch (error) {
+    console.error('.doc 文件转换失败:', error)
+    throw error
+  }
+}
+
+/**
+ * 获取参考素材列表 - 直接调用 Java 后端
+ * POST /getPlan/getMaterial
+ * @param docId 文档ID
+ */
+export const getReferenceMaterials = async (docId: string): Promise<ReferenceMaterial[]> => {
+  try {
+    const res = await javaRequest.post<ReferenceMaterial[]>('/getPlan/getMaterial', {
+      id: docId
+    })
+    return res || []
+  } catch (error) {
+    console.error('获取参考素材失败:', error)
+    return []
+  }
+}
+
+/**
+ * 保存文档文件到后端 - 直接调用 Java 后端
+ * POST /getPlan/saveFile
  * @param id 文档ID
  * @param file Blob 文件流
  * @param filename 文件名（可选）
@@ -184,17 +125,147 @@ export const saveDocumentFile = async (
     formData.append('id', id)
     formData.append('file', file, filename)
 
-    const res = await documentRequest.post<SaveDocumentFileResponse>('/saveDocument', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      },
-      timeout: 60000 // 文件上传超时设为 60 秒
-    })
+    const res = await javaRequest.upload<SaveDocumentFileResponse>('/getPlan/saveFile', formData)
 
-    console.log('保存文档响应:', res.data)
-    return res.data
+    console.log('保存文档响应:', res)
+    return res
   } catch (error) {
     console.error('保存文档失败:', error)
     throw error
   }
+}
+
+// ==================== 前端实现的功能 ====================
+
+/**
+ * 导出文档为 HTML - 前端实现
+ * @param title 文档标题
+ * @param content 文档内容
+ */
+export const exportDocumentHtml = async (title: string, content: string): Promise<Blob> => {
+  return exportToHtml(title, content, false)
+}
+
+/**
+ * 导出文档为 JSON - 前端实现
+ * @param id 文档ID
+ * @param title 文档标题
+ * @param content 文档内容
+ */
+export const exportDocumentJson = async (
+  id: string,
+  title: string,
+  content: string
+): Promise<Blob> => {
+  const doc: DocumentExportInfo = {
+    id,
+    title,
+    content
+  }
+  return exportToJson(doc)
+}
+
+/**
+ * 下载 HTML 文件
+ * @param title 文档标题
+ * @param content 文档内容
+ */
+export const downloadDocumentHtml = (title: string, content: string): void => {
+  const blob = exportToHtml(title, content, false)
+  downloadBlob(blob, `${title || '文档'}.html`)
+}
+
+/**
+ * 下载 JSON 文件
+ * @param doc 文档信息
+ */
+export const downloadDocumentJson = (doc: DocumentExportInfo): void => {
+  const blob = exportToJson(doc)
+  downloadBlob(blob, `${doc.title || '文档'}.json`)
+}
+
+// ==================== 本地文档管理（用于协同编辑场景） ====================
+
+// 本地文档缓存
+const documentCache = new Map<string, DocumentInfo>()
+
+/**
+ * 获取文档（本地缓存，用于协同编辑初始化）
+ * @param docId 文档ID
+ */
+export const getDocument = (docId: string): DocumentInfo => {
+  let doc = documentCache.get(docId)
+
+  if (!doc) {
+    // 创建新文档
+    doc = {
+      id: docId,
+      title: '新文档',
+      content: '<p></p>',
+      createTime: new Date().toISOString(),
+      updateTime: new Date().toISOString(),
+      version: 'V1.0',
+      tags: [],
+      creatorId: 1,
+      creatorName: '系统'
+    }
+    documentCache.set(docId, doc)
+  }
+
+  return doc
+}
+
+/**
+ * 保存文档到本地缓存
+ * @param params 保存参数
+ */
+export const saveDocument = async (params: SaveDocumentParams): Promise<DocumentInfo> => {
+  const { id, title, content, creatorId, creatorName } = params
+
+  let doc = documentCache.get(id)
+
+  if (doc) {
+    // 更新现有文档
+    doc.title = title || doc.title
+    doc.content = content !== undefined ? content : doc.content
+    doc.updateTime = new Date().toISOString()
+    // 增加版本号
+    const versionNum = parseInt(doc.version.replace('V', '').replace('.0', '')) || 1
+    doc.version = `V${versionNum + 1}.0`
+  } else {
+    // 创建新文档
+    doc = {
+      id,
+      title: title || '未命名文档',
+      content: content || '<p></p>',
+      createTime: new Date().toISOString(),
+      updateTime: new Date().toISOString(),
+      version: 'V1.0',
+      tags: [],
+      creatorId: creatorId || 1,
+      creatorName: creatorName || '用户'
+    }
+  }
+
+  documentCache.set(id, doc)
+  return doc
+}
+
+/**
+ * 删除文档（本地缓存）
+ * @param docId 文档ID
+ */
+export const deleteDocument = async (docId: string): Promise<boolean> => {
+  if (documentCache.has(docId)) {
+    documentCache.delete(docId)
+    return true
+  }
+  return false
+}
+
+/**
+ * 获取文档列表（本地缓存）
+ */
+export const getDocumentList = async (): Promise<DocumentInfo[]> => {
+  return Array.from(documentCache.values())
 }

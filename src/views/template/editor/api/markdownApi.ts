@@ -1,19 +1,15 @@
 /**
  * Markdown 文档 API 服务
- * 通过环境变量配置后端地址
- * 开发环境: http://localhost:3001
- * 生产环境: http://192.168.8.100:3001
+ * 直接调用 Java 后端，导出功能使用前端工具
+ * WebSocket 协同编辑仍然通过 collaborative-middleware
  */
-import axios from 'axios'
-
-// 创建专用的 axios 实例，直接连接到 Markdown 协作后端
-const markdownRequest = axios.create({
-  baseURL: `${import.meta.env.VITE_COLLABORATION_API_URL || 'http://localhost:3001'}/api/markdown`,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
+import { javaRequest } from '@/config/axios/javaService'
+import {
+  exportToHtml,
+  exportToJson,
+  downloadBlob,
+  DocumentExportInfo
+} from '@/utils/documentExport'
 
 // Markdown 文档信息接口
 export interface MarkdownDocumentInfo {
@@ -46,136 +42,7 @@ export interface ReferenceMaterial {
   content: string
 }
 
-// API 响应格式
-interface ApiResponse<T> {
-  code: number
-  data: T
-  msg: string
-}
-
-/**
- * 获取 Markdown 文档
- * @param docId 文档ID
- */
-export const getMarkdownDocument = async (docId: string): Promise<MarkdownDocumentInfo> => {
-  try {
-    const res = await markdownRequest.get<ApiResponse<MarkdownDocumentInfo>>(`/${docId}`)
-    return res.data.data
-  } catch (error) {
-    console.error('获取 Markdown 文档失败:', error)
-    throw error
-  }
-}
-
-/**
- * 保存 Markdown 文档
- * @param params 保存参数
- */
-export const saveMarkdownDocument = async (
-  params: SaveMarkdownParams
-): Promise<MarkdownDocumentInfo> => {
-  try {
-    const res = await markdownRequest.post<ApiResponse<MarkdownDocumentInfo>>('/save', params)
-    return res.data.data
-  } catch (error) {
-    console.error('保存 Markdown 文档失败:', error)
-    throw error
-  }
-}
-
-/**
- * 删除 Markdown 文档
- * @param docId 文档ID
- */
-export const deleteMarkdownDocument = async (docId: string): Promise<boolean> => {
-  try {
-    await markdownRequest.delete(`/${docId}`)
-    return true
-  } catch (error) {
-    console.error('删除 Markdown 文档失败:', error)
-    throw error
-  }
-}
-
-/**
- * 获取 Markdown 文档列表
- */
-export const getMarkdownDocumentList = async (): Promise<MarkdownDocumentInfo[]> => {
-  try {
-    const res = await markdownRequest.get<ApiResponse<MarkdownDocumentInfo[]>>('/list/all')
-    return res.data.data
-  } catch (error) {
-    console.error('获取 Markdown 文档列表失败:', error)
-    return []
-  }
-}
-
-/**
- * 获取参考素材列表
- * 调用 NestJS 中间层: POST /api/markdown/:id/materials
- * 中间层代理调用 Java 后端: POST /api/users/getMaterial
- * @param docId 文档ID
- */
-export const getReferenceMaterials = async (docId: string): Promise<ReferenceMaterial[]> => {
-  try {
-    const res = await markdownRequest.post<ApiResponse<ReferenceMaterial[]>>(`/${docId}/materials`)
-    return res.data.data || []
-  } catch (error) {
-    console.error('获取参考素材失败:', error)
-    return []
-  }
-}
-
-/**
- * 导出 Markdown 文档为 HTML
- * @param title 文档标题
- * @param content 文档内容
- */
-export const exportMarkdownHtml = async (title: string, content: string): Promise<Blob> => {
-  try {
-    const res = await markdownRequest.post(
-      '/export/html',
-      { title, content },
-      {
-        responseType: 'blob'
-      }
-    )
-    return res.data
-  } catch (error) {
-    console.error('导出 HTML 失败:', error)
-    throw error
-  }
-}
-
-/**
- * 导出 Markdown 文档为 JSON
- * @param id 文档ID
- * @param title 文档标题
- * @param content 文档内容
- */
-export const exportMarkdownJson = async (
-  id: string,
-  title: string,
-  content: string
-): Promise<Blob> => {
-  try {
-    const res = await markdownRequest.post(
-      '/export/json',
-      { id, title, content },
-      {
-        responseType: 'blob'
-      }
-    )
-    return res.data
-  } catch (error) {
-    console.error('导出 JSON 失败:', error)
-    throw error
-  }
-}
-
-/**
- * 保存 Markdown 文件响应接口
- */
+// 保存 Markdown 文件响应接口
 export interface SaveMarkdownFileResponse {
   code: number
   data: any
@@ -183,19 +50,26 @@ export interface SaveMarkdownFileResponse {
   msg?: string
 }
 
-// 创建模板管理专用的 axios 实例
-const templateRequest = axios.create({
-  baseURL: `${import.meta.env.VITE_COLLABORATION_API_URL || 'http://localhost:3001'}/api/template/management`,
-  timeout: 60000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
+// ==================== Java 后端 API 直接调用 ====================
 
 /**
- * 保存 Markdown 文件到后端
- * 调用 /api/template/management/saveFile 接口
- * 通过中间层代理调用 Java 后端: POST /api/users/saveFile
+ * 获取参考素材列表 - 直接调用 Java 后端
+ * POST /users/getMaterial
+ * @param docId 文档ID
+ */
+export const getReferenceMaterials = async (docId: string): Promise<ReferenceMaterial[]> => {
+  try {
+    const res = await javaRequest.post<ReferenceMaterial[]>('/users/getMaterial', { id: docId })
+    return res || []
+  } catch (error) {
+    console.error('获取参考素材失败:', error)
+    return []
+  }
+}
+
+/**
+ * 保存 Markdown 文件到后端 - 直接调用 Java 后端
+ * POST /tbTemplate/saveFile
  * @param id 文档ID（模板ID）
  * @param file Blob 文件流
  * @param filename 文件名（可选）
@@ -210,15 +84,10 @@ export const saveMarkdownFile = async (
     formData.append('id', id)
     formData.append('file', file, filename)
 
-    const res = await templateRequest.post<SaveMarkdownFileResponse>('/saveFile', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      },
-      timeout: 60000 // 文件上传超时设为 60 秒
-    })
+    const res = await javaRequest.upload<SaveMarkdownFileResponse>('/tbTemplate/saveFile', formData)
 
-    console.log('保存模板文档响应:', res.data)
-    return res.data
+    console.log('保存模板文档响应:', res)
+    return res
   } catch (error) {
     console.error('保存模板文档失败:', error)
     throw error
@@ -226,7 +95,8 @@ export const saveMarkdownFile = async (
 }
 
 /**
- * 提交审核
+ * 提交审核 - 直接调用 Java 后端
+ * POST /template/submitAudit
  * @param params 审核参数
  */
 export const submitAudit = async (params: {
@@ -235,11 +105,147 @@ export const submitAudit = async (params: {
   comment?: string
 }): Promise<any> => {
   try {
-    const res = await markdownRequest.post<ApiResponse<any>>('/submitAudit', params)
-    return res.data.data
+    const res = await javaRequest.post('/template/submitAudit', params)
+    return res
   } catch (error) {
     console.error('提交审核失败:', error)
     throw error
   }
 }
 
+// ==================== 前端实现的功能 ====================
+
+/**
+ * 导出 Markdown 文档为 HTML - 前端实现
+ * @param title 文档标题
+ * @param content 文档内容
+ */
+export const exportMarkdownHtml = async (title: string, content: string): Promise<Blob> => {
+  return exportToHtml(title, content, true)
+}
+
+/**
+ * 导出 Markdown 文档为 JSON - 前端实现
+ * @param id 文档ID
+ * @param title 文档标题
+ * @param content 文档内容
+ */
+export const exportMarkdownJson = async (
+  id: string,
+  title: string,
+  content: string
+): Promise<Blob> => {
+  const doc: DocumentExportInfo = {
+    id,
+    title,
+    content
+  }
+  return exportToJson(doc)
+}
+
+/**
+ * 下载 HTML 文件
+ * @param title 文档标题
+ * @param content 文档内容
+ */
+export const downloadMarkdownHtml = (title: string, content: string): void => {
+  const blob = exportToHtml(title, content, true)
+  downloadBlob(blob, `${title || '模板文档'}.html`)
+}
+
+/**
+ * 下载 JSON 文件
+ * @param doc 文档信息
+ */
+export const downloadMarkdownJson = (doc: DocumentExportInfo): void => {
+  const blob = exportToJson(doc)
+  downloadBlob(blob, `${doc.title || '模板文档'}.json`)
+}
+
+// ==================== 本地文档管理（用于协同编辑场景） ====================
+
+// 本地 Markdown 文档缓存
+const markdownCache = new Map<string, MarkdownDocumentInfo>()
+
+/**
+ * 获取 Markdown 文档（本地缓存，用于协同编辑初始化）
+ * @param docId 文档ID
+ */
+export const getMarkdownDocument = async (docId: string): Promise<MarkdownDocumentInfo> => {
+  let doc = markdownCache.get(docId)
+
+  if (!doc) {
+    // 创建新文档
+    doc = {
+      id: docId,
+      title: '新模板文档',
+      content: '',
+      createTime: new Date().toISOString(),
+      updateTime: new Date().toISOString(),
+      version: 'V1.0',
+      tags: [],
+      creatorId: 1,
+      creatorName: '系统'
+    }
+    markdownCache.set(docId, doc)
+  }
+
+  return doc
+}
+
+/**
+ * 保存 Markdown 文档到本地缓存
+ * @param params 保存参数
+ */
+export const saveMarkdownDocument = async (
+  params: SaveMarkdownParams
+): Promise<MarkdownDocumentInfo> => {
+  const { id, title, content, creatorId, creatorName } = params
+
+  let doc = markdownCache.get(id)
+
+  if (doc) {
+    // 更新现有文档
+    doc.title = title || doc.title
+    doc.content = content !== undefined ? content : doc.content
+    doc.updateTime = new Date().toISOString()
+    // 增加版本号
+    const versionNum = parseInt(doc.version.replace('V', '').replace('.0', '')) || 1
+    doc.version = `V${versionNum + 1}.0`
+  } else {
+    // 创建新文档
+    doc = {
+      id,
+      title: title || '未命名模板',
+      content: content || '',
+      createTime: new Date().toISOString(),
+      updateTime: new Date().toISOString(),
+      version: 'V1.0',
+      tags: [],
+      creatorId: creatorId || 1,
+      creatorName: creatorName || '用户'
+    }
+  }
+
+  markdownCache.set(id, doc)
+  return doc
+}
+
+/**
+ * 删除 Markdown 文档（本地缓存）
+ * @param docId 文档ID
+ */
+export const deleteMarkdownDocument = async (docId: string): Promise<boolean> => {
+  if (markdownCache.has(docId)) {
+    markdownCache.delete(docId)
+    return true
+  }
+  return false
+}
+
+/**
+ * 获取 Markdown 文档列表（本地缓存）
+ */
+export const getMarkdownDocumentList = async (): Promise<MarkdownDocumentInfo[]> => {
+  return Array.from(markdownCache.values())
+}

@@ -26,6 +26,14 @@ interface ImportMetaEnv {
   readonly VITE_SOURCEMAP: string
   readonly VITE_OUT_DIR: string
   readonly VITE_GOVIEW_URL: string
+  // 是否使用 Mock 数据（true: Mock, false: Java 后端）
+  readonly VITE_USE_MOCK: string
+  // Java 后端 API 地址（直连，不通过中间件）
+  readonly VITE_JAVA_API_URL: string
+  // WebSocket 协同中间件地址
+  readonly VITE_WS_URL: string
+  // 协同中间件 HTTP 地址（已废弃，保留兼容）
+  // readonly VITE_COLLABORATION_API_URL: string
   // API 加解密相关配置
   readonly VITE_APP_API_ENCRYPT_ENABLE: string
   readonly VITE_APP_API_ENCRYPT_HEADER: string
