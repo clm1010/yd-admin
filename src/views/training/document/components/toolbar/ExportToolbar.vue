@@ -42,16 +42,6 @@
       </el-tooltip>
     </div>
 
-    <!-- 导出 Markdown -->
-    <div class="toolbar-group">
-      <el-tooltip content="导出 Markdown" placement="bottom" :show-after="500">
-        <button class="toolbar-btn-large" @click="exportMarkdown">
-          <Icon icon="mdi:language-markdown-outline" class="btn-icon-large" />
-          <span class="btn-text">导出 Markdown</span>
-        </button>
-      </el-tooltip>
-    </div>
-
     <!-- 导出纯文本 -->
     <div class="toolbar-group">
       <el-tooltip content="导出纯文本" placement="bottom" :show-after="500">
@@ -291,43 +281,6 @@ const exportPdf = () => {
   }
 
   ElMessage.success('请在打印对话框中选择"另存为 PDF"')
-}
-
-// 导出 Markdown
-const exportMarkdown = () => {
-  if (!editor.value) return
-
-  // 简单的 HTML 转 Markdown
-  let html = editor.value.getHTML()
-
-  // 转换常见标签
-  let markdown = html
-    .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n')
-    .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n')
-    .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n')
-    .replace(/<h4[^>]*>(.*?)<\/h4>/gi, '#### $1\n\n')
-    .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
-    .replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**')
-    .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
-    .replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*')
-    .replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
-    .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)')
-    .replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*\/?>/gi, '![$2]($1)')
-    .replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n')
-    .replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gi, '> $1\n\n')
-    .replace(/<hr[^>]*\/?>/gi, '\n---\n\n')
-    .replace(/<br[^>]*\/?>/gi, '\n')
-    .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
-
-  downloadFile(markdown, '文档.md', 'text/markdown')
-  ElMessage.success('Markdown 已导出')
 }
 
 // 导出纯文本
@@ -600,4 +553,3 @@ const downloadFile = (content: string, filename: string, mimeType: string) => {
   gap: 12px;
 }
 </style>
-

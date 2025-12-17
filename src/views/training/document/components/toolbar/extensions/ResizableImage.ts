@@ -2,7 +2,7 @@
  * 可调整大小的图片扩展
  * 参考 Umo Editor 实现可拖拽调整大小的图片功能
  */
-import Image from '@tiptap/extension-image'
+import { Image } from '@tiptap/extension-image'
 import { VueNodeViewRenderer } from '@tiptap/vue-3'
 import ResizableImageComponent from './ResizableImageComponent.vue'
 
@@ -110,4 +110,3 @@ export const ResizableImage = Image.extend<ResizableImageOptions>({
 })
 
 export default ResizableImage
-

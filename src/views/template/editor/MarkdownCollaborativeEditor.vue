@@ -10,10 +10,10 @@
         </el-button>
         <!-- 文档标题 -->
         <div class="text-lg font-bold text-gray-800">{{ documentTitle }}</div>
-        <el-tag type="success" size="small" v-if="isCollaborationReady">
+        <!-- <el-tag type="success" size="small" v-if="isCollaborationReady">
           <Icon icon="mdi:cursor-default-click" class="mr-1" />
           协同光标已启用
-        </el-tag>
+        </el-tag> -->
       </div>
       <div class="flex items-center gap-3">
         <!-- 连接状态 -->

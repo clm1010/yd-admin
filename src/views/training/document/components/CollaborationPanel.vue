@@ -1,13 +1,16 @@
 <template>
-  <div class="collaboration-panel w-full h-full bg-white flex flex-col text-sm">
+  <el-splitter
+    layout="vertical"
+    class="collaboration-panel w-full h-full bg-white flex flex-col text-sm"
+  >
     <!-- 在线协作者 -->
-    <div class="section p-4 border-b border-gray-100">
+    <el-splitter-panel class="section p-4 border-b border-gray-100">
       <div class="flex items-center justify-between mb-3">
         <h3 class="font-bold text-gray-800">在线协作者</h3>
         <el-tag type="info" size="small" round>{{ collaborators.length }}</el-tag>
       </div>
 
-      <div class="space-y-3 max-h-[200px] overflow-y-auto custom-scrollbar">
+      <div class="space-y-2 max-h-[400px] custom-scrollbar">
         <div
           v-for="user in collaborators"
           :key="user.clientId"
@@ -15,7 +18,8 @@
         >
           <div class="relative flex-shrink-0">
             <el-avatar
-              :size="28"
+              :size="40"
+              :shape="'circle'"
               :style="{ backgroundColor: user.color }"
               class="text-white text-xs"
             >
@@ -52,10 +56,12 @@
           暂无其他协作者
         </div>
       </div>
-    </div>
+    </el-splitter-panel>
 
     <!-- 参考素材 -->
-    <div class="section p-4 border-b border-gray-100 flex-1 overflow-hidden flex flex-col">
+    <el-splitter-panel
+      class="section p-4 border-b border-gray-100 flex-1 overflow-hidden flex flex-col"
+    >
       <h3 class="font-bold text-gray-800 mb-3">参考素材</h3>
       <div class="overflow-y-auto flex-1 custom-scrollbar -mx-2 px-2">
         <div v-if="materials && materials.length > 0" class="space-y-2">
@@ -74,7 +80,7 @@
         </div>
         <div v-else class="text-center text-gray-400 py-8"> 暂无参考素材 </div>
       </div>
-    </div>
+    </el-splitter-panel>
 
     <!-- 文档属性 -->
     <div class="section p-4 bg-gray-50">
@@ -106,7 +112,7 @@
         </div>
       </div>
     </div>
-  </div>
+  </el-splitter>
 </template>
 
 <script setup lang="ts">

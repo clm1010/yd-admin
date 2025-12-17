@@ -20,39 +20,66 @@ export interface DropdownOption {
   disabled?: boolean
 }
 
-// 字体选项
+// 字体选项 - 参考 https://tiptap.dev/docs/editor/extensions/functionality/fontfamily
 export const fontFamilyOptions: DropdownOption[] = [
   { label: '默认字体', value: '' },
   { label: '宋体', value: 'SimSun, serif' },
   { label: '黑体', value: 'SimHei, sans-serif' },
-  { label: '微软雅黑', value: 'Microsoft YaHei, sans-serif' },
   { label: '楷体', value: 'KaiTi, serif' },
+  { label: '楷体_GB2312', value: 'KaiTi_GB2312, KaiTi, serif' },
   { label: '仿宋', value: 'FangSong, serif' },
+  { label: '仿宋_GB2312', value: 'FangSong_GB2312, FangSong, serif' },
+  { label: '华文宋体', value: 'STSong, SimSun, serif' },
+  { label: '华文仿宋', value: 'STFangsong, FangSong, serif' },
+  { label: '方正仿宋简体', value: 'FZFangSong-Z02S, FangSong, serif' },
+  { label: '方正小标宋', value: 'FZXiaoBiaoSong-B05S, SimSun, serif' },
+  { label: '微软雅黑', value: 'Microsoft YaHei, sans-serif' },
   { label: 'Arial', value: 'Arial, sans-serif' },
   { label: 'Times New Roman', value: 'Times New Roman, serif' },
-  { label: 'Georgia', value: 'Georgia, serif' },
   { label: 'Verdana', value: 'Verdana, sans-serif' },
-  { label: 'Courier New', value: 'Courier New, monospace' }
+  { label: 'Helvetica', value: 'Helvetica, Arial, sans-serif' },
+  { label: 'Calibri', value: 'Calibri, sans-serif' },
+  { label: 'Cambria', value: 'Cambria, serif' },
+  { label: 'Tahoma', value: 'Tahoma, sans-serif' },
+  { label: 'Georgia', value: 'Georgia, serif' },
+  { label: 'Comic Sans MS', value: 'Comic Sans MS, cursive' },
+  { label: 'Impact', value: 'Impact, sans-serif' }
 ]
 
-// 字号选项
+// 字号选项 - 使用 px 单位，参考 https://tiptap.dev/docs/editor/extensions/functionality/fontsize
+// 中文字号与px对应关系: 初号=56px, 小初=48px, 一号=34.7px≈35px, 小一=32px, 二号=29.3px≈29px
+// 小二=24px, 三号=21.3px≈21px, 小三=20px, 四号=18.7px≈19px, 小四=16px, 五号=14px, 小五=12px, 小六=8.7px≈9px
 export const fontSizeOptions: DropdownOption[] = [
-  { label: '初号', value: '42pt' },
-  { label: '小初', value: '36pt' },
-  { label: '一号', value: '26pt' },
-  { label: '小一', value: '24pt' },
-  { label: '二号', value: '22pt' },
-  { label: '小二', value: '18pt' },
-  { label: '三号', value: '16pt' },
-  { label: '小三', value: '15pt' },
-  { label: '四号', value: '14pt' },
-  { label: '小四', value: '12pt' },
-  { label: '五号', value: '10.5pt' },
-  { label: '小五', value: '9pt' },
-  { label: '六号', value: '7.5pt' },
-  { label: '小六', value: '6.5pt' },
-  { label: '七号', value: '5.5pt' },
-  { label: '八号', value: '5pt' }
+  { label: '初号', value: '56px' },
+  { label: '小初', value: '48px' },
+  { label: '一号', value: '35px' },
+  { label: '小一', value: '32px' },
+  { label: '二号', value: '29px' },
+  { label: '小二', value: '24px' },
+  { label: '三号', value: '21px' },
+  { label: '小三', value: '20px' },
+  { label: '四号', value: '19px' },
+  { label: '小四', value: '16px' },
+  { label: '五号', value: '14px' },
+  { label: '小五', value: '12px' },
+  { label: '小六', value: '9px' },
+  { label: '默认', value: '' },
+  { label: '10px', value: '10px' },
+  { label: '11px', value: '11px' },
+  { label: '12px', value: '12px' },
+  { label: '16px', value: '16px' },
+  { label: '18px', value: '18px' },
+  { label: '20px', value: '20px' },
+  { label: '22px', value: '22px' },
+  { label: '24px', value: '24px' },
+  { label: '26px', value: '26px' },
+  { label: '28px', value: '28px' },
+  { label: '32px', value: '32px' },
+  { label: '36px', value: '36px' },
+  { label: '42px', value: '42px' },
+  { label: '48px', value: '48px' },
+  { label: '72px', value: '72px' },
+  { label: '96px', value: '96px' }
 ]
 
 // 行高选项

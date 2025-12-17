@@ -312,12 +312,6 @@
           <span class="btn-text">导入 Word</span>
         </button>
       </el-tooltip>
-      <el-tooltip content="Markdown" placement="bottom" :show-after="500">
-        <button class="toolbar-btn-large" @click="importMarkdown">
-          <Icon icon="mdi:language-markdown-outline" class="btn-icon-large" />
-          <span class="btn-text">Markdown</span>
-        </button>
-      </el-tooltip>
       <el-tooltip content="查找替换" placement="bottom" :show-after="500">
         <button class="toolbar-btn-large" @click="openFindReplace">
           <Icon icon="mdi:find-replace" class="btn-icon-large" />
@@ -337,15 +331,6 @@
         </button>
       </el-tooltip>
     </div>
-
-    <!-- 导入 Markdown 文件选择器 -->
-    <input
-      ref="mdFileInput"
-      type="file"
-      accept=".md,.markdown,.txt"
-      style="display: none"
-      @change="handleMdFile"
-    />
 
     <!-- Word 导入对话框 -->
     <el-dialog
@@ -518,7 +503,7 @@
 
 <script setup lang="ts">
 // @ts-nocheck - 忽略 Tiptap 自定义扩展命令的类型问题
-import { ref, watch, reactive } from 'vue'
+import { ref, watch, reactive, nextTick } from 'vue'
 import { Icon } from '@/components/Icon'
 import { ElMessage } from 'element-plus'
 import ToolbarButton from './ToolbarButton.vue'
@@ -541,7 +526,6 @@ const currentLineHeight = ref('')
 
 // 文件输入
 const wordFileInput = ref<HTMLInputElement | null>(null)
-const mdFileInput = ref<HTMLInputElement | null>(null)
 
 // 查找替换
 const findReplaceVisible = ref(false)
@@ -595,29 +579,35 @@ const handleFontSize = (value: string) => {
   }
 }
 
-// 增大字号
+// 增大字号 - 使用 px 单位
 const fontSizeValues = [
-  '9pt',
-  '10pt',
-  '10.5pt',
-  '11pt',
-  '12pt',
-  '14pt',
-  '16pt',
-  '18pt',
-  '20pt',
-  '22pt',
-  '24pt',
-  '26pt',
-  '28pt',
-  '36pt',
-  '42pt',
-  '48pt',
-  '72pt'
+  '9px',
+  '10px',
+  '11px',
+  '12px',
+  '14px',
+  '16px',
+  '18px',
+  '19px',
+  '20px',
+  '21px',
+  '22px',
+  '24px',
+  '26px',
+  '28px',
+  '29px',
+  '32px',
+  '35px',
+  '36px',
+  '42px',
+  '48px',
+  '56px',
+  '72px',
+  '96px'
 ]
 const increaseFontSize = () => {
   if (!editor.value) return
-  const current = editor.value.getAttributes('textStyle').fontSize || '12pt'
+  const current = editor.value.getAttributes('textStyle').fontSize || '16px'
   const currentIndex = fontSizeValues.findIndex((s) => s === current)
   if (currentIndex < fontSizeValues.length - 1) {
     const newSize = fontSizeValues[currentIndex + 1]
@@ -629,7 +619,7 @@ const increaseFontSize = () => {
 // 减小字号
 const decreaseFontSize = () => {
   if (!editor.value) return
-  const current = editor.value.getAttributes('textStyle').fontSize || '12pt'
+  const current = editor.value.getAttributes('textStyle').fontSize || '16px'
   const currentIndex = fontSizeValues.findIndex((s) => s === current)
   if (currentIndex > 0) {
     const newSize = fontSizeValues[currentIndex - 1]
@@ -1042,17 +1032,86 @@ const cleanWordHtml = (html: string): string => {
 }
 
 // 确认导入 Word
-const confirmWordImport = () => {
+const confirmWordImport = async () => {
   if (!editor.value || !wordImportPreview.value) {
     ElMessage.warning('没有可导入的内容')
     return
   }
 
-  editor.value.chain().focus().setContent(wordImportPreview.value).run()
-  wordImportDialogVisible.value = false
-  wordImportPreview.value = ''
-  wordImportFile.value = null
-  ElMessage.success('Word 文档已成功导入')
+  try {
+    // 确保导入的内容至少包含一个段落
+    let content = wordImportPreview.value.trim()
+    if (!content) {
+      ElMessage.warning('导入内容为空')
+      return
+    }
+
+    // 如果内容不是以块级元素开始，包装在段落中
+    if (!content.match(/^<(p|h[1-6]|ul|ol|blockquote|pre|table|div)/i)) {
+      content = `<p>${content}</p>`
+    }
+
+    // 只在末尾追加空段落，避免开头空行问题
+    content += '<p></p>'
+
+    // 第一步：先清空文档，确保从干净状态开始
+    editor.value.commands.clearContent(false)
+
+    // 等待清空操作完成
+    await nextTick()
+
+    // 第二步：设置新内容
+    try {
+      editor.value.commands.setContent(content, false)
+    } catch (setContentError) {
+      // 如果第一次设置失败，等待后再尝试一次
+      console.warn('setContent 第一次失败，准备重试...', setContentError)
+      await new Promise<void>((resolve) => setTimeout(() => resolve(), 100))
+      editor.value.commands.setContent(content, false)
+    }
+
+    // 等待内容设置完成
+    await nextTick()
+
+    // 使用多个 requestAnimationFrame 确保 DOM 和编辑器状态完全稳定
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+
+    // 第三步：安全地设置光标位置到第一个有内容的文本块
+    try {
+      if (editor.value && editor.value.state.doc.content.size > 0) {
+        const { doc } = editor.value.state
+        let targetPos = 1
+
+        // 遍历文档，找到第一个非空的文本块
+        doc.descendants((node, pos) => {
+          if (node.isTextblock) {
+            // 如果是空段落（只有换行或完全为空），跳过
+            if (node.textContent.trim().length === 0) {
+              return true // 继续遍历
+            }
+            // 找到第一个有内容的文本块
+            targetPos = pos + 1
+            return false // 停止遍历
+          }
+        })
+
+        // 设置光标位置
+        editor.value.commands.setTextSelection(targetPos)
+      }
+    } catch (focusError) {
+      // 如果设置光标失败，忽略错误，不影响导入结果
+      console.warn('设置光标位置失败（可忽略）:', focusError)
+    }
+
+    wordImportDialogVisible.value = false
+    wordImportPreview.value = ''
+    wordImportFile.value = null
+    ElMessage.success('Word 文档已成功导入')
+  } catch (error) {
+    console.error('Word导入失败:', error)
+    ElMessage.error('导入失败: ' + (error as Error).message)
+  }
 }
 
 // 清除 Word 文件选择
@@ -1066,28 +1125,6 @@ const cancelWordImport = () => {
   wordImportDialogVisible.value = false
   wordImportPreview.value = ''
   wordImportFile.value = null
-}
-
-// 导入 Markdown
-const importMarkdown = () => {
-  mdFileInput.value?.click()
-}
-
-const handleMdFile = async (event: Event) => {
-  const file = (event.target as HTMLInputElement).files?.[0]
-  if (!file) return
-
-  try {
-    const text = await file.text()
-    // 简单的 Markdown 转换（实际应用中应使用专业的 Markdown 解析器）
-    if (editor.value) {
-      editor.value.chain().focus().setContent(text).run()
-      ElMessage.success('Markdown 文件已导入')
-    }
-  } catch (error) {
-    ElMessage.error('文件读取失败')
-  }
-  ;(event.target as HTMLInputElement).value = ''
 }
 
 // 查找替换
