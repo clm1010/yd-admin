@@ -52,22 +52,22 @@ const javaApi = {
    * 新建筹划方案 - Java 后端
    */
   createNewData: async (data: TrainingPerformanceVO) => {
-    return await javaRequest.postOriginal('/getPlan/newData', data)
+    return await javaRequest.postOriginal('/getPlan/saveData', data)
   },
 
   /**
    * 编辑演训方案数据 - Java 后端
    */
-  updatePerformanceData: async (data: any) => {
-    return await javaRequest.postOriginal('/tbTemplate/update', data)
+  updatePerformanceData: async (data: TrainingPerformanceVO) => {
+    return await javaRequest.postOriginal('/getPlan/saveData', data)
   },
 
   /**
    * 删除演训方案 - Java 后端
    */
-  deleteTrainingPerformance: async (ids: number | number[]) => {
+  deleteTrainingPerformance: async (ids: string | string[]) => {
     const idsArray = isArray(ids) ? ids : [ids]
-    const requestData = idsArray.map((id) => String(id))
+    const requestData = idsArray.map((id) => id)
     return await javaRequest.post('/getPlan/delData', requestData)
   },
 
@@ -96,7 +96,7 @@ const javaApi = {
   /**
    * 获取文档文件流 - Java 后端
    */
-  getFileStream: async (id: number): Promise<Blob | null> => {
+  getFileStream: async (id: string): Promise<Blob | null> => {
     try {
       const response = await javaRequest.download('/getPlan/getFileStream', { id })
       if (response instanceof Blob && response.size > 0) {
@@ -135,7 +135,7 @@ const javaApi = {
   /**
    * 获取驳回历史
    */
-  getRejectHistory: async (_id: number): Promise<{ data: RejectRecordVO[] }> => {
+  getRejectHistory: async (_id: string): Promise<{ data: RejectRecordVO[] }> => {
     return Promise.resolve({ data: [] })
   },
 
@@ -162,11 +162,11 @@ const javaApi = {
 
   /**
    * 获取审核记录列表 - Java 后端
-   * GET /examRecord/examApply
+   * GET /examRecord/getOpinion
    * @param id 当前表格数据id
    */
-  getExamRecordList: async (id: number | string): Promise<{ data: ExamRecordVO[] }> => {
-    return await javaRequest.get('/examRecord/examApply', { id })
+  getExamRecordList: async (id: string): Promise<{ data: ExamRecordVO[] }> => {
+    return await javaRequest.get('/examRecord/getOpinion', { id })
   },
 
   /**
@@ -208,7 +208,7 @@ const mockApi = {
     return res
   },
 
-  deleteTrainingPerformance: async (ids: number | number[]) => {
+  deleteTrainingPerformance: async (ids: string | string[]) => {
     const { deleteTrainingPerformance } = await import('@/mock/training/performance')
     const res = await deleteTrainingPerformance(ids)
     return res.data
@@ -231,7 +231,7 @@ const mockApi = {
     return checkWritePermission(data)
   },
 
-  getFileStream: async (id: number): Promise<Blob | null> => {
+  getFileStream: async (id: string): Promise<Blob | null> => {
     const { getFileStream } = await import('@/mock/training/performance')
     return getFileStream(id)
   },
@@ -242,7 +242,7 @@ const mockApi = {
     return res
   },
 
-  getRejectHistory: async (id: number): Promise<{ data: RejectRecordVO[] }> => {
+  getRejectHistory: async (id: string): Promise<{ data: RejectRecordVO[] }> => {
     const { getRejectHistory } = await import('@/mock/training/performance')
     return getRejectHistory(id)
   },
@@ -263,7 +263,7 @@ const mockApi = {
     return getDrillDataList(params)
   },
 
-  getExamRecordList: async (id: number | string): Promise<{ data: ExamRecordVO[] }> => {
+  getExamRecordList: async (id: string): Promise<{ data: ExamRecordVO[] }> => {
     const { getExamRecordList } = await import('@/mock/training/performance')
     return getExamRecordList(id)
   },
@@ -353,7 +353,7 @@ export const getDrillDataList = api.getDrillDataList
 
 /**
  * 获取审核记录列表
- * GET /examRecord/examApply
+ * GET /examRecord/getOpinion
  * @param id 当前表格数据id
  */
 export const getExamRecordList = api.getExamRecordList

@@ -125,14 +125,14 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="审核状态" prop="auditStatus" align="center" width="120">
+        <el-table-column label="审核状态" prop="applyNode" align="center" width="120">
           <template #default="scope">
             <div class="flex items-center justify-center">
               <div
-                :class="getAuditStatusClass(scope.row.auditStatus)"
+                :class="getAuditStatusClass(scope.row.applyNode)"
                 class="w-2 h-2 rounded-full mr-2"
               ></div>
-              {{ getAuditStatusText(scope.row.auditStatus) }}
+              {{ getAuditStatusText(scope.row.applyNode) }}
             </div>
           </template>
         </el-table-column>
@@ -148,7 +148,7 @@
         <el-table-column label="操作" align="center" width="320" fixed="right">
           <template #default="scope">
             <!-- 编辑中状态(1)显示：编辑、写作、提交审核、删除 -->
-            <template v-if="scope.row.auditStatus === '1'">
+            <template v-if="scope.row.applyNode === '1'">
               <el-button link type="primary" @click="handleEditData(scope.row)">
                 <Icon icon="ep:edit-pen" />
                 编辑
@@ -168,7 +168,7 @@
             </template>
 
             <!-- 审核中状态(2)显示：审核、驳回、审核记录 -->
-            <template v-else-if="scope.row.auditStatus === '2'">
+            <template v-else-if="scope.row.applyNode === '2'">
               <el-button link type="success" @click="handleApprove(scope.row)">
                 <Icon icon="ep:check" />
                 审核
@@ -184,7 +184,7 @@
             </template>
 
             <!-- 审核通过状态(3)显示：发布按钮 + 审核记录 -->
-            <template v-else-if="scope.row.auditStatus === '3'">
+            <template v-else-if="scope.row.applyNode === '3'">
               <el-button link type="primary" @click="handlePublish(scope.row)">
                 <Icon icon="ep:promotion" />
                 发布
@@ -196,7 +196,7 @@
             </template>
 
             <!-- 发布状态(4)显示：已发布 + 审核记录 -->
-            <template v-else-if="scope.row.auditStatus === '4'">
+            <template v-else-if="scope.row.applyNode === '4'">
               <el-button link type="success" disabled>
                 <Icon icon="ep:check" />
                 已发布
@@ -208,7 +208,7 @@
             </template>
 
             <!-- 驳回状态(5)显示：编辑、写作、提交审核、删除、审核记录 -->
-            <template v-else-if="scope.row.auditStatus === '5'">
+            <template v-else-if="scope.row.applyNode === '5'">
               <el-button link type="primary" @click="handleEditData(scope.row)">
                 <Icon icon="ep:edit-pen" />
                 编辑
@@ -436,7 +436,7 @@ const total = ref(0)
 
 // 表格引用和选中数据
 const tableRef = ref()
-const selectedIds = ref<(number | string)[]>([])
+const selectedIds = ref<(string | undefined)[]>([])
 const selectedRows = ref<TemplateApi.TemplateVO[]>([])
 
 // 计算属性：判断是否可以批量删除（只有选中的数据都是"编辑中"(1)或"驳回"(5)状态才能删除）
@@ -445,7 +445,7 @@ const canBatchDelete = computed(() => {
   // 如果数据没有 auditStatus 字段，则允许删除（兼容旧数据）
   return every(
     selectedRows.value,
-    (row) => !row.auditStatus || row.auditStatus === '1' || row.auditStatus === '5'
+    (row) => !row.applyNode || row.applyNode === '1' || row.applyNode === '5'
   )
 })
 
@@ -599,7 +599,7 @@ const getList = async () => {
     console.log('查询参数', cleanParams)
 
     const data = await TemplateApi.getPageList(cleanParams as TemplateApi.TemplatePageReqVO)
-    list.value = data.list || []
+    list.value = data.records || []
     total.value = data.total || 0
   } catch (error) {
     console.error('获取数据失败:', error)
@@ -647,8 +647,8 @@ const handleSelectionChange = (rows: TemplateApi.TemplateVO[]) => {
   selectedRows.value = rows
   selectedIds.value = filter(
     map(rows, (row) => row.id),
-    (id) => !isNil(id)
-  ) as (number | string)[]
+    (id): id is string => !isNil(id) && !isEmpty(id)
+  ) as (string | undefined)[]
 }
 
 // 新建
@@ -792,19 +792,19 @@ const handleSave = async () => {
         temSubclass: formData.temSubclass,
         temStatus: formData.temStatus,
         description: formData.description
-      }
+      } as TemplateApi.TemplateVO
       await TemplateApi.updateTemplate(updateData)
       ElMessage.success('更新成功')
     } else {
       // 新建模式
       // 构建保存数据
-      const saveData: any = {
+      const saveData: TemplateApi.TemplateVO = {
         templateName: formData.templateName,
         temCategory: formData.temCategory,
         temSubclass: formData.temSubclass,
         description: formData.description,
         temStatus: formData.temStatus
-      }
+      } as TemplateApi.TemplateVO
 
       // 判断创建方式
       if (formData.creationMethod === 'upload') {
@@ -841,7 +841,7 @@ const handleSave = async () => {
         }
 
         // 将上传返回的 fileId 传递给 savaTemplate
-        saveData.fileId = fileId
+        saveData.fileId = fileId as string
 
         // 创建模板记录
         await TemplateApi.savaTemplate(saveData)
@@ -894,7 +894,7 @@ const handleBatchDelete = async () => {
   // 检查是否所有选中的数据都是"编辑中"(1)或"驳回"(5)状态
   const notDeletableRows = filter(
     selectedRows.value,
-    (row) => row.auditStatus && row.auditStatus !== '1' && row.auditStatus !== '5'
+    (row) => row.applyNode && row.applyNode !== '1' && row.applyNode !== '5'
   )
   if (!isEmpty(notDeletableRows)) {
     ElMessage.warning('只能删除"编辑中"或"驳回"状态的模板，请重新选择')
@@ -908,7 +908,7 @@ const handleBatchDelete = async () => {
       type: 'warning'
     })
 
-    await TemplateApi.batchDeleteTemplate(selectedIds.value)
+    await TemplateApi.batchDeleteTemplate(selectedIds.value as string[])
     ElMessage.success(`成功删除 ${selectedIds.value.length} 个模板`)
 
     // 清空选中状态
@@ -961,7 +961,7 @@ const handleSubmitAudit = (row: TemplateApi.TemplateVO) => {
 
 // 审核提交（接收来自 AuditFlowDialog 组件的数据）
 const handleAuditSubmit = async (submitData: {
-  id: number | string
+  id: string
   flowId: string
   auditors: Record<string, string[]>
   comment: string
@@ -1046,10 +1046,10 @@ const handleRejectSubmit = async () => {
     const userId = collaborationUser.id || 'admin'
 
     await TemplateApi.examApply({
-      apply: currentRejectRow.value.id,
+      applyId: currentRejectRow.value.id,
       examResult: '2', // 驳回
       examOpinion: rejectReason.value,
-      examuserId: userId
+      examUserId: userId
     })
     ElMessage.success('驳回成功')
     rejectDialogVisible.value = false
@@ -1078,10 +1078,10 @@ const handleApprove = async (row: TemplateApi.TemplateVO) => {
     const userId = collaborationUser.id || 'admin'
 
     await TemplateApi.examApply({
-      apply: row.id,
+      applyId: row.id,
       examResult: '1', // 通过
       examOpinion: '',
-      examuserId: userId
+      examUserId: userId
     })
     ElMessage.success('审核通过')
     getList()

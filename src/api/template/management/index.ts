@@ -77,18 +77,15 @@ const javaApi = {
   /**
    * 删除模板 - Java 后端
    */
-  deleteTemplate: async (id: number | string) => {
+  deleteTemplate: async (id: string) => {
     return await javaRequest.post('/tbTemplate/delList', [String(id)])
   },
 
   /**
    * 批量删除模板 - Java 后端
    */
-  batchDeleteTemplate: async (ids: (number | string)[]) => {
-    return await javaRequest.post(
-      '/api/tbTemplate/delList',
-      ids.map((id) => String(id))
-    )
+  batchDeleteTemplate: async (ids: string[]) => {
+    return await javaRequest.post('/tbTemplate/delList', ids)
   },
 
   /**
@@ -154,11 +151,11 @@ const javaApi = {
 
   /**
    * 获取审核记录列表 - Java 后端
-   * GET /examRecord/examApply
+   * GET /examRecord/getOpinion
    * @param id 当前表格数据id
    */
-  getExamRecordList: async (id: number | string): Promise<{ data: ExamRecordVO[] }> => {
-    return await javaRequest.get('/examRecord/examApply', { id })
+  getExamRecordList: async (id: string): Promise<{ data: ExamRecordVO[] }> => {
+    return await javaRequest.get('/examRecord/getOpinion', { id })
   },
 
   /**
@@ -199,13 +196,13 @@ const mockApi = {
     return res
   },
 
-  deleteTemplate: async (id: number | string) => {
+  deleteTemplate: async (id: string) => {
     const { deleteTemplate } = await import('@/mock/template/management')
     const res = await deleteTemplate(id)
     return res.data
   },
 
-  batchDeleteTemplate: async (ids: (number | string)[]) => {
+  batchDeleteTemplate: async (ids: string[]) => {
     const { batchDeleteTemplate } = await import('@/mock/template/management')
     const res = await batchDeleteTemplate(ids)
     return res.data
@@ -238,7 +235,7 @@ const mockApi = {
     return res
   },
 
-  getExamRecordList: async (id: number | string): Promise<{ data: ExamRecordVO[] }> => {
+  getExamRecordList: async (id: string): Promise<{ data: ExamRecordVO[] }> => {
     const { getExamRecordList } = await import('@/mock/template/management')
     return getExamRecordList(id)
   },
@@ -327,7 +324,7 @@ export const saveTemplateFile = api.saveTemplateFile
 
 /**
  * 获取审核记录列表
- * GET /examRecord/examApply
+ * GET /examRecord/getOpinion
  * @param id 当前表格数据id
  */
 export const getExamRecordList = api.getExamRecordList

@@ -49,7 +49,7 @@ const AuditStatus = {
  */
 const mockDataList: TrainingPerformanceVO[] = [
   {
-    id: 1,
+    id: '1',
     drillDataId: 'drill-001',
     drillDataName: '2024年度联合作战演练',
     planName: '联合作战演练筹划方案',
@@ -68,7 +68,7 @@ const mockDataList: TrainingPerformanceVO[] = [
     delFlg: '0'
   },
   {
-    id: 2,
+    id: '2',
     drillDataId: 'drill-002',
     drillDataName: '战略级演训项目',
     planName: '战略级综合演练方案',
@@ -87,7 +87,7 @@ const mockDataList: TrainingPerformanceVO[] = [
     delFlg: '0'
   },
   {
-    id: 3,
+    id: '3',
     drillDataId: 'drill-003',
     drillDataName: '网络安全演练',
     planName: '网络攻防演练实施方案',
@@ -106,7 +106,7 @@ const mockDataList: TrainingPerformanceVO[] = [
     delFlg: '0'
   },
   {
-    id: 4,
+    id: '4',
     drillDataId: 'drill-004',
     drillDataName: '后勤保障演练',
     planName: '联合勤务保障方案',
@@ -125,7 +125,7 @@ const mockDataList: TrainingPerformanceVO[] = [
     delFlg: '0'
   },
   {
-    id: 5,
+    id: '5',
     drillDataId: 'drill-005',
     drillDataName: '电磁频谱管控演练',
     planName: '电磁环境管控方案',
@@ -144,7 +144,7 @@ const mockDataList: TrainingPerformanceVO[] = [
     delFlg: '0'
   },
   {
-    id: 6,
+    id: '6',
     drillDataId: 'drill-006',
     drillDataName: '后勤保障演练',
     planName: '联合勤务保障方案',
@@ -163,7 +163,7 @@ const mockDataList: TrainingPerformanceVO[] = [
     delFlg: '0'
   },
   {
-    id: 7,
+    id: '7',
     drillDataId: 'drill-007',
     drillDataName: '太空作战演练',
     planName: '太空作战演练方案',
@@ -186,7 +186,7 @@ const mockDataList: TrainingPerformanceVO[] = [
 /**
  * 模拟驳回历史记录
  */
-const mockRejectHistory: Record<number, RejectRecordVO[]> = {
+const mockRejectHistory: Record<string, RejectRecordVO[]> = {
   5: [
     {
       rejectBy: '审核员A',
@@ -200,96 +200,96 @@ const mockRejectHistory: Record<number, RejectRecordVO[]> = {
  * 模拟审核记录数据
  * 审核结果: 1通过 2驳回
  */
-const mockExamRecordList: Record<number | string, ExamRecordVO[]> = {
-  2: [
+const mockExamRecordList: Record<string | string, ExamRecordVO[]> = {
+  '2': [
     {
       id: 'exam-001',
-      apply: 'apply-001',
+      applyId: 'apply-001',
       examNode: '节点1',
       examResult: '1',
       examOpinion: '方案设计合理，同意通过',
       examOffice: 'office-001',
-      examUserid: 'user1',
-      nextUserid: 'user2',
-      examofficeName: '作战部',
+      examUserId: 'user1',
+      nextUserId: 'user2',
+      examOfficeName: '作战部',
       createTime: '2024-12-09 10:00:00'
     },
     {
       id: 'exam-002',
-      apply: 'apply-001',
+      applyId: 'apply-001',
       examNode: '节点2',
       examResult: '1',
       examOpinion: '内容完整，审核通过',
       examOffice: 'office-002',
-      examUserid: 'user2',
-      nextUserid: 'user3',
-      examofficeName: '训练部',
+      examUserId: 'user2',
+      nextUserId: 'user3',
+      examOfficeName: '训练部',
       createTime: '2024-12-10 14:30:00'
     }
   ],
   3: [
     {
       id: 'exam-003',
-      apply: 'apply-002',
+      applyId: 'apply-002',
       examNode: '节点1',
       examResult: '1',
       examOpinion: '审核通过',
       examOffice: 'office-001',
-      examUserid: 'user1',
-      nextUserid: 'user2',
-      examofficeName: '作战部',
+      examUserId: 'user1',
+      nextUserId: 'user2',
+      examOfficeName: '作战部',
       createTime: '2024-12-06 09:00:00'
     },
     {
       id: 'exam-004',
-      apply: 'apply-002',
+      applyId: 'apply-002',
       examNode: '节点2',
       examResult: '1',
       examOpinion: '同意',
       examOffice: 'office-002',
-      examUserid: 'user2',
-      nextUserid: '',
-      examofficeName: '训练部',
+      examUserId: 'user2',
+      nextUserId: '',
+      examOfficeName: '训练部',
       createTime: '2024-12-07 11:00:00'
     }
   ],
   4: [
     {
       id: 'exam-005',
-      apply: 'apply-003',
+      applyId: 'apply-003',
       examNode: '节点1',
       examResult: '1',
       examOpinion: '审核通过',
       examOffice: 'office-001',
-      examUserid: 'user1',
-      nextUserid: 'user2',
-      examofficeName: '作战部',
+      examUserId: 'user1',
+      nextUserId: 'user2',
+      examOfficeName: '作战部',
       createTime: '2024-12-02 10:00:00'
     },
     {
       id: 'exam-006',
-      apply: 'apply-003',
+      applyId: 'apply-003',
       examNode: '节点2',
       examResult: '1',
       examOpinion: '方案可行，同意发布',
       examOffice: 'office-002',
-      examUserid: 'user2',
-      nextUserid: '',
-      examofficeName: '训练部',
+      examUserId: 'user2',
+      nextUserId: '',
+      examOfficeName: '训练部',
       createTime: '2024-12-03 15:00:00'
     }
   ],
   6: [
     {
       id: 'exam-007',
-      apply: 'apply-004',
+      applyId: 'apply-004',
       examNode: '节点1',
       examResult: '1',
       examOpinion: '初审通过',
       examOffice: 'office-001',
-      examUserid: 'user1',
-      nextUserid: 'user2',
-      examofficeName: '作战部',
+      examUserId: 'user1',
+      nextUserId: 'user2',
+      examOfficeName: '作战部',
       createTime: '2024-12-06 16:00:00'
     }
   ]
@@ -361,7 +361,7 @@ export const getPageList = async (params: TrainingPerformancePageReqVO) => {
   return {
     code: 200,
     data: {
-      list,
+      records: list,
       total: filteredList.length
     },
     msg: 'success'
@@ -384,7 +384,7 @@ export const createNewData = async (data: TrainingPerformanceVO) => {
 
   const newItem: TrainingPerformanceVO = {
     ...data,
-    id: generateMockId(),
+    id: String(generateMockId()),
     applyNode: AuditStatus.EDITING, // 编辑中
     createTime: new Date().toLocaleString('zh-CN'),
     updateTime: new Date().toLocaleString('zh-CN'),
@@ -431,7 +431,7 @@ export const updatePerformanceData = async (data: any) => {
 /**
  * 删除演训方案
  */
-export const deleteTrainingPerformance = async (ids: number | number[]) => {
+export const deleteTrainingPerformance = async (ids: string | string[]) => {
   await mockDelay()
 
   const idsArray = Array.isArray(ids) ? ids : [ids]
@@ -523,7 +523,7 @@ export const checkWritePermission = async (
 /**
  * 获取文档文件流
  */
-export const getFileStream = async (_id: number): Promise<Blob | null> => {
+export const getFileStream = async (_id: string): Promise<Blob | null> => {
   await mockDelay()
 
   // 模拟返回一个简单的文本文件
@@ -549,7 +549,7 @@ export const uploadDocument = async (_data: UploadDocumentData) => {
 /**
  * 获取驳回历史
  */
-export const getRejectHistory = async (id: number): Promise<{ data: RejectRecordVO[] }> => {
+export const getRejectHistory = async (id: string): Promise<{ data: RejectRecordVO[] }> => {
   await mockDelay(100)
   return { data: mockRejectHistory[id] || [] }
 }
@@ -619,7 +619,7 @@ export const getDrillDataList = async (_params?: any) => {
  * GET /examRecord/examApply
  * @param id 当前表格数据id
  */
-export const getExamRecordList = async (id: number | string): Promise<{ data: ExamRecordVO[] }> => {
+export const getExamRecordList = async (id: string): Promise<{ data: ExamRecordVO[] }> => {
   await mockDelay(200)
   return { data: mockExamRecordList[id] || [] }
 }
@@ -633,7 +633,7 @@ export const examApply = async (data: ExamApplyReqVO) => {
   await mockDelay(300)
 
   // 查找对应数据
-  const index = mockDataList.findIndex((item) => String(item.id) === String(data.apply))
+  const index = mockDataList.findIndex((item) => String(item.id) === String(data.applyId))
   if (index !== -1) {
     // 更新审核状态
     if (data.examResult === '1') {

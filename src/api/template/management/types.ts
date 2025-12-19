@@ -3,7 +3,7 @@
  */
 
 // 审核状态枚举（编辑中:1、审核中:2、审核通过:3、发布:4、驳回:5）
-export enum AuditStatusEnum {
+export enum ApplyNodeEnum {
   EDITING = '1', // 编辑中
   REVIEWING = '2', // 审核中
   APPROVED = '3', // 审核通过
@@ -12,7 +12,7 @@ export enum AuditStatusEnum {
 }
 
 // 审核状态文本映射
-export const AuditStatusTextMap: Record<string, string> = {
+export const ApplyNodeTextMap: Record<string, string> = {
   '1': '编辑中',
   '2': '审核中',
   '3': '审核通过',
@@ -22,7 +22,7 @@ export const AuditStatusTextMap: Record<string, string> = {
 
 // 模板数据接口
 export interface TemplateVO {
-  id?: number | string // id
+  id?: string // id
   fileId?: string // 文件id
   templateName: string // 模板名称
   temCategory: string // 模板分类
@@ -31,7 +31,7 @@ export interface TemplateVO {
   description?: string // 描述
   createTime?: string // 创建时间
   createBy?: string // 创建人
-  auditStatus?: string // 审核状态：1-编辑中/2-审核中/3-审核通过/4-发布/5-驳回
+  applyNode?: string // 审核状态：1-编辑中/2-审核中/3-审核通过/4-发布/5-驳回
   flowId?: string // 审核流程ID
 }
 
@@ -42,7 +42,7 @@ export interface TemplatePageReqVO extends PageParam {
   temSubclass?: string // 模板子类
   createTime?: string // 日期范围，格式："2025-12-10, 2025-12-11"
   tabType?: string // 切换状态: 'recent' | 'review' | 'publish'
-  auditStatus?: string // 审核状态
+  applyNode?: string // 审核状态
 }
 
 // 审核节点接口
@@ -61,7 +61,7 @@ export interface AuditFlowVO {
 
 // 提交审核参数接口
 export interface SubmitAuditReqVO {
-  id: number | string
+  id: string
   flowId: string // 流程ID
   auditors: Record<string, string[]> // 节点审核人 { node1: ['user1'], node2: ['user2', 'user3'] }
   comment?: string
@@ -88,15 +88,15 @@ export interface PermissionCheckResponse {
 
 // 审核记录接口 - GET /examRecord/examApply 返回参数
 export interface ExamRecordVO {
-  id: number | string // 记录ID
-  apply: string // 记录id（关联apply）
+  id: string // 记录ID
+  applyId: string // 记录id（关联applyId）
   examNode: string // 审核节点
   examResult: string // 审核结果 1通过 2驳回
   examOpinion: string // 审核意见
   examOffice: string // 审核部门id
-  examUserid: string // 审批用户id
-  nextUserid: string // 下一审批用户id
-  examofficeName: string // 审核部门名称
+  examUserId: string // 审批用户id
+  nextUserId: string // 下一审批用户id
+  examOfficeName: string // 审核部门名称
   createTime?: string // 创建时间
 }
 
@@ -114,8 +114,8 @@ export const ExamResultTextMap: Record<string, string> = {
 
 // 审核/驳回操作请求接口 - POST /examRecord/examTem
 export interface ExamApplyReqVO {
-  apply: number | string // 当前数据id
+  applyId: string // 当前数据 applyId
   examResult: string // 审核结果 1通过 2驳回
   examOpinion: string // 审核意见/驳回原因
-  examuserId: string // 审批用户id
+  examUserId: string // 审批用户id
 }

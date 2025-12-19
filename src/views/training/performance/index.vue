@@ -39,32 +39,18 @@
                 />
               </el-form-item>
               <el-form-item label="演训主题" prop="exerciseTheme">
-                <el-input
-                  v-model="queryParams.exerciseTheme"
-                  placeholder="请输入"
-                  clearable
-                  class="!w-200px"
-                />
-              </el-form-item>
-              <el-form-item label="演训类型" prop="exerciseType">
                 <el-select
-                  v-model="queryParams.exerciseType"
+                  v-model="queryParams.exerciseTheme"
                   placeholder="请选择"
                   clearable
                   class="!w-200px"
                 >
-                  <el-option label="大学年度演训" value="DXNDYX" />
-                  <el-option label="联合类" value="LHL" />
-                  <el-option label="作战类" value="ZUOZL" />
-                  <el-option label="政治类" value="ZZL" />
-                  <el-option label="经济类" value="JJL" />
-                  <el-option label="认知类" value="RZL" />
-                  <el-option label="文化类" value="WHL" />
-                  <el-option label="后装类" value="HZL" />
-                  <el-option label="国际防务类" value="GJFWL" />
-                  <el-option label="网络类" value="WLL" />
-                  <el-option label="电磁类" value="DCL" />
-                  <el-option label="太空类" value="TKL" />
+                  <el-option
+                    v-for="item in exerciseThemeOptions"
+                    :key="item.value"
+                    :label="item.label"
+                    :value="item.value"
+                  />
                 </el-select>
               </el-form-item>
 
@@ -333,21 +319,39 @@
         </div>
       </el-form-item>
 
-      <el-form-item label="筹划方案名称" prop="name">
-        <el-input v-model="formData.name" placeholder="请输入" clearable />
+      <el-form-item label="筹划方案名称" prop="planName">
+        <el-input v-model="formData.planName" placeholder="请输入" clearable />
       </el-form-item>
-
-      <el-form-item label="文档分类" prop="docCategory">
-        <el-select v-model="formData.docCategory" placeholder="请选择" clearable class="w-full">
+      <el-form-item label="演训主题" prop="exerciseTheme">
+        <el-select v-model="formData.exerciseTheme" placeholder="请选择" clearable class="w-full">
           <el-option
-            v-for="item in docCategoryOptions"
-            :key="item.id"
+            v-for="item in exerciseThemeOptions"
+            :key="item.value"
             :label="item.label"
             :value="item.value"
           />
         </el-select>
       </el-form-item>
-
+      <el-form-item label="演训类型" prop="exerciseType">
+        <el-select v-model="formData.exerciseType" placeholder="请选择" clearable class="w-full">
+          <el-option
+            v-for="item in exerciseTypeOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="演训等级" prop="level">
+        <el-select v-model="formData.level" placeholder="请选择" clearable class="w-full">
+          <el-option
+            v-for="item in levelOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+      </el-form-item>
       <el-form-item label="所属学院" prop="collegeCode">
         <el-select v-model="formData.collegeCode" placeholder="请选择" clearable class="w-full">
           <el-option
@@ -359,8 +363,19 @@
         </el-select>
       </el-form-item>
 
+      <el-form-item label="文档分类" prop="fileType">
+        <el-select v-model="formData.fileType" placeholder="请选择" clearable class="w-full">
+          <el-option
+            v-for="item in fileTypeOptions"
+            :key="item.id"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+      </el-form-item>
+
       <el-form-item label="简介">
-        <el-input v-model="formData.brief" type="textarea" :rows="3" placeholder="请输入" />
+        <el-input v-model="formData.description" type="textarea" :rows="3" placeholder="请输入" />
       </el-form-item>
 
       <el-form-item label="可编辑用户" prop="editableUser">
@@ -612,13 +627,14 @@ const queryParams = reactive<PerformanceApi.TrainingPerformancePageReqVO>({
   pageNo: 1,
   pageSize: 10,
   planName: undefined,
+  collegeCode: undefined,
   createTime: undefined,
   applyNode: undefined,
   fileType: undefined, // 左侧文档分类
-  exerciseTheme: undefined,
-  exerciseType: undefined,
-  level: undefined,
-  docType: undefined
+  exerciseTheme: undefined, // 演训主题
+  exerciseType: undefined, // 演训类型
+  level: undefined, // 演训等级
+  docType: undefined // 文档类型
 })
 
 const queryFormRef = ref()
@@ -643,145 +659,145 @@ const getList = async () => {
       activeTab.value === 'review' ? 'review' : activeTab.value === 'publish' ? 'publish' : 'recent'
 
     console.log('查询参数:', params)
-    const data = await PerformanceApi.getPageList(params as any)
-    list.value = data.list || []
-    total.value = data.total || 0
-    // list.value = [
-    //   {
-    //     id: 1,
-    //     drillDataId: 'drill-001',
-    //     drillDataName: '2024年度联合作战演练',
-    //     planName: '联合作战演练筹划方案',
-    //     collegeCode: 'LHZZXY',
-    //     fileType: '演训方案',
-    //     activeUser: 'admin,staff_a',
-    //     description: '本方案用于指导2024年度联合作战演练的组织实施',
-    //     level: 'ZLJ',
-    //     exerciseType: 'LHL',
-    //     exerciseTheme: '联合作战',
-    //     docType: 'docx',
-    //     createBy: 'admin',
-    //     applyNode: '1', // 编辑中
-    //     createTime: '2024-12-10 09:30:00',
-    //     updateTime: '2024-12-12 14:20:00',
-    //     delFlg: '0'
-    //   },
-    //   {
-    //     id: 2,
-    //     drillDataId: 'drill-002',
-    //     drillDataName: '战略级演训项目',
-    //     planName: '战略级综合演练方案',
-    //     collegeCode: 'GFDX',
-    //     fileType: '作战计划',
-    //     activeUser: 'staff_b',
-    //     description: '战略级综合演练的总体方案设计',
-    //     level: 'ZLJ',
-    //     exerciseType: 'ZUOZL',
-    //     exerciseTheme: '战略演练',
-    //     docType: 'docx',
-    //     createBy: 'staff_b',
-    //     applyNode: '2', // 审核中
-    //     createTime: '2024-12-08 10:00:00',
-    //     updateTime: '2024-12-11 16:45:00',
-    //     delFlg: '0'
-    //   },
-    //   {
-    //     id: 3,
-    //     drillDataId: 'drill-003',
-    //     drillDataName: '网络安全演练',
-    //     planName: '网络攻防演练实施方案',
-    //     collegeCode: 'GJAQXY',
-    //     fileType: '导调计划',
-    //     activeUser: 'admin',
-    //     description: '网络空间安全攻防演练方案',
-    //     level: 'YXJ',
-    //     exerciseType: 'WLL',
-    //     exerciseTheme: '网络安全',
-    //     docType: 'docx',
-    //     createBy: 'admin',
-    //     applyNode: '3', // 审核通过
-    //     createTime: '2024-12-05 08:30:00',
-    //     updateTime: '2024-12-10 11:20:00',
-    //     delFlg: '0'
-    //   },
-    //   {
-    //     id: 4,
-    //     drillDataId: 'drill-004',
-    //     drillDataName: '后勤保障演练',
-    //     planName: '联合勤务保障方案',
-    //     collegeCode: 'LHQWXY',
-    //     fileType: '作战文书',
-    //     activeUser: 'staff_a,staff_b',
-    //     description: '后勤保障体系综合演练方案',
-    //     level: 'ZSJ',
-    //     exerciseType: 'HZL',
-    //     exerciseTheme: '后勤保障',
-    //     docType: 'docx',
-    //     createBy: 'staff_a',
-    //     applyNode: '4', // 发布
-    //     createTime: '2024-12-01 14:00:00',
-    //     updateTime: '2024-12-09 09:15:00',
-    //     delFlg: '0'
-    //   },
-    //   {
-    //     id: 5,
-    //     drillDataId: 'drill-005',
-    //     drillDataName: '电磁频谱管控演练',
-    //     planName: '电磁环境管控方案',
-    //     collegeCode: 'SGLXY',
-    //     fileType: '企图立案',
-    //     activeUser: 'admin',
-    //     description: '复杂电磁环境下的频谱管控方案',
-    //     level: 'YXJ',
-    //     exerciseType: 'DCL',
-    //     exerciseTheme: '电磁管控',
-    //     docType: 'docx',
-    //     createBy: 'admin',
-    //     applyNode: '5', // 驳回
-    //     createTime: '2024-11-28 11:30:00',
-    //     updateTime: '2024-12-08 15:40:00',
-    //     delFlg: '0'
-    //   },
-    //   {
-    //     id: 6,
-    //     drillDataId: 'drill-006',
-    //     drillDataName: '后勤保障演练',
-    //     planName: '联合勤务保障方案',
-    //     collegeCode: 'SGLXY',
-    //     fileType: '作战文书',
-    //     activeUser: 'staff_a,staff_b',
-    //     description: '后勤保障体系综合演练方案',
-    //     level: 'YXJ',
-    //     exerciseType: 'HZL',
-    //     exerciseTheme: '后勤保障',
-    //     docType: 'docx',
-    //     createBy: 'staff_a',
-    //     applyNode: '2', // 审核中
-    //     createTime: '2024-11-28 11:30:00',
-    //     updateTime: '2024-12-08 15:40:00',
-    //     delFlg: '0'
-    //   },
-    //   {
-    //     id: 7,
-    //     drillDataId: 'drill-007',
-    //     drillDataName: '太空作战演练',
-    //     planName: '太空作战演练方案',
-    //     collegeCode: 'SGLXY',
-    //     fileType: '企图立案',
-    //     activeUser: 'staff_a',
-    //     description: '太空作战演练方案',
-    //     level: 'YXJ', // 演训等级
-    //     exerciseType: 'KZL', // 演训类型
-    //     exerciseTheme: '太空作战',
-    //     docType: 'docx', // 文档类型
-    //     createBy: 'staff_a', // 创建人
-    //     applyNode: '5', // 驳回
-    //     createTime: '2024-11-28 11:30:00',
-    //     updateTime: '2024-12-08 15:40:00',
-    //     delFlg: '0'
-    //   }
-    // ]
-    // total.value = list.value.length || 0
+    // const data = await PerformanceApi.getPageList(params as any)
+    // list.value = data.records || []
+    // total.value = data.total || 0
+    list.value = [
+      {
+        id: '1',
+        drillDataId: 'drill-001',
+        drillDataName: '2024年度联合作战演练',
+        planName: '联合作战演练筹划方案',
+        collegeCode: 'LHZZXY',
+        fileType: '演训方案',
+        activeUser: 'admin,staff_a',
+        description: '本方案用于指导2024年度联合作战演练的组织实施',
+        level: 'ZLJ',
+        exerciseType: 'LHL',
+        exerciseTheme: '联合作战',
+        docType: 'docx',
+        createBy: 'admin',
+        applyNode: '1', // 编辑中
+        createTime: '2024-12-10 09:30:00',
+        updateTime: '2024-12-12 14:20:00',
+        delFlg: '0'
+      },
+      {
+        id: '2',
+        drillDataId: 'drill-002',
+        drillDataName: '战略级演训项目',
+        planName: '战略级综合演练方案',
+        collegeCode: 'GFDX',
+        fileType: '作战计划',
+        activeUser: 'staff_b',
+        description: '战略级综合演练的总体方案设计',
+        level: 'ZLJ',
+        exerciseType: 'ZUOZL',
+        exerciseTheme: '战略演练',
+        docType: 'docx',
+        createBy: 'staff_b',
+        applyNode: '2', // 审核中
+        createTime: '2024-12-08 10:00:00',
+        updateTime: '2024-12-11 16:45:00',
+        delFlg: '0'
+      },
+      {
+        id: '3',
+        drillDataId: 'drill-003',
+        drillDataName: '网络安全演练',
+        planName: '网络攻防演练实施方案',
+        collegeCode: 'GJAQXY',
+        fileType: '导调计划',
+        activeUser: 'admin',
+        description: '网络空间安全攻防演练方案',
+        level: 'YXJ',
+        exerciseType: 'WLL',
+        exerciseTheme: '网络安全',
+        docType: 'docx',
+        createBy: 'admin',
+        applyNode: '3', // 审核通过
+        createTime: '2024-12-05 08:30:00',
+        updateTime: '2024-12-10 11:20:00',
+        delFlg: '0'
+      },
+      {
+        id: '4',
+        drillDataId: 'drill-004',
+        drillDataName: '后勤保障演练',
+        planName: '联合勤务保障方案',
+        collegeCode: 'LHQWXY',
+        fileType: '作战文书',
+        activeUser: 'staff_a,staff_b',
+        description: '后勤保障体系综合演练方案',
+        level: 'ZSJ',
+        exerciseType: 'HZL',
+        exerciseTheme: '后勤保障',
+        docType: 'docx',
+        createBy: 'staff_a',
+        applyNode: '4', // 发布
+        createTime: '2024-12-01 14:00:00',
+        updateTime: '2024-12-09 09:15:00',
+        delFlg: '0'
+      },
+      {
+        id: '5',
+        drillDataId: 'drill-005',
+        drillDataName: '电磁频谱管控演练',
+        planName: '电磁环境管控方案',
+        collegeCode: 'SGLXY',
+        fileType: '企图立案',
+        activeUser: 'admin',
+        description: '复杂电磁环境下的频谱管控方案',
+        level: 'YXJ',
+        exerciseType: 'DCL',
+        exerciseTheme: '电磁管控',
+        docType: 'docx',
+        createBy: 'admin',
+        applyNode: '5', // 驳回
+        createTime: '2024-11-28 11:30:00',
+        updateTime: '2024-12-08 15:40:00',
+        delFlg: '0'
+      },
+      {
+        id: '6',
+        drillDataId: 'drill-006',
+        drillDataName: '后勤保障演练',
+        planName: '联合勤务保障方案',
+        collegeCode: 'SGLXY',
+        fileType: '作战文书',
+        activeUser: 'staff_a,staff_b',
+        description: '后勤保障体系综合演练方案',
+        level: 'YXJ',
+        exerciseType: 'HZL',
+        exerciseTheme: '后勤保障',
+        docType: 'docx',
+        createBy: 'staff_a',
+        applyNode: '2', // 审核中
+        createTime: '2024-11-28 11:30:00',
+        updateTime: '2024-12-08 15:40:00',
+        delFlg: '0'
+      },
+      {
+        id: '7',
+        drillDataId: 'drill-007',
+        drillDataName: '太空作战演练',
+        planName: '太空作战演练方案',
+        collegeCode: 'SGLXY',
+        fileType: '企图立案',
+        activeUser: 'staff_a',
+        description: '太空作战演练方案',
+        level: 'YXJ', // 演训等级
+        exerciseType: 'KZL', // 演训类型
+        exerciseTheme: '太空作战',
+        docType: 'docx', // 文档类型
+        createBy: 'staff_a', // 创建人
+        applyNode: '5', // 驳回
+        createTime: '2024-11-28 11:30:00',
+        updateTime: '2024-12-08 15:40:00',
+        delFlg: '0'
+      }
+    ]
+    total.value = list.value.length || 0
   } catch (error) {
     console.error('获取数据失败:', error)
     ElMessage.error('获取数据失败，请确保后端服务已启动')
@@ -842,17 +858,21 @@ const handleCategorySelect = (index: string) => {
 const dialogVisible = ref(false)
 const dialogTitle = ref('新建筹划方案')
 const isEditMode = ref(false) // 是否为编辑模式（编辑模式隐藏创建方式）
-const currentEditId = ref<number | null>(null) // 当前编辑的数据ID
+const currentEditId = ref<string | null>(null) // 当前编辑的数据ID
 const formRef = ref()
 
 // 表单数据
 const formData = reactive({
+  id: '', // 筹划方案ID
   drillDataId: '', // 演训数据ID
   drillDataName: '', // 演训数据名称（回显用）
-  name: '', // 筹划方案名称
-  docCategory: '', // 文档分类
+  planName: '', // 筹划方案名称
+  exerciseTheme: '', // 演训主题
+  exerciseType: '', // 演训类型
+  level: '', // 演训等级
   collegeCode: '', // 所属学院
-  brief: '', // 简介
+  fileType: '', // 文档分类
+  description: '', // 简介
   editableUser: [], // 可编辑用户
   creationMethod: 'new' // 创建方式: new, upload
 })
@@ -864,14 +884,19 @@ const uploadFile = ref<File | null>(null)
 // 表单验证规则
 const formRules = {
   drillDataId: [{ required: true, message: '请选择演训数据', trigger: 'change' }],
-  name: [{ required: true, message: '请输入筹划方案名称', trigger: 'blur' }],
-  docCategory: [{ required: true, message: '请选择文档分类', trigger: 'change' }],
+  drillDataName: [{ required: true, message: '请输入演训数据名称', trigger: 'blur' }],
+  planName: [{ required: true, message: '请输入筹划方案名称', trigger: 'blur' }],
+  exerciseTheme: [{ required: true, message: '请输入演训主题', trigger: 'blur' }],
+  exerciseType: [{ required: true, message: '请输入演训类型', trigger: 'blur' }],
+  level: [{ required: true, message: '请输入演训等级', trigger: 'blur' }],
+  collegeCode: [{ required: true, message: '请选择所属学院', trigger: 'change' }],
+  fileType: [{ required: true, message: '请选择文档分类', trigger: 'change' }],
   editableUser: [{ required: true, message: '请选择可编辑用户', trigger: 'change' }],
   creationMethod: [{ required: true, message: '请选择创建方式', trigger: 'change' }]
 }
 
 // 文档分类下拉选项（从中间件获取，过滤掉"全部"）
-const docCategoryOptions = computed(() => {
+const fileTypeOptions = computed(() => {
   const filtered = filter(categories.value, (item) => item.id !== '0')
   return map(filtered, (item) => ({
     label: item.fileType,
@@ -897,7 +922,15 @@ const exerciseTypeOptions = [
 ]
 
 // 演训主题
-const exerciseThemeOptions = [{ label: '联合作战训练', value: 'LHZZ' }]
+const exerciseThemeOptions = [
+  { label: '联合作战训练', value: 'LHZZYX' },
+  { label: '作战训练', value: 'ZUOZL' },
+  { label: '政治训练', value: 'ZZL' },
+  { label: '经济训练', value: 'JJL' },
+  { label: '认知训练', value: 'RZL' },
+  { label: '文化训练', value: 'WHL' },
+  { label: '后装训练', value: 'HZL' }
+]
 
 // 演训等级
 const levelOptions = [
@@ -1028,10 +1061,13 @@ const handleAdd = () => {
   Object.assign(formData, {
     drillDataId: '',
     drillDataName: '',
-    name: '',
-    docCategory: '',
+    planName: '',
+    exerciseTheme: '',
+    exerciseType: '',
+    level: '',
+    fileType: '',
     collegeCode: '',
-    brief: '',
+    description: '',
     editableUser: [],
     creationMethod: 'new'
   })
@@ -1054,11 +1090,14 @@ const handleEditData = (row: PerformanceApi.TrainingPerformanceVO) => {
   // 填充表单数据
   Object.assign(formData, {
     drillDataId: row.drillDataId || '',
-    drillDataName: row.drillDataName || row.planName || '',
-    name: row.planName || '',
-    docCategory: row.fileType || '',
+    drillDataName: row.drillDataName || '',
+    planName: row.planName || '',
+    exerciseTheme: row.exerciseTheme || '',
+    exerciseType: row.exerciseType || '',
+    level: row.level || '',
+    fileType: row.fileType || '',
     collegeCode: row.collegeCode || '',
-    brief: row.description || '',
+    description: row.description || '',
     editableUser: row.activeUser ? row.activeUser.split(',') : []
     // 编辑模式不设置 creationMethod
   })
@@ -1086,11 +1125,8 @@ const handleSave = async () => {
 
     loading.value = true
 
-    // 根据选择的 docCategory 找到对应的分类 id 作为 fileType
-    const selectedCat = find(
-      docCategoryOptions.value,
-      (item) => item.value === formData.docCategory
-    )
+    // 根据选择的 fileTypeOptions 找到对应的分类 id 作为 fileType
+    const selectedCat = find(fileTypeOptions.value, (item) => item.value === formData.fileType)
     const fileType = selectedCat?.id || ''
 
     // 编辑模式
@@ -1100,10 +1136,10 @@ const handleSave = async () => {
         id: currentEditId.value,
         drillDataId: formData.drillDataId,
         drillDataName: formData.drillDataName,
-        planName: formData.name, // 映射 name -> planName
+        planName: formData.planName, // 映射 name -> planName
         fileType: fileType, // 使用分类 id
         collegeCode: formData.collegeCode, // 所属学院
-        description: formData.brief, // 映射 brief -> description
+        description: formData.description, // 映射 brief -> description
         activeUser: formData.editableUser.join(',') // 映射 editableUser -> activeUser
       }
 
@@ -1116,65 +1152,21 @@ const handleSave = async () => {
 
     // 新建模式
     // 构建保存数据，映射到标准字段名
-    const saveData: any = {
+    const saveData: PerformanceApi.TrainingPerformanceVO = {
       drillDataId: formData.drillDataId,
       drillDataName: formData.drillDataName,
-      planName: formData.name, // 映射 name -> planName
-      fileType: formData.docCategory, // 映射 docCategory -> fileType
+      planName: formData.planName, // 映射 planName -> planName
+      exerciseTheme: formData.exerciseTheme, // 映射 exerciseTheme -> exerciseTheme
+      exerciseType: formData.exerciseType, // 映射 exerciseType -> exerciseType
+      level: formData.level, // 映射 level -> level
+      fileType: formData.fileType, // 映射 fileType -> fileType
       collegeCode: formData.collegeCode, // 所属学院
-      description: formData.brief, // 映射 brief -> description
-      activeUser: formData.editableUser.join(','), // 映射 editableUser -> activeUser
-      creationMethod: formData.creationMethod,
-      createBy: 'admin' // 当前用户
+      description: formData.description, // 映射 description -> description
+      activeUser: formData.editableUser.join(',') // 映射 activeUser -> activeUser
     }
 
-    // 判断创建方式
-    if (formData.creationMethod === 'upload') {
-      // 上传文档模式
-      // 先上传文档文件
-      console.log('上传文档文件:', uploadFile.value!.name)
-      const uploadResult = await PerformanceApi.uploadDocument({
-        file: uploadFile.value!
-      })
-      console.log('上传结果:', uploadResult, typeof uploadResult)
-
-      // 处理上传结果 - 兼容两种响应格式:
-      // 1. 完整响应对象: {code: 200, data: "fileId", msg: "操作成功"}
-      // 2. axios 解包后直接返回 data 值: "fileId" (字符串)
-      let fileId: string | null = null
-
-      if (isString(uploadResult)) {
-        // axios 封装解包后直接返回了 data 值
-        fileId = uploadResult
-        console.log('上传成功(解包响应), 文件ID:', fileId)
-      } else if (isObject(uploadResult)) {
-        // 完整响应对象
-        const result = uploadResult as { code?: number; data?: string; msg?: string }
-        if (result.code === 200 || result.code === 0) {
-          fileId = result.data || null
-          console.log('上传成功(完整响应), 文件ID:', fileId)
-        } else {
-          ElMessage.error(result.msg || '上传文档失败')
-          return
-        }
-      }
-
-      if (isEmpty(fileId)) {
-        ElMessage.error('上传文档失败：未获取到文件ID')
-        return
-      }
-
-      // 将上传返回的 fileId 传递给 createNewData
-      saveData.fileId = fileId
-
-      // 创建筹划方案记录
-      await PerformanceApi.createNewData(saveData)
-      ElMessage.success('创建成功')
-    } else {
-      // 新建文档模式
-      await PerformanceApi.createNewData(saveData)
-      ElMessage.success('创建成功')
-    }
+    await PerformanceApi.createNewData(saveData as PerformanceApi.TrainingPerformanceVO)
+    ElMessage.success('创建成功')
 
     dialogVisible.value = false
     getList()
@@ -1234,7 +1226,7 @@ const handleEdit = async (row: any) => {
 
     // 2. 调用权限校验接口
     console.log('调用权限校验接口, id:', row.id, 'userId:', userId)
-    const checkData = { id: row.id, userId: userId as any } // 权限校验请求数据
+    const checkData: PerformanceApi.checkWriteData = { id: row.id, userId: userId as string } // 权限校验请求数据
     const permResult = await PerformanceApi.checkWritePermission(
       checkData as PerformanceApi.checkWriteData
     )
@@ -1275,14 +1267,14 @@ const handleEdit = async (row: any) => {
     // 6. 准备文档信息并存储到 sessionStorage
     const documentInfo = {
       id: String(row.id),
-      title: row.name,
+      title: row.planName,
       content: '',
       createTime: row.createTime || new Date().toISOString(),
       updateTime: row.createTime || new Date().toISOString(),
       version: 'V1.0',
-      tags: row.docCategory ? [row.docCategory] : [],
+      tags: row.fileType ? [row.fileType] : [],
       creatorId: 0,
-      creatorName: row.author || '未知'
+      creatorName: row.createBy || '未知'
     }
     sessionStorage.setItem(`doc_info_${row.id}`, JSON.stringify(documentInfo))
 
@@ -1291,7 +1283,7 @@ const handleEdit = async (row: any) => {
       name: 'DocumentEdit',
       params: { id: row.id },
       query: {
-        title: row.name, // 传递方案名称作为标题
+        title: row.planName, // 传递方案名称作为标题
         hasContent: hasContent ? 'true' : 'false'
       }
     })
@@ -1352,7 +1344,7 @@ const openAuditDialog = (row: PerformanceApi.TrainingPerformanceVO) => {
 
 // 确认审核（接收来自 AuditFlowDialog 组件的数据）
 const handleAuditSubmit = async (submitData: {
-  id: number | string
+  id: string
   flowId: string
   auditors: Record<string, string[]>
   comment: string
@@ -1363,7 +1355,7 @@ const handleAuditSubmit = async (submitData: {
     // 转换为符合 API 类型的数据
     const apiData = {
       ...submitData,
-      id: Number(submitData.id)
+      id: submitData.id
     }
     const result = await PerformanceApi.submitAudit(apiData)
     console.log('提交审核结果:', result)
@@ -1496,7 +1488,7 @@ const handleRejectSubmit = async () => {
     const userId = collaborationUser.id || 'admin'
 
     await PerformanceApi.examApply({
-      apply: currentRejectRow.value.id,
+      applyId: currentRejectRow.value.id,
       examResult: '2', // 驳回
       examOpinion: rejectReason.value,
       examuserId: userId
@@ -1528,7 +1520,7 @@ const handleApprove = async (row: PerformanceApi.TrainingPerformanceVO) => {
     const userId = collaborationUser.id || 'admin'
 
     await PerformanceApi.examApply({
-      apply: row.id,
+      applyId: row.id,
       examResult: '1', // 通过
       examOpinion: '',
       examuserId: userId
@@ -1593,9 +1585,9 @@ const handleBatchDelete = async () => {
 
     const ids = filter(
       map(selectedRows.value, (item) => item.id),
-      (id): id is number => !isNil(id)
+      (id): id is string => !isNil(id) && !isEmpty(id)
     )
-    if (isEmpty(ids)) {
+    if (isEmpty(ids) || ids.length === 0) {
       ElMessage.error('无效的数据ID')
       return
     }

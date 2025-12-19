@@ -46,7 +46,7 @@ const generateMockId = () => ++mockIdCounter
  */
 const mockDataList: TemplateVO[] = [
   {
-    id: 1,
+    id: '1',
     fileId: 'file-001',
     templateName: '作战命令模板',
     temCategory: '筹划文档',
@@ -55,10 +55,10 @@ const mockDataList: TemplateVO[] = [
     description: '用于生成标准作战命令文档',
     createTime: '2024-12-10 09:30:00',
     createBy: 'admin',
-    auditStatus: AuditStatus.APPROVED // 审核通过
+    applyNode: AuditStatus.APPROVED // 审核通过
   },
   {
-    id: 2,
+    id: '2',
     fileId: 'file-002',
     templateName: '演训方案模板',
     temCategory: '筹划文档',
@@ -67,10 +67,10 @@ const mockDataList: TemplateVO[] = [
     description: '标准演训方案编写模板',
     createTime: '2024-12-08 10:00:00',
     createBy: 'staff_a',
-    auditStatus: AuditStatus.REVIEWING // 审核中
+    applyNode: AuditStatus.REVIEWING // 审核中
   },
   {
-    id: 3,
+    id: '3',
     fileId: 'file-003',
     templateName: '作战计划模板',
     temCategory: '筹划文档',
@@ -79,10 +79,10 @@ const mockDataList: TemplateVO[] = [
     description: '作战计划编制标准模板',
     createTime: '2024-12-05 08:30:00',
     createBy: 'staff_b',
-    auditStatus: AuditStatus.EDITING // 编辑中
+    applyNode: AuditStatus.EDITING // 编辑中
   },
   {
-    id: 4,
+    id: '4',
     fileId: 'file-004',
     templateName: '编组模板-联合作战',
     temCategory: '筹划文档',
@@ -91,10 +91,10 @@ const mockDataList: TemplateVO[] = [
     description: '联合作战编组标准模板',
     createTime: '2024-12-01 14:00:00',
     createBy: 'admin',
-    auditStatus: AuditStatus.PUBLISHED // 发布
+    applyNode: AuditStatus.PUBLISHED // 发布
   },
   {
-    id: 5,
+    id: '5',
     fileId: 'file-005',
     templateName: '总结报告模板',
     temCategory: '筹划文档',
@@ -103,10 +103,10 @@ const mockDataList: TemplateVO[] = [
     description: '演训总结报告编写模板',
     createTime: '2024-11-28 11:30:00',
     createBy: 'staff_a',
-    auditStatus: AuditStatus.REJECTED // 驳回
+    applyNode: AuditStatus.REJECTED // 驳回
   },
   {
-    id: 6,
+    id: '6',
     fileId: 'file-006',
     templateName: '导调计划模板',
     temCategory: '筹划文档',
@@ -115,7 +115,7 @@ const mockDataList: TemplateVO[] = [
     description: '标准导调计划编制模板',
     createTime: '2024-11-25 09:00:00',
     createBy: 'admin',
-    auditStatus: AuditStatus.APPROVED // 审核通过
+    applyNode: AuditStatus.APPROVED // 审核通过
   }
 ]
 
@@ -123,96 +123,96 @@ const mockDataList: TemplateVO[] = [
  * 模拟审核记录数据
  * 审核结果: 1通过 2驳回
  */
-const mockExamRecordList: Record<number | string, ExamRecordVO[]> = {
+const mockExamRecordList: Record<string | string, ExamRecordVO[]> = {
   1: [
     {
       id: 'exam-t001',
-      apply: 'apply-t001',
+      applyId: 'apply-t001',
       examNode: '节点1',
       examResult: '1',
       examOpinion: '模板规范，审核通过',
       examOffice: 'office-001',
-      examUserid: 'user1',
-      nextUserid: 'user2',
-      examofficeName: '模板管理部',
+      examUserId: 'user1',
+      nextUserId: 'user2',
+      examOfficeName: '模板管理部',
       createTime: '2024-12-08 10:00:00'
     },
     {
       id: 'exam-t002',
-      apply: 'apply-t001',
+      applyId: 'apply-t001',
       examNode: '节点2',
       examResult: '1',
       examOpinion: '内容完整，同意通过',
       examOffice: 'office-002',
-      examUserid: 'user2',
-      nextUserid: '',
-      examofficeName: '审核部',
+      examUserId: 'user2',
+      nextUserId: '',
+      examOfficeName: '审核部',
       createTime: '2024-12-09 14:30:00'
     }
   ],
   2: [
     {
       id: 'exam-t003',
-      apply: 'apply-t002',
+      applyId: 'apply-t002',
       examNode: '节点1',
       examResult: '1',
       examOpinion: '初审通过',
       examOffice: 'office-001',
-      examUserid: 'user1',
-      nextUserid: 'user2',
-      examofficeName: '模板管理部',
+      examUserId: 'user1',
+      nextUserId: 'user2',
+      examOfficeName: '模板管理部',
       createTime: '2024-12-07 09:00:00'
     }
   ],
   4: [
     {
       id: 'exam-t004',
-      apply: 'apply-t003',
+      applyId: 'apply-t003',
       examNode: '节点1',
       examResult: '1',
       examOpinion: '审核通过',
       examOffice: 'office-001',
-      examUserid: 'user1',
-      nextUserid: 'user2',
-      examofficeName: '模板管理部',
+      examUserId: 'user1',
+      nextUserId: 'user2',
+      examOfficeName: '模板管理部',
       createTime: '2024-11-28 10:00:00'
     },
     {
       id: 'exam-t005',
-      apply: 'apply-t003',
+      applyId: 'apply-t003',
       examNode: '节点2',
       examResult: '1',
       examOpinion: '模板可用，同意发布',
       examOffice: 'office-002',
-      examUserid: 'user2',
-      nextUserid: '',
-      examofficeName: '审核部',
+      examUserId: 'user2',
+      nextUserId: '',
+      examOfficeName: '审核部',
       createTime: '2024-11-29 15:00:00'
     }
   ],
   6: [
     {
       id: 'exam-t006',
-      apply: 'apply-t004',
+      applyId: 'apply-t004',
       examNode: '节点1',
       examResult: '1',
       examOpinion: '格式规范',
       examOffice: 'office-001',
-      examUserid: 'user1',
-      nextUserid: 'user2',
-      examofficeName: '模板管理部',
+      examUserId: 'user1',
+      nextUserId: 'user2',
+      examOfficeName: '模板管理部',
       createTime: '2024-11-22 10:00:00'
     },
     {
       id: 'exam-t007',
-      apply: 'apply-t004',
+      applyId: 'apply-t004',
       examNode: '节点2',
       examResult: '1',
       examOpinion: '同意',
       examOffice: 'office-002',
-      examUserid: 'user2',
-      nextUserid: '',
-      examofficeName: '审核部',
+      examUserId: 'user2',
+      nextUserId: '',
+      examOfficeName: '审核部',
       createTime: '2024-11-23 11:00:00'
     }
   ]
@@ -246,10 +246,10 @@ export const getPageList = async (params: TemplatePageReqVO) => {
   // tabType=publish: 只显示发布(4)
   if (params.tabType === 'review') {
     filteredList = filteredList.filter((item) =>
-      [AuditStatus.REVIEWING, AuditStatus.APPROVED].includes(item.auditStatus || '')
+      [AuditStatus.REVIEWING, AuditStatus.APPROVED].includes(item.applyNode || '')
     )
   } else if (params.tabType === 'publish') {
-    filteredList = filteredList.filter((item) => item.auditStatus === AuditStatus.PUBLISHED)
+    filteredList = filteredList.filter((item) => item.applyNode === AuditStatus.PUBLISHED)
   }
 
   // 分页
@@ -262,7 +262,7 @@ export const getPageList = async (params: TemplatePageReqVO) => {
   return {
     code: 200,
     data: {
-      list,
+      records: list,
       total: filteredList.length
     },
     msg: 'success'
@@ -285,9 +285,9 @@ export const savaTemplate = async (data: TemplateVO) => {
 
   const newItem: TemplateVO = {
     ...data,
-    id: generateMockId(),
+    id: String(generateMockId()),
     temStatus: data.temStatus === '启用' ? '启用' : '禁用',
-    auditStatus: AuditStatus.EDITING, // 编辑中
+    applyNode: AuditStatus.EDITING, // 编辑中
     createTime: new Date().toLocaleString('zh-CN'),
     createBy: 'admin'
   }
@@ -381,7 +381,7 @@ export const submitAudit = async (data: SubmitAuditReqVO) => {
 
   const index = mockDataList.findIndex((item) => String(item.id) === String(data.id))
   if (index !== -1) {
-    mockDataList[index].auditStatus = AuditStatus.REVIEWING // 审核中
+    mockDataList[index].applyNode = AuditStatus.REVIEWING // 审核中
     mockDataList[index].flowId = data.flowId
 
     return {
@@ -463,7 +463,7 @@ export const saveTemplateFile = async (_id: string, _file: File) => {
  * GET /examRecord/examApply
  * @param id 当前表格数据id
  */
-export const getExamRecordList = async (id: number | string): Promise<{ data: ExamRecordVO[] }> => {
+export const getExamRecordList = async (id: string): Promise<{ data: ExamRecordVO[] }> => {
   await mockDelay(200)
   return { data: mockExamRecordList[id] || [] }
 }
@@ -477,15 +477,15 @@ export const examApply = async (data: ExamApplyReqVO) => {
   await mockDelay(300)
 
   // 查找对应数据
-  const index = mockDataList.findIndex((item) => String(item.id) === String(data.apply))
+  const index = mockDataList.findIndex((item) => String(item.id) === String(data.applyId))
   if (index !== -1) {
     // 更新审核状态
     if (data.examResult === '1') {
       // 审核通过
-      mockDataList[index].auditStatus = AuditStatus.APPROVED
+      mockDataList[index].applyNode = AuditStatus.APPROVED
     } else if (data.examResult === '2') {
       // 驳回
-      mockDataList[index].auditStatus = AuditStatus.REJECTED
+      mockDataList[index].applyNode = AuditStatus.REJECTED
     }
 
     return {
