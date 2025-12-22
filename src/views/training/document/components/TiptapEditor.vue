@@ -1,7 +1,11 @@
 <template>
   <div class="tiptap-editor-wrapper">
-    <!-- 工具栏仅在编辑器就绪时展示 -->
-    <EditorToolbar v-if="editor && !loading" :editor="editor" :save-status="saveStatus" />
+    <!-- 工具栏仅在编辑器就绪且可编辑时展示 -->
+    <EditorToolbar
+      v-if="editor && !loading && editable"
+      :editor="editor"
+      :save-status="saveStatus"
+    />
 
     <!-- 编辑器内容区域 -->
     <div class="tiptap-content-wrapper" ref="contentWrapperRef" @scroll="handleScroll">
@@ -20,9 +24,9 @@
               background: pageBackground
             }"
           >
-            <!-- 官方 DragHandle 组件 -->
+            <!-- 官方 DragHandle 组件 - 只读模式下隐藏 -->
             <DragHandle
-              v-if="editor"
+              v-if="editor && editable"
               :editor="editor"
               :compute-position-config="{ placement: 'left-start', strategy: 'absolute' }"
               @node-change="handleDragNodeChange"
@@ -39,7 +43,8 @@
             <editor-content :editor="editor" class="tiptap-content" />
 
             <!-- 气泡菜单 - 参考 https://tiptap.dev/docs/editor/extensions/functionality/bubble-menu -->
-            <div ref="bubbleMenuRef" class="bubble-menu" v-show="editor">
+            <!-- 只读模式下隐藏气泡菜单 -->
+            <div ref="bubbleMenuRef" class="bubble-menu" v-show="editor && editable">
               <div class="bubble-menu-container">
                 <button
                   class="bubble-menu-btn"
@@ -196,7 +201,8 @@
 
 <script setup lang="ts">
 // @ts-nocheck - 忽略 Tiptap 版本不兼容导致的类型问题
-import { ref, onBeforeUnmount, watch, computed, provide, reactive, onMounted } from 'vue'
+import { ref, onBeforeUnmount, watch, computed, provide, reactive, onMounted, toRefs } from 'vue'
+import { isNil, isEmpty } from 'lodash-es'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 // Tiptap v3: 所有扩展使用命名导出
 import { StarterKit } from '@tiptap/starter-kit'
@@ -239,13 +245,18 @@ interface Props {
   placeholder?: string
   title?: string
   loading?: boolean
+  editable?: boolean // 是否可编辑（只读模式为 false）
 }
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: '开始编写文档内容...',
   title: '文档',
-  loading: false
+  loading: false,
+  editable: true
 })
+
+// 解构 props 以便在模板中使用
+const { editable } = toRefs(props)
 
 // Emits
 const emit = defineEmits<{
@@ -343,7 +354,7 @@ const pdfPreviewRef = ref<HTMLElement | null>(null)
 
 // 格式化 HTML 用于显示
 const formattedHtml = computed(() => {
-  if (!previewContent.value) return ''
+  if (isEmpty(previewContent.value)) return ''
   // 简单格式化 HTML
   return previewContent.value
     .replace(/></g, '>\n<')
@@ -355,6 +366,7 @@ const formattedHtml = computed(() => {
 
 // 编辑器实例
 const editor = useEditor({
+  editable: props.editable, // 根据 props 控制是否可编辑
   extensions: [
     StarterKit.configure({
       // Tiptap v3: history 重命名为 undoRedo
@@ -466,7 +478,7 @@ const handleDragNodeChange = (data: { node: any; editor: any; pos: number } | nu
 
 // 在当前节点后添加新段落
 const addParagraphAfter = () => {
-  if (!editor.value || !currentDragNode.value) return
+  if (isNil(editor.value) || isNil(currentDragNode.value)) return
 
   const { pos, node } = currentDragNode.value
   const endPos = pos + node.nodeSize
@@ -477,8 +489,8 @@ const addParagraphAfter = () => {
 // ==================== BubbleMenu 相关 ====================
 // 在 onMounted 中注册 BubbleMenu 插件
 onMounted(() => {
-  // 等待 DOM 就绪后注册 BubbleMenu
-  if (editor.value && bubbleMenuRef.value) {
+  // 等待 DOM 就绪后注册 BubbleMenu（只读模式也需要注册，shouldShow 会控制显示）
+  if (!isNil(editor.value) && !isNil(bubbleMenuRef.value)) {
     registerBubbleMenu()
   }
 })
@@ -487,7 +499,7 @@ onMounted(() => {
 watch(
   [() => editor.value, () => bubbleMenuRef.value],
   ([newEditor, newMenuRef]) => {
-    if (newEditor && newMenuRef) {
+    if (!isNil(newEditor) && !isNil(newMenuRef)) {
       registerBubbleMenu()
     }
   },
@@ -496,13 +508,13 @@ watch(
 
 // 注册 BubbleMenu 插件 - 参考 https://github.com/ueberdosis/tiptap/tree/main/packages/extension-bubble-menu
 const registerBubbleMenu = () => {
-  if (!editor.value || !bubbleMenuRef.value) return
+  if (isNil(editor.value) || isNil(bubbleMenuRef.value)) return
 
   // 检查是否已经注册过
   const existingPlugin = editor.value.view.state.plugins.find(
     (plugin: any) => plugin.key === 'bubbleMenu$'
   )
-  if (existingPlugin) return
+  if (!isNil(existingPlugin)) return
 
   // 使用 BubbleMenuPlugin 创建插件
   const plugin = BubbleMenuPlugin({
@@ -510,6 +522,9 @@ const registerBubbleMenu = () => {
     editor: editor.value,
     element: bubbleMenuRef.value,
     shouldShow: ({ state }) => {
+      // 只读模式下不显示气泡菜单
+      if (!props.editable) return false
+
       const { empty } = state.selection
       if (empty) return false
       // 检查是否在文本块中
@@ -528,15 +543,15 @@ const registerBubbleMenu = () => {
 
 // 气泡菜单中切换链接
 const toggleBubbleLink = () => {
-  if (!editor.value) return
+  if (isNil(editor.value)) return
 
   const previousUrl = editor.value.getAttributes('link').href
 
-  if (previousUrl) {
+  if (!isEmpty(previousUrl)) {
     editor.value.chain().focus().unsetLink().run()
   } else {
     const url = window.prompt('输入链接地址:', 'https://')
-    if (url) {
+    if (!isEmpty(url)) {
       editor.value.chain().focus().setLink({ href: url }).run()
     }
   }
@@ -546,7 +561,7 @@ const toggleBubbleLink = () => {
 
 // 生成完整的 HTML 文档
 const generateFullHtml = () => {
-  if (!editor.value) return ''
+  if (isNil(editor.value)) return ''
 
   const content = editor.value.getHTML()
   const title = props.title || '文档'
@@ -648,7 +663,7 @@ ${content}
 
 // HTML 预览
 const previewHtml = () => {
-  if (!editor.value) {
+  if (isNil(editor.value)) {
     ElMessage.warning('编辑器未就绪')
     return
   }
@@ -685,7 +700,7 @@ const downloadHtml = () => {
 
 // PDF 预览
 const previewPdf = () => {
-  if (!editor.value) {
+  if (isNil(editor.value)) {
     ElMessage.warning('编辑器未就绪')
     return
   }
@@ -742,7 +757,7 @@ watch(
   () => props.user,
   (newUser) => {
     if (isComponentDestroyed) return
-    if (editor.value && props.provider) {
+    if (!isNil(editor.value) && !isNil(props.provider)) {
       try {
         editor.value.commands.updateUser({
           name: newUser.name,
@@ -763,7 +778,7 @@ onBeforeUnmount(() => {
   isComponentDestroyed = true
 
   // 销毁编辑器实例
-  if (editor.value) {
+  if (!isNil(editor.value)) {
     try {
       editor.value.destroy()
     } catch (e) {
@@ -1238,15 +1253,24 @@ defineExpose({
   :deep(table) {
     border-collapse: collapse;
     width: 100%;
+    max-width: 100%;
+    table-layout: auto;
     margin: 1em 0;
   }
   :deep(th),
   :deep(td) {
     border: 1px solid #e5e7eb;
     padding: 8px 12px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
   :deep(th) {
     background: #f9fafb;
+  }
+  :deep(img) {
+    max-width: 100%;
+    height: auto;
+    display: block;
   }
   :deep(mark) {
     background: #fef08a;
@@ -1317,11 +1341,19 @@ defineExpose({
   :deep(table) {
     border-collapse: collapse;
     width: 100%;
+    max-width: 100%;
+    table-layout: auto;
   }
   :deep(th),
   :deep(td) {
     border: 1px solid #e5e7eb;
     padding: 8px 12px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  :deep(img) {
+    max-width: 100%;
+    height: auto;
   }
 }
 

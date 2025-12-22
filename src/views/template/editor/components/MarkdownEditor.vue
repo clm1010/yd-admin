@@ -1,7 +1,7 @@
 <template>
   <div class="markdown-editor-wrapper">
-    <!-- 工具栏 -->
-    <div v-if="editor && !loading" class="editor-toolbar">
+    <!-- 工具栏 - 只读模式下隐藏 -->
+    <div v-if="editor && !loading && editable" class="editor-toolbar">
       <div class="toolbar-group">
         <!-- 撤销/重做 -->
         <button
@@ -181,9 +181,9 @@
       <template v-else>
         <div class="page-container">
           <div class="page-content">
-            <!-- 官方 DragHandle 组件 -->
+            <!-- 官方 DragHandle 组件 - 只读模式下隐藏 -->
             <DragHandle
-              v-if="editor"
+              v-if="editor && editable"
               :editor="editor"
               :compute-position-config="{ placement: 'left-start', strategy: 'absolute' }"
               @node-change="handleDragNodeChange"
@@ -200,7 +200,8 @@
             <editor-content :editor="editor" class="markdown-content" />
 
             <!-- 气泡菜单 - 参考 https://tiptap.dev/docs/editor/extensions/functionality/bubble-menu -->
-            <div ref="bubbleMenuRef" class="bubble-menu" v-show="editor">
+            <!-- 只读模式下隐藏气泡菜单 -->
+            <div ref="bubbleMenuRef" class="bubble-menu" v-show="editor && editable">
               <div class="bubble-menu-container">
                 <button
                   class="bubble-menu-btn"
@@ -287,7 +288,8 @@
 
 <script setup lang="ts">
 // @ts-nocheck - 忽略 Tiptap 版本不兼容导致的类型问题
-import { ref, onBeforeUnmount, watch, onMounted } from 'vue'
+import { ref, onBeforeUnmount, watch, onMounted, toRefs } from 'vue'
+import { isNil, isEmpty } from 'lodash-es'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 // Tiptap v3: BubbleMenu 扩展 - 参考 https://tiptap.dev/docs/editor/extensions/functionality/bubble-menu
 import { BubbleMenuPlugin } from '@tiptap/extension-bubble-menu'
@@ -318,13 +320,18 @@ interface Props {
   placeholder?: string
   title?: string
   loading?: boolean
+  editable?: boolean // 是否可编辑（只读模式为 false）
 }
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: '开始编写模板内容...',
   title: '模板文档',
-  loading: false
+  loading: false,
+  editable: true
 })
+
+// 解构 props 以便在模板中使用
+const { editable } = toRefs(props)
 
 // Emits
 const emit = defineEmits<{
@@ -343,6 +350,7 @@ const bubbleMenuRef = ref<HTMLElement | null>(null)
 
 // 编辑器实例
 const editor = useEditor({
+  editable: props.editable, // 根据 props 控制是否可编辑
   extensions: [
     StarterKit.configure({
       // Tiptap v3: history 重命名为 undoRedo
@@ -411,7 +419,7 @@ const handleDragNodeChange = (data: { node: any; editor: any; pos: number } | nu
 
 // 在当前节点后添加新段落
 const addParagraphAfter = () => {
-  if (!editor.value || !currentDragNode.value) return
+  if (isNil(editor.value) || isNil(currentDragNode.value)) return
 
   const { pos, node } = currentDragNode.value
   const endPos = pos + node.nodeSize
@@ -422,7 +430,8 @@ const addParagraphAfter = () => {
 // ==================== BubbleMenu 相关 ====================
 // 在 onMounted 中注册 BubbleMenu 插件
 onMounted(() => {
-  if (editor.value && bubbleMenuRef.value) {
+  // 只读模式也需要注册，shouldShow 会控制显示
+  if (!isNil(editor.value) && !isNil(bubbleMenuRef.value)) {
     registerBubbleMenu()
   }
 })
@@ -431,7 +440,7 @@ onMounted(() => {
 watch(
   [() => editor.value, () => bubbleMenuRef.value],
   ([newEditor, newMenuRef]) => {
-    if (newEditor && newMenuRef) {
+    if (!isNil(newEditor) && !isNil(newMenuRef)) {
       registerBubbleMenu()
     }
   },
@@ -440,13 +449,13 @@ watch(
 
 // 注册 BubbleMenu 插件 - 参考 https://github.com/ueberdosis/tiptap/tree/main/packages/extension-bubble-menu
 const registerBubbleMenu = () => {
-  if (!editor.value || !bubbleMenuRef.value) return
+  if (isNil(editor.value) || isNil(bubbleMenuRef.value)) return
 
   // 检查是否已经注册过
   const existingPlugin = editor.value.view.state.plugins.find(
     (plugin: any) => plugin.key === 'bubbleMenu$'
   )
-  if (existingPlugin) return
+  if (!isNil(existingPlugin)) return
 
   // 使用 BubbleMenuPlugin 创建插件
   const plugin = BubbleMenuPlugin({
@@ -454,6 +463,9 @@ const registerBubbleMenu = () => {
     editor: editor.value,
     element: bubbleMenuRef.value,
     shouldShow: ({ state }) => {
+      // 只读模式下不显示气泡菜单
+      if (!props.editable) return false
+
       const { empty } = state.selection
       if (empty) return false
       // 检查是否在文本块中
@@ -472,15 +484,15 @@ const registerBubbleMenu = () => {
 
 // 气泡菜单中切换链接
 const toggleBubbleLink = () => {
-  if (!editor.value) return
+  if (isNil(editor.value)) return
 
   const previousUrl = editor.value.getAttributes('link').href
 
-  if (previousUrl) {
+  if (!isEmpty(previousUrl)) {
     editor.value.chain().focus().unsetLink().run()
   } else {
     const url = window.prompt('输入链接地址:', 'https://')
-    if (url) {
+    if (!isEmpty(url)) {
       editor.value.chain().focus().setLink({ href: url }).run()
     }
   }
@@ -488,7 +500,7 @@ const toggleBubbleLink = () => {
 
 // 处理标题选择
 const handleHeading = (level: string) => {
-  if (!editor.value) return
+  if (isNil(editor.value)) return
   const levelNum = parseInt(level)
   if (levelNum === 0) {
     editor.value.chain().focus().setParagraph().run()
@@ -503,7 +515,7 @@ const handleHeading = (level: string) => {
 
 // 生成完整的 HTML 文档
 const generateFullHtml = () => {
-  if (!editor.value) return ''
+  if (isNil(editor.value)) return ''
 
   const content = editor.value.getHTML()
   const title = props.title || '模板文档'
@@ -577,7 +589,7 @@ watch(
   () => props.user,
   (newUser) => {
     if (isComponentDestroyed) return
-    if (editor.value && props.provider) {
+    if (!isNil(editor.value) && !isNil(props.provider)) {
       try {
         editor.value.commands.updateUser({
           name: newUser.name,
@@ -598,7 +610,7 @@ onBeforeUnmount(() => {
   isComponentDestroyed = true
 
   // 销毁编辑器实例
-  if (editor.value) {
+  if (!isNil(editor.value)) {
     try {
       editor.value.destroy()
     } catch (e) {
@@ -608,6 +620,7 @@ onBeforeUnmount(() => {
 
   // 清理 DOM 引用
   contentWrapperRef.value = null
+  bubbleMenuRef.value = null
 })
 
 // 暴露编辑器实例和方法

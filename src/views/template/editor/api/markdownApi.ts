@@ -277,3 +277,51 @@ export const deleteMarkdownDocument = async (docId: string): Promise<boolean> =>
 export const getMarkdownDocumentList = async (): Promise<MarkdownDocumentInfo[]> => {
   return Array.from(markdownCache.values())
 }
+
+// ==================== 审核/驳回操作 API ====================
+
+// 审核/驳回请求参数接口
+export interface ExamApplyReqVO {
+  applyId: string // 当前数据 ID
+  examResult: string // 审核结果 1通过 2驳回
+  examOpinion: string // 审核意见/驳回原因
+  examUserId: string // 审批用户id
+}
+
+// 审核/驳回响应接口
+export interface ExamApplyResponse {
+  code: number
+  data?: any
+  msg?: string
+}
+
+/**
+ * 审核/驳回操作 - Java 后端
+ * POST /examRecord/examTem
+ * @param data 审核/驳回参数
+ */
+const examApplyJava = async (data: ExamApplyReqVO): Promise<ExamApplyResponse> => {
+  return await javaRequest.postOriginal('/examRecord/examTem', data)
+}
+
+/**
+ * 审核/驳回操作 - Mock 实现
+ * @param data 审核/驳回参数
+ */
+const examApplyMock = async (data: ExamApplyReqVO): Promise<ExamApplyResponse> => {
+  console.log('Mock 审核/驳回:', data)
+  // 模拟延迟
+  await new Promise((resolve) => setTimeout(resolve, 500))
+  return {
+    code: 200,
+    data: { success: true },
+    msg: data.examResult === '1' ? '审核通过' : '驳回成功'
+  }
+}
+
+/**
+ * 审核/驳回操作（自动切换 Mock/Java）
+ * POST /examRecord/examTem
+ * @param data 审核/驳回参数 { applyId, examResult, examOpinion, examUserId }
+ */
+export const examApply = USE_MOCK ? examApplyMock : examApplyJava

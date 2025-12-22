@@ -24,7 +24,8 @@ import type {
   PermissionCheckReqVO,
   PermissionCheckResponse,
   ExamRecordVO,
-  ExamApplyReqVO
+  ExamApplyReqVO,
+  PublishDocReqVO
 } from './types'
 
 // ==================== Java 后端 API 实现 ====================
@@ -165,6 +166,15 @@ const javaApi = {
    */
   examApply: async (data: ExamApplyReqVO) => {
     return await javaRequest.postOriginal('/examRecord/examTem', data)
+  },
+
+  /**
+   * 发布模板 - Java 后端
+   * POST /tbTemplate/publishData
+   * @param data 发布参数 { id, visibleScope }
+   */
+  publishDocument: async (data: PublishDocReqVO) => {
+    return await javaRequest.postOriginal('/tbTemplate/publishData', data)
   }
 }
 
@@ -243,6 +253,11 @@ const mockApi = {
   examApply: async (data: ExamApplyReqVO) => {
     const { examApply } = await import('@/mock/template/management')
     return examApply(data)
+  },
+
+  publishDocument: async (data: PublishDocReqVO) => {
+    const { publishDocument } = await import('@/mock/template/management')
+    return publishDocument(data)
   }
 }
 
@@ -335,6 +350,13 @@ export const getExamRecordList = api.getExamRecordList
  * @param data 审核/驳回参数 { apply, examResult, examOpinion, examuserId }
  */
 export const examApply = api.examApply
+
+/**
+ * 发布模板
+ * POST /tbTemplate/publishData
+ * @param data 发布参数 { id, visibleScope }
+ */
+export const publishDocument = api.publishDocument
 
 // 重新导出分类配置
 export { templateCategories } from '@/views/template/management/config/categories'

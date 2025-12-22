@@ -10,7 +10,8 @@ import type {
   PermissionCheckReqVO,
   PermissionCheckResponse,
   ExamRecordVO,
-  ExamApplyReqVO
+  ExamApplyReqVO,
+  PublishDocReqVO
 } from '@/api/template/management/types'
 import {
   templateCategories,
@@ -502,6 +503,32 @@ export const examApply = async (data: ExamApplyReqVO) => {
   }
 }
 
+/**
+ * 发布模板
+ * POST /tbTemplate/publishData
+ * @param data { id, visibleScope }
+ */
+export const publishDocument = async (data: PublishDocReqVO) => {
+  await mockDelay()
+
+  const index = mockDataList.findIndex((item) => String(item.id) === String(data.id))
+  if (index !== -1) {
+    mockDataList[index].applyNode = AuditStatus.PUBLISHED // 发布
+
+    return {
+      code: 200,
+      data: mockDataList[index],
+      msg: '发布成功'
+    }
+  }
+
+  return {
+    code: 500,
+    data: null,
+    msg: '数据不存在'
+  }
+}
+
 // 导出所有 Mock API
 export default {
   getPageList,
@@ -516,5 +543,6 @@ export default {
   saveDocument,
   saveTemplateFile,
   getExamRecordList,
-  examApply
+  examApply,
+  publishDocument
 }

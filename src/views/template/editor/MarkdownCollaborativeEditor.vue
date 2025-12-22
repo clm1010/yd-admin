@@ -28,12 +28,26 @@
           ></span>
           {{ connectionStatus }}
         </div>
-        <el-button type="primary" plain size="default" @click="handleSubmitAudit"
-          >提交审核</el-button
-        >
-        <el-button type="primary" size="default" @click="handleSave" :loading="isSaving">
-          保存
-        </el-button>
+        <!-- 审核模式：显示审核和驳回按钮 -->
+        <template v-if="isReviewMode">
+          <el-button type="success" size="default" @click="handleReviewApprove">
+            <Icon icon="ep:check" class="mr-1" />
+            审核通过
+          </el-button>
+          <el-button type="danger" size="default" @click="openReviewRejectDialog">
+            <Icon icon="ep:close" class="mr-1" />
+            驳回
+          </el-button>
+        </template>
+        <!-- 非审核模式：显示提交审核和保存按钮 -->
+        <template v-else>
+          <el-button type="primary" plain size="default" @click="handleSubmitAudit"
+            >提交审核</el-button
+          >
+          <el-button type="primary" size="default" @click="handleSave" :loading="isSaving">
+            保存
+          </el-button>
+        </template>
       </div>
     </div>
 
@@ -51,6 +65,7 @@
             :title="documentTitle"
             :placeholder="'开始编写 ' + documentTitle + '...'"
             :loading="!isCollaborationReady"
+            :editable="!isReadonly"
             @update="handleContentUpdate"
             @ready="handleEditorReady"
           />
@@ -66,6 +81,33 @@
           @click-material="handleMaterialClick"
         />
       </div>
+
+      <!-- 驳回原因弹窗（审核模式） -->
+      <el-dialog
+        v-model="reviewRejectDialogVisible"
+        title="驳回原因"
+        width="500px"
+        :close-on-click-modal="false"
+        append-to-body
+      >
+        <el-form label-position="top">
+          <el-form-item label="请输入驳回原因" required>
+            <el-input
+              v-model="reviewRejectReason"
+              type="textarea"
+              :rows="6"
+              placeholder="请输入驳回原因"
+              resize="none"
+            />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="reviewRejectDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="handleReviewRejectSubmit" :loading="reviewRejectLoading"
+            >确认提交</el-button
+          >
+        </template>
+      </el-dialog>
 
       <!-- 参考素材抽屉 (无遮罩，从协同面板左侧滑出) -->
       <el-drawer
@@ -121,7 +163,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { isNil, isEmpty } from 'lodash-es'
 import dayjs from 'dayjs'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
@@ -135,6 +178,7 @@ import {
   getReferenceMaterials,
   saveMarkdownFile,
   submitAudit,
+  examApply,
   type MarkdownDocumentInfo,
   type SubmitAuditReqVO
 } from './api/markdownApi'
@@ -213,6 +257,13 @@ const currentMaterial = ref<any>(null)
 // 审核弹窗
 const auditDialogVisible = ref(false)
 const auditLoading = ref(false)
+
+// 审核模式相关（从列表页点击"审核执行"进入）
+const isReviewMode = computed(() => route.query.reviewMode === 'true')
+const isReadonly = computed(() => route.query.readonly === 'true')
+const reviewRejectDialogVisible = ref(false)
+const reviewRejectLoading = ref(false)
+const reviewRejectReason = ref('')
 
 // 审核流程列表数据
 const auditFlowList = [
@@ -307,7 +358,7 @@ const handleEditorReady = async (editor: any) => {
  * @returns Markdown 文本
  */
 const htmlToMarkdown = (htmlContent: string): string => {
-  if (!htmlContent) return ''
+  if (isEmpty(htmlContent)) return ''
 
   let markdown = htmlContent
     // 处理标题
@@ -397,7 +448,7 @@ const htmlToMarkdownBlob = (htmlContent: string): Blob => {
 
 // 保存文档
 const handleSave = async () => {
-  if (!editorInstance.value) {
+  if (isNil(editorInstance.value)) {
     ElMessage.warning('编辑器未就绪')
     return
   }
@@ -458,6 +509,81 @@ const handleAuditSubmit = async (data: SubmitAuditReqVO) => {
     ElMessage.error(error.message || '提交审核失败')
   } finally {
     auditLoading.value = false
+  }
+}
+
+// 审核通过（审核模式下）
+const handleReviewApprove = async () => {
+  try {
+    await ElMessageBox.confirm('确认审核通过该模板吗？', '审核确认', {
+      confirmButtonText: '确认提交',
+      cancelButtonText: '取消',
+      type: 'info'
+    })
+
+    // 获取当前用户ID
+    const userId = currentUser.id || 'admin'
+
+    const result = await examApply({
+      applyId: documentId.value,
+      examResult: '1', // 通过
+      examOpinion: '',
+      examUserId: userId
+    })
+
+    if (result && (result.code === 200 || result.code === 0)) {
+      ElMessage.success(result.msg || '审核通过')
+      // 返回列表页
+      router.back()
+    } else {
+      ElMessage.error(result?.msg || '审核失败')
+    }
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('审核失败:', error)
+      ElMessage.error(error.message || '审核失败')
+    }
+  }
+}
+
+// 打开驳回弹窗（审核模式下）
+const openReviewRejectDialog = () => {
+  reviewRejectDialogVisible.value = true
+  reviewRejectReason.value = ''
+}
+
+// 提交驳回（审核模式下）
+const handleReviewRejectSubmit = async () => {
+  if (isEmpty(reviewRejectReason.value.trim())) {
+    ElMessage.warning('请输入驳回原因')
+    return
+  }
+
+  reviewRejectLoading.value = true
+  try {
+    // 获取当前用户ID
+    const userId = currentUser.id || 'admin'
+
+    const result = await examApply({
+      applyId: documentId.value,
+      examResult: '2', // 驳回
+      examOpinion: reviewRejectReason.value,
+      examUserId: userId
+    })
+
+    if (result && (result.code === 200 || result.code === 0)) {
+      ElMessage.success(result.msg || '驳回成功')
+      reviewRejectDialogVisible.value = false
+      // 返回列表页
+      router.back()
+    } else {
+      ElMessage.error(result?.msg || '驳回失败')
+    }
+  } catch (error: any) {
+    console.error('驳回失败:', error)
+    ElMessage.error(error.message || '驳回失败')
+  } finally {
+    reviewRejectLoading.value = false
   }
 }
 
@@ -567,15 +693,15 @@ const initCollaboration = () => {
 let updateCollaboratorsTimer: ReturnType<typeof setTimeout> | null = null
 const updateCollaborators = () => {
   // 如果组件已销毁或 provider 不存在，不执行任何操作
-  if (isComponentDestroyed || !provider) return
+  if (isComponentDestroyed || isNil(provider)) return
 
   // 防抖：避免频繁更新
-  if (updateCollaboratorsTimer) {
+  if (!isNil(updateCollaboratorsTimer)) {
     clearTimeout(updateCollaboratorsTimer)
   }
 
   updateCollaboratorsTimer = setTimeout(() => {
-    if (isComponentDestroyed || !provider) return
+    if (isComponentDestroyed || isNil(provider)) return
 
     const states = provider.awareness.getStates()
     // 使用 Map 按用户 ID 去重，保留最新的连接
@@ -623,7 +749,7 @@ const base64ToText = async (base64: string): Promise<string> => {
   try {
     // 从 data URL 提取 base64 数据
     const base64Data = base64.split(',')[1]
-    if (!base64Data) {
+    if (isEmpty(base64Data)) {
       console.warn('无效的 base64 数据格式')
       return ''
     }
@@ -651,7 +777,7 @@ const base64ToText = async (base64: string): Promise<string> => {
  * @returns HTML 内容
  */
 const markdownToHtml = (markdown: string): string => {
-  if (!markdown) return ''
+  if (isEmpty(markdown)) return ''
 
   let html = markdown
     // 转义 HTML 特殊字符（但保留 Markdown 需要的字符）

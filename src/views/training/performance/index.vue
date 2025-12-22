@@ -221,15 +221,11 @@
                 </el-button>
               </div>
 
-              <!-- 审核中状态(2)显示：审核、驳回、审核记录 -->
+              <!-- 审核中状态(2)显示：审核执行、审核记录 -->
               <div v-else-if="scope.row.applyNode === '2'">
-                <el-button link type="success" @click="handleApprove(scope.row)">
-                  <Icon icon="ep:check" />
-                  审核
-                </el-button>
-                <el-button link type="danger" @click="openRejectDialog(scope.row)">
-                  <Icon icon="ep:close" />
-                  驳回
+                <el-button link type="primary" @click="handleReviewExecute(scope.row)">
+                  <Icon icon="ep:view" />
+                  审核执行
                 </el-button>
                 <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
                   <Icon icon="ep:document" />
@@ -595,7 +591,6 @@ import {
   isEmpty,
   isArray,
   isNil,
-  isString,
   isObject,
   pickBy,
   find,
@@ -659,145 +654,145 @@ const getList = async () => {
       activeTab.value === 'review' ? 'review' : activeTab.value === 'publish' ? 'publish' : 'recent'
 
     console.log('查询参数:', params)
-    // const data = await PerformanceApi.getPageList(params as any)
-    // list.value = data.records || []
-    // total.value = data.total || 0
-    list.value = [
-      {
-        id: '1',
-        drillDataId: 'drill-001',
-        drillDataName: '2024年度联合作战演练',
-        planName: '联合作战演练筹划方案',
-        collegeCode: 'LHZZXY',
-        fileType: '演训方案',
-        activeUser: 'admin,staff_a',
-        description: '本方案用于指导2024年度联合作战演练的组织实施',
-        level: 'ZLJ',
-        exerciseType: 'LHL',
-        exerciseTheme: '联合作战',
-        docType: 'docx',
-        createBy: 'admin',
-        applyNode: '1', // 编辑中
-        createTime: '2024-12-10 09:30:00',
-        updateTime: '2024-12-12 14:20:00',
-        delFlg: '0'
-      },
-      {
-        id: '2',
-        drillDataId: 'drill-002',
-        drillDataName: '战略级演训项目',
-        planName: '战略级综合演练方案',
-        collegeCode: 'GFDX',
-        fileType: '作战计划',
-        activeUser: 'staff_b',
-        description: '战略级综合演练的总体方案设计',
-        level: 'ZLJ',
-        exerciseType: 'ZUOZL',
-        exerciseTheme: '战略演练',
-        docType: 'docx',
-        createBy: 'staff_b',
-        applyNode: '2', // 审核中
-        createTime: '2024-12-08 10:00:00',
-        updateTime: '2024-12-11 16:45:00',
-        delFlg: '0'
-      },
-      {
-        id: '3',
-        drillDataId: 'drill-003',
-        drillDataName: '网络安全演练',
-        planName: '网络攻防演练实施方案',
-        collegeCode: 'GJAQXY',
-        fileType: '导调计划',
-        activeUser: 'admin',
-        description: '网络空间安全攻防演练方案',
-        level: 'YXJ',
-        exerciseType: 'WLL',
-        exerciseTheme: '网络安全',
-        docType: 'docx',
-        createBy: 'admin',
-        applyNode: '3', // 审核通过
-        createTime: '2024-12-05 08:30:00',
-        updateTime: '2024-12-10 11:20:00',
-        delFlg: '0'
-      },
-      {
-        id: '4',
-        drillDataId: 'drill-004',
-        drillDataName: '后勤保障演练',
-        planName: '联合勤务保障方案',
-        collegeCode: 'LHQWXY',
-        fileType: '作战文书',
-        activeUser: 'staff_a,staff_b',
-        description: '后勤保障体系综合演练方案',
-        level: 'ZSJ',
-        exerciseType: 'HZL',
-        exerciseTheme: '后勤保障',
-        docType: 'docx',
-        createBy: 'staff_a',
-        applyNode: '4', // 发布
-        createTime: '2024-12-01 14:00:00',
-        updateTime: '2024-12-09 09:15:00',
-        delFlg: '0'
-      },
-      {
-        id: '5',
-        drillDataId: 'drill-005',
-        drillDataName: '电磁频谱管控演练',
-        planName: '电磁环境管控方案',
-        collegeCode: 'SGLXY',
-        fileType: '企图立案',
-        activeUser: 'admin',
-        description: '复杂电磁环境下的频谱管控方案',
-        level: 'YXJ',
-        exerciseType: 'DCL',
-        exerciseTheme: '电磁管控',
-        docType: 'docx',
-        createBy: 'admin',
-        applyNode: '5', // 驳回
-        createTime: '2024-11-28 11:30:00',
-        updateTime: '2024-12-08 15:40:00',
-        delFlg: '0'
-      },
-      {
-        id: '6',
-        drillDataId: 'drill-006',
-        drillDataName: '后勤保障演练',
-        planName: '联合勤务保障方案',
-        collegeCode: 'SGLXY',
-        fileType: '作战文书',
-        activeUser: 'staff_a,staff_b',
-        description: '后勤保障体系综合演练方案',
-        level: 'YXJ',
-        exerciseType: 'HZL',
-        exerciseTheme: '后勤保障',
-        docType: 'docx',
-        createBy: 'staff_a',
-        applyNode: '2', // 审核中
-        createTime: '2024-11-28 11:30:00',
-        updateTime: '2024-12-08 15:40:00',
-        delFlg: '0'
-      },
-      {
-        id: '7',
-        drillDataId: 'drill-007',
-        drillDataName: '太空作战演练',
-        planName: '太空作战演练方案',
-        collegeCode: 'SGLXY',
-        fileType: '企图立案',
-        activeUser: 'staff_a',
-        description: '太空作战演练方案',
-        level: 'YXJ', // 演训等级
-        exerciseType: 'KZL', // 演训类型
-        exerciseTheme: '太空作战',
-        docType: 'docx', // 文档类型
-        createBy: 'staff_a', // 创建人
-        applyNode: '5', // 驳回
-        createTime: '2024-11-28 11:30:00',
-        updateTime: '2024-12-08 15:40:00',
-        delFlg: '0'
-      }
-    ]
-    total.value = list.value.length || 0
+    const data = await PerformanceApi.getPageList(params as any)
+    list.value = data.records || []
+    total.value = data.total || 0
+    // list.value = [
+    //   {
+    //     id: '1',
+    //     drillDataId: 'drill-001',
+    //     drillDataName: '2024年度联合作战演练',
+    //     planName: '联合作战演练筹划方案',
+    //     collegeCode: 'LHZZXY',
+    //     fileType: '演训方案',
+    //     activeUser: 'admin,staff_a',
+    //     description: '本方案用于指导2024年度联合作战演练的组织实施',
+    //     level: 'ZLJ',
+    //     exerciseType: 'LHL',
+    //     exerciseTheme: '联合作战',
+    //     docType: 'docx',
+    //     createBy: 'admin',
+    //     applyNode: '1', // 编辑中
+    //     createTime: '2024-12-10 09:30:00',
+    //     updateTime: '2024-12-12 14:20:00',
+    //     delFlg: '0'
+    //   },
+    //   {
+    //     id: '2',
+    //     drillDataId: 'drill-002',
+    //     drillDataName: '战略级演训项目',
+    //     planName: '战略级综合演练方案',
+    //     collegeCode: 'GFDX',
+    //     fileType: '作战计划',
+    //     activeUser: 'staff_b',
+    //     description: '战略级综合演练的总体方案设计',
+    //     level: 'ZLJ',
+    //     exerciseType: 'ZUOZL',
+    //     exerciseTheme: '战略演练',
+    //     docType: 'docx',
+    //     createBy: 'staff_b',
+    //     applyNode: '2', // 审核中
+    //     createTime: '2024-12-08 10:00:00',
+    //     updateTime: '2024-12-11 16:45:00',
+    //     delFlg: '0'
+    //   },
+    //   {
+    //     id: '3',
+    //     drillDataId: 'drill-003',
+    //     drillDataName: '网络安全演练',
+    //     planName: '网络攻防演练实施方案',
+    //     collegeCode: 'GJAQXY',
+    //     fileType: '导调计划',
+    //     activeUser: 'admin',
+    //     description: '网络空间安全攻防演练方案',
+    //     level: 'YXJ',
+    //     exerciseType: 'WLL',
+    //     exerciseTheme: '网络安全',
+    //     docType: 'docx',
+    //     createBy: 'admin',
+    //     applyNode: '3', // 审核通过
+    //     createTime: '2024-12-05 08:30:00',
+    //     updateTime: '2024-12-10 11:20:00',
+    //     delFlg: '0'
+    //   },
+    //   {
+    //     id: '4',
+    //     drillDataId: 'drill-004',
+    //     drillDataName: '后勤保障演练',
+    //     planName: '联合勤务保障方案',
+    //     collegeCode: 'LHQWXY',
+    //     fileType: '作战文书',
+    //     activeUser: 'staff_a,staff_b',
+    //     description: '后勤保障体系综合演练方案',
+    //     level: 'ZSJ',
+    //     exerciseType: 'HZL',
+    //     exerciseTheme: '后勤保障',
+    //     docType: 'docx',
+    //     createBy: 'staff_a',
+    //     applyNode: '4', // 发布
+    //     createTime: '2024-12-01 14:00:00',
+    //     updateTime: '2024-12-09 09:15:00',
+    //     delFlg: '0'
+    //   },
+    //   {
+    //     id: '5',
+    //     drillDataId: 'drill-005',
+    //     drillDataName: '电磁频谱管控演练',
+    //     planName: '电磁环境管控方案',
+    //     collegeCode: 'SGLXY',
+    //     fileType: '企图立案',
+    //     activeUser: 'admin',
+    //     description: '复杂电磁环境下的频谱管控方案',
+    //     level: 'YXJ',
+    //     exerciseType: 'DCL',
+    //     exerciseTheme: '电磁管控',
+    //     docType: 'docx',
+    //     createBy: 'admin',
+    //     applyNode: '5', // 驳回
+    //     createTime: '2024-11-28 11:30:00',
+    //     updateTime: '2024-12-08 15:40:00',
+    //     delFlg: '0'
+    //   },
+    //   {
+    //     id: '6',
+    //     drillDataId: 'drill-006',
+    //     drillDataName: '后勤保障演练',
+    //     planName: '联合勤务保障方案',
+    //     collegeCode: 'SGLXY',
+    //     fileType: '作战文书',
+    //     activeUser: 'staff_a,staff_b',
+    //     description: '后勤保障体系综合演练方案',
+    //     level: 'YXJ',
+    //     exerciseType: 'HZL',
+    //     exerciseTheme: '后勤保障',
+    //     docType: 'docx',
+    //     createBy: 'staff_a',
+    //     applyNode: '2', // 审核中
+    //     createTime: '2024-11-28 11:30:00',
+    //     updateTime: '2024-12-08 15:40:00',
+    //     delFlg: '0'
+    //   },
+    //   {
+    //     id: '7',
+    //     drillDataId: 'drill-007',
+    //     drillDataName: '太空作战演练',
+    //     planName: '太空作战演练方案',
+    //     collegeCode: 'SGLXY',
+    //     fileType: '企图立案',
+    //     activeUser: 'staff_a',
+    //     description: '太空作战演练方案',
+    //     level: 'YXJ', // 演训等级
+    //     exerciseType: 'KZL', // 演训类型
+    //     exerciseTheme: '太空作战',
+    //     docType: 'docx', // 文档类型
+    //     createBy: 'staff_a', // 创建人
+    //     applyNode: '5', // 驳回
+    //     createTime: '2024-11-28 11:30:00',
+    //     updateTime: '2024-12-08 15:40:00',
+    //     delFlg: '0'
+    //   }
+    // ]
+    // total.value = list.value.length || 0
   } catch (error) {
     console.error('获取数据失败:', error)
     ElMessage.error('获取数据失败，请确保后端服务已启动')
@@ -1402,7 +1397,7 @@ const openPublishDialog = (row: PerformanceApi.TrainingPerformanceVO) => {
 // 确认发布
 const handlePublishSubmit = async () => {
   if (isNil(currentPublishRow.value?.id)) return
-
+  console.log('发布参数:', currentPublishRow.value.id, publishFormData.visibleScope)
   publishLoading.value = true
   try {
     const result = await PerformanceApi.publishDocument({
@@ -1532,6 +1527,63 @@ const handleApprove = async (row: PerformanceApi.TrainingPerformanceVO) => {
       console.error('审核失败:', error)
       ElMessage.error('审核失败')
     }
+  }
+}
+
+// 审核执行 - 跳转到编辑器（只读模式）
+const handleReviewExecute = async (row: PerformanceApi.TrainingPerformanceVO) => {
+  console.log('审核执行:', row)
+
+  // 创建 loading 实例
+  const loadingInstance = ElLoading.service({
+    lock: true,
+    text: '正在加载文档...',
+    background: 'rgba(0, 0, 0, 0.7)'
+  })
+
+  try {
+    // 获取文件流
+    loadingInstance.setText('正在加载文档内容...')
+    const streamResult = await PerformanceApi.getFileStream(row.id!)
+
+    // 处理文件流数据
+    let hasContent = false
+    if (streamResult && streamResult.size > 0) {
+      const base64Content = await blobToBase64(streamResult)
+      sessionStorage.setItem(`doc_content_${row.id}`, base64Content)
+      hasContent = true
+    }
+
+    // 准备文档信息
+    const documentInfo = {
+      id: String(row.id),
+      title: row.planName,
+      content: '',
+      createTime: row.createTime || new Date().toISOString(),
+      updateTime: row.createTime || new Date().toISOString(),
+      version: 'V1.0',
+      tags: row.fileType ? [row.fileType] : [],
+      creatorId: 0,
+      creatorName: row.createBy || '未知'
+    }
+    sessionStorage.setItem(`doc_info_${row.id}`, JSON.stringify(documentInfo))
+
+    // 跳转编辑器（只读审核模式）
+    router.push({
+      name: 'DocumentEdit',
+      params: { id: row.id },
+      query: {
+        title: row.planName,
+        hasContent: hasContent ? 'true' : 'false',
+        readonly: 'true', // 只读模式
+        reviewMode: 'true' // 审核模式
+      }
+    })
+  } catch (error) {
+    console.error('加载文档失败:', error)
+    ElMessage.error('加载失败，请稍后重试')
+  } finally {
+    loadingInstance.close()
   }
 }
 

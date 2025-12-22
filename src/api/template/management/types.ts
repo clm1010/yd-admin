@@ -119,3 +119,9 @@ export interface ExamApplyReqVO {
   examOpinion: string // 审核意见/驳回原因
   examUserId: string // 审批用户id
 }
+
+// 发布文档请求接口 - POST /tbTemplate/publishData (与演训方案保持一致)
+export interface PublishDocReqVO {
+  id: string // 模板ID
+  visibleScope?: string[] // 可见范围（用户ID列表）
+}

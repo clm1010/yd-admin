@@ -167,15 +167,11 @@
               </el-button>
             </template>
 
-            <!-- 审核中状态(2)显示：审核、驳回、审核记录 -->
+            <!-- 审核中状态(2)显示：审核执行、审核记录 -->
             <template v-else-if="scope.row.applyNode === '2'">
-              <el-button link type="success" @click="handleApprove(scope.row)">
-                <Icon icon="ep:check" />
-                审核
-              </el-button>
-              <el-button link type="danger" @click="openRejectDialog(scope.row)">
-                <Icon icon="ep:close" />
-                驳回
+              <el-button link type="primary" @click="handleReviewExecute(scope.row)">
+                <Icon icon="ep:view" />
+                审核执行
               </el-button>
               <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
                 <Icon icon="ep:document" />
@@ -185,7 +181,7 @@
 
             <!-- 审核通过状态(3)显示：发布按钮 + 审核记录 -->
             <template v-else-if="scope.row.applyNode === '3'">
-              <el-button link type="primary" @click="handlePublish(scope.row)">
+              <el-button link type="primary" @click="openPublishDialog(scope.row)">
                 <Icon icon="ep:promotion" />
                 发布
               </el-button>
@@ -401,6 +397,33 @@
       </el-table>
       <template #footer>
         <el-button @click="examRecordDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 发布配置弹窗 -->
+    <el-dialog
+      v-model="publishDialogVisible"
+      title="发布配置"
+      width="600px"
+      :close-on-click-modal="false"
+    >
+      <el-form ref="publishFormRef" :model="publishFormData" label-width="100px">
+        <el-form-item label="可见范围">
+          <el-select
+            v-model="publishFormData.visibleScope"
+            multiple
+            placeholder="请选择"
+            class="w-full"
+          >
+            <el-option v-for="u in userOptions" :key="u.value" :label="u.label" :value="u.value" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button type="primary" @click="handlePublishSubmit" :loading="publishLoading"
+          >确认提交</el-button
+        >
+        <el-button @click="publishDialogVisible = false">取消</el-button>
       </template>
     </el-dialog>
   </div>
@@ -996,26 +1019,6 @@ const handleAuditSubmit = async (submitData: {
   }
 }
 
-// 发布模板
-const handlePublish = async (row: TemplateApi.TemplateVO) => {
-  try {
-    await ElMessageBox.confirm(`确认要发布模板"${row.templateName}"吗？`, '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
-
-    // TODO: 调用发布接口，传递 row.id
-    console.log('发布模板:', row.id)
-    ElMessage.success('发布成功')
-    getList()
-  } catch (error: any) {
-    if (error !== 'cancel') {
-      ElMessage.error('发布失败')
-    }
-  }
-}
-
 // 驳回弹窗相关
 const rejectDialogVisible = ref(false)
 const rejectLoading = ref(false)
@@ -1097,6 +1100,113 @@ const handleApprove = async (row: TemplateApi.TemplateVO) => {
 const examRecordDialogVisible = ref(false)
 const examRecordLoading = ref(false)
 const examRecordList = ref<TemplateApi.ExamRecordVO[]>([])
+
+// 发布弹窗相关
+const publishDialogVisible = ref(false)
+const publishLoading = ref(false)
+const currentPublishRow = ref<TemplateApi.TemplateVO>()
+const publishFormData = reactive({
+  visibleScope: [] as string[]
+})
+
+// 打开发布弹窗
+const openPublishDialog = (row: TemplateApi.TemplateVO) => {
+  currentPublishRow.value = row
+  publishDialogVisible.value = true
+  publishFormData.visibleScope = ['user1', 'user2', 'user3'] // 默认回显
+}
+
+// 确认发布
+const handlePublishSubmit = async () => {
+  if (isNil(currentPublishRow.value?.id)) return
+  console.log('发布参数:', currentPublishRow.value.id, publishFormData.visibleScope)
+  publishLoading.value = true
+  try {
+    const result = await TemplateApi.publishDocument({
+      id: currentPublishRow.value.id,
+      visibleScope: publishFormData.visibleScope
+    })
+    console.log('发布结果:', result)
+
+    // 处理响应 - 兼容两种格式
+    if (isObject(result) && !isNil(result)) {
+      const res = result as { code?: number; msg?: string }
+      if (res.code === 200 || res.code === 0) {
+        ElMessage.success(res.msg || '发布成功')
+        publishDialogVisible.value = false
+        getList()
+      } else {
+        ElMessage.error(res.msg || '发布失败')
+      }
+    } else {
+      // 直接成功
+      ElMessage.success('发布成功')
+      publishDialogVisible.value = false
+      getList()
+    }
+  } catch (error: any) {
+    console.error('发布失败:', error)
+    ElMessage.error(error.message || '发布失败')
+  } finally {
+    publishLoading.value = false
+  }
+}
+
+// 审核执行 - 跳转到编辑器（只读模式）
+const handleReviewExecute = async (row: TemplateApi.TemplateVO) => {
+  console.log('审核执行:', row)
+
+  // 创建 loading 实例
+  const loadingInstance = ElLoading.service({
+    lock: true,
+    text: '正在加载文档...',
+    background: 'rgba(0, 0, 0, 0.7)'
+  })
+
+  try {
+    // 获取文件流
+    loadingInstance.setText('正在加载文档内容...')
+    const streamResult = await TemplateApi.getFileStream(String(row.id))
+
+    // 处理文件流数据
+    let hasContent = false
+    if (streamResult && streamResult.size > 0) {
+      const base64Content = await blobToBase64(streamResult)
+      sessionStorage.setItem(`markdown_content_${row.id}`, base64Content)
+      hasContent = true
+    }
+
+    // 准备文档信息
+    const docInfo = {
+      id: String(row.id),
+      title: row.templateName,
+      content: '',
+      createTime: row.createTime || new Date().toISOString(),
+      updateTime: row.createTime || new Date().toISOString(),
+      version: 'V1.0',
+      tags: [],
+      creatorId: 0,
+      creatorName: row.createBy || '未知'
+    }
+    sessionStorage.setItem(`markdown_info_${row.id}`, JSON.stringify(docInfo))
+
+    // 跳转到模板编辑器页面（只读审核模式）
+    router.push({
+      path: `/template/editor/${row.id}`,
+      query: {
+        title: row.templateName,
+        hasContent: hasContent ? 'true' : 'false',
+        readonly: 'true', // 只读模式
+        reviewMode: 'true' // 审核模式
+      }
+    })
+  } catch (error) {
+    console.error('加载文档失败:', error)
+    ElMessage.error('加载失败，请稍后重试')
+  } finally {
+    loadingInstance.close()
+  }
+}
 
 // 打开审核记录弹窗
 const openExamRecordDialog = async (row: TemplateApi.TemplateVO) => {
