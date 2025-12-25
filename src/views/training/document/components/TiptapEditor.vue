@@ -79,14 +79,18 @@
                   <Icon icon="mdi:format-strikethrough" />
                 </button>
                 <div class="bubble-menu-divider"></div>
-                <button
-                  class="bubble-menu-btn"
-                  :class="{ 'is-active': editor?.isActive('highlight') }"
-                  @click="editor?.chain().focus().toggleHighlight().run()"
-                  title="高亮"
-                >
-                  <Icon icon="mdi:format-color-highlight" />
-                </button>
+                <ColorPicker
+                  v-model="bubbleTextColor"
+                  icon="mdi:format-color-text"
+                  title="字体颜色"
+                  @change="handleBubbleTextColor"
+                />
+                <ColorPicker
+                  v-model="bubbleHighlightColor"
+                  icon="mdi:format-color-highlight"
+                  title="字体背景颜色"
+                  @change="handleBubbleHighlightColor"
+                />
                 <button
                   class="bubble-menu-btn"
                   :class="{ 'is-active': editor?.isActive('link') }"
@@ -212,7 +216,9 @@ import { Placeholder } from '@tiptap/extensions'
 import { TextAlign } from '@tiptap/extension-text-align'
 import { Highlight } from '@tiptap/extension-highlight'
 import { Link } from '@tiptap/extension-link'
-import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
+import { Table, TableRow } from '@tiptap/extension-table'
+import { CustomTableCell } from './toolbar/extensions/CustomTableCell'
+import { CustomTableHeader } from './toolbar/extensions/CustomTableHeader'
 import { ResizableImage } from './toolbar/extensions/ResizableImage'
 import { TaskList, TaskItem } from '@tiptap/extension-list'
 // Tiptap v3: TextStyle, FontSize, FontFamily 从 @tiptap/extension-text-style 导入
@@ -232,6 +238,7 @@ import { Icon } from '@/components/Icon'
 import { ElMessage } from 'element-plus'
 import { EditorToolbar } from './toolbar'
 import { EditorKey } from './toolbar/types'
+import ColorPicker from './toolbar/ColorPicker.vue'
 
 // Props
 interface Props {
@@ -275,6 +282,10 @@ const contentWrapperRef = ref<HTMLElement | null>(null)
 
 // 气泡菜单引用 - 参考 https://tiptap.dev/docs/editor/extensions/functionality/bubble-menu
 const bubbleMenuRef = ref<HTMLElement | null>(null)
+
+// 气泡菜单颜色选择
+const bubbleTextColor = ref('#000000')
+const bubbleHighlightColor = ref('#FFFF00')
 
 // 回到顶部按钮显示状态
 const showBackToTop = ref(false)
@@ -414,13 +425,13 @@ const editor = useEditor({
         class: 'editor-image'
       }
     }),
-    // 表格
+    // 表格 - 使用自定义扩展支持对齐和背景色
     Table.configure({
       resizable: true
     }),
     TableRow,
-    TableCell,
-    TableHeader,
+    CustomTableCell,
+    CustomTableHeader,
     // 任务列表
     TaskList,
     TaskItem.configure({
@@ -554,6 +565,26 @@ const toggleBubbleLink = () => {
     if (!isEmpty(url)) {
       editor.value.chain().focus().setLink({ href: url }).run()
     }
+  }
+}
+
+// 气泡菜单中处理字体颜色
+const handleBubbleTextColor = (color: string) => {
+  if (isNil(editor.value)) return
+  if (color) {
+    editor.value.chain().focus().setColor(color).run()
+  } else {
+    editor.value.chain().focus().unsetColor().run()
+  }
+}
+
+// 气泡菜单中处理字体背景颜色
+const handleBubbleHighlightColor = (color: string) => {
+  if (isNil(editor.value)) return
+  if (color) {
+    editor.value.chain().focus().setHighlight({ color }).run()
+  } else {
+    editor.value.chain().focus().unsetHighlight().run()
   }
 }
 
@@ -961,6 +992,18 @@ defineExpose({
     p {
       line-height: 1.75;
       color: #374151;
+      position: relative;
+
+      // 段落末尾换行符标记 - 参考 hhf-style1.jpg 样式
+      &::after {
+        content: '↵';
+        color: #1a73e8;
+        margin-left: 2px;
+        font-size: 0.85em;
+        opacity: 0.6;
+        user-select: none;
+        pointer-events: none;
+      }
     }
 
     h1 {

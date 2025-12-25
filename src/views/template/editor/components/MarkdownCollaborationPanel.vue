@@ -58,27 +58,34 @@
       </div>
     </el-splitter-panel>
 
-    <!-- 参考素材 -->
+    <!-- 自定义要素（只读展示） -->
     <el-splitter-panel
       class="section p-4 border-b border-gray-100 flex-1 overflow-hidden flex flex-col"
     >
-      <h3 class="font-bold text-gray-800 mb-3">参考素材</h3>
+      <h3 class="font-bold text-gray-800 mb-3">自定义要素</h3>
       <div class="overflow-y-auto flex-1 custom-scrollbar -mx-2 px-2">
-        <div v-if="materials && materials.length > 0" class="space-y-2">
+        <div v-if="elements && elements.length > 0" class="space-y-2">
           <div
-            v-for="(item, index) in materials"
+            v-for="(item, index) in elements"
             :key="index"
-            class="p-3 bg-gray-50 rounded hover:bg-blue-50 hover:text-blue-600 cursor-pointer transition-all border border-transparent hover:border-blue-100"
-            @click="$emit('click-material', item)"
+            class="p-3 bg-gray-50 rounded border border-gray-100"
           >
-            <div class="font-medium mb-1 truncate" :title="item.title">{{ item.title }}</div>
-            <div class="text-xs text-gray-400 flex justify-between items-center">
-              <span>{{ item.date }}</span>
-              <span>{{ item.author }}</span>
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-medium text-gray-700">{{ item.item_label }}</span>
+              <el-tag size="small" type="info" effect="plain">
+                {{ getTypeLabel(item.item_type) }}
+              </el-tag>
+            </div>
+            <!-- 如果有选项，显示选项列表 -->
+            <div
+              v-if="item.item_options && item.item_options.length > 0"
+              class="text-xs text-gray-400 mt-1"
+            >
+              选项: {{ item.item_options.join(', ') }}
             </div>
           </div>
         </div>
-        <div v-else class="text-center text-gray-400 py-8"> 暂无参考素材 </div>
+        <div v-else class="text-center text-gray-400 py-8"> 暂无自定义要素 </div>
       </div>
     </el-splitter-panel>
 
@@ -118,15 +125,27 @@
 </template>
 
 <script setup lang="ts">
+import type { ElementItem, ElementItemType } from '@/api/template/management/types'
+
 defineProps<{
   collaborators: any[]
-  materials?: any[]
+  elements?: ElementItem[]
   properties?: any
 }>()
 
-defineEmits<{
-  (e: 'click-material', item: any): void
-}>()
+// 要素类型标签映射
+const typeLabels: Record<ElementItemType, string> = {
+  text: '文本',
+  radio: '单选',
+  multiple: '多选',
+  number: '数字',
+  time: '日期'
+}
+
+// 获取类型标签
+const getTypeLabel = (type: ElementItemType): string => {
+  return typeLabels[type] || type
+}
 </script>
 
 <style scoped>

@@ -1,22 +1,5 @@
 <template>
   <div class="tiptap-collaborative-editor flex flex-col h-screen overflow-hidden bg-gray-100">
-    <!-- 文件解析进度条遮罩 -->
-    <div
-      v-if="isParsingFile"
-      class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
-    >
-      <div class="bg-white rounded-lg p-8 flex flex-col items-center shadow-xl">
-        <el-progress
-          type="circle"
-          :percentage="parseProgress"
-          :width="120"
-          :stroke-width="8"
-          :color="parseProgressColor"
-        />
-        <p class="mt-4 text-gray-600 text-sm">{{ parseProgressText }}</p>
-      </div>
-    </div>
-
     <!-- 顶部状态栏 -->
     <div
       class="h-14 bg-white border-b flex items-center justify-between px-4 shadow-sm z-20 flex-shrink-0"
@@ -200,6 +183,7 @@ import {
   type SubmitAuditReqVO
 } from './api/documentApi'
 import { parseFileContent } from './utils/wordParser'
+import { getDocContent, removeDocContent } from '@/utils/docStorage'
 
 // Props
 interface Props {
@@ -255,16 +239,6 @@ let hasShownSyncedMessage = false // 是否已显示同步完成消息
 
 // 预加载的文档内容（从权限校验接口获取的文件流）
 const preloadedContent = ref<string>('')
-
-// 文件解析进度状态
-const isParsingFile = ref(false)
-const parseProgress = ref(0)
-const parseProgressText = ref('准备解析文件...')
-const parseProgressColor = computed(() => {
-  if (parseProgress.value < 30) return '#409eff'
-  if (parseProgress.value < 70) return '#67c23a'
-  return '#409eff'
-})
 
 // 参考素材
 const referenceMaterials = ref<any[]>([])
@@ -821,17 +795,11 @@ watch(
   }
 )
 
-// 更新解析进度
-const updateParseProgress = (progress: number, text: string) => {
-  parseProgress.value = progress
-  parseProgressText.value = text
-}
-
 // 组件挂载
 onMounted(async () => {
-  // 检查是否有预加载的文件内容（从权限校验流程中获取）
+  // 检查是否有预加载的文件内容（从 IndexedDB 中获取，避免 sessionStorage 配额限制）
   const cachedContentKey = `doc_content_${documentId.value}`
-  const cachedContent = sessionStorage.getItem(cachedContentKey)
+  const cachedContent = await getDocContent(documentId.value)
   console.log(
     '文档ID:',
     documentId.value,
@@ -843,44 +811,23 @@ onMounted(async () => {
 
   // 只要有缓存内容就尝试解析，不再依赖 hasContent 参数
   if (cachedContent) {
-    // 显示进度条
-    isParsingFile.value = true
-    parseProgress.value = 0
-    parseProgressText.value = '准备解析文件...'
-
     try {
       console.log('发现预加载的文件内容，正在解析...', '内容长度:', cachedContent.length)
 
-      // 更新进度：10%
-      updateParseProgress(10, '正在读取文件内容...')
-
-      // 解析 base64 文件流为文档内容，传递进度回调
-      const parsedContent = await parseFileContent(cachedContent, updateParseProgress)
+      // 解析 base64 文件流为文档内容
+      const parsedContent = await parseFileContent(cachedContent)
 
       if (parsedContent) {
-        // 更新进度：90%
-        updateParseProgress(90, '正在加载到编辑器...')
-
         preloadedContent.value = parsedContent
         console.log('预加载内容解析成功，HTML 长度:', parsedContent.length)
-
-        // 更新进度：100%
-        updateParseProgress(100, '解析完成！')
-        await new Promise((resolve) => setTimeout(resolve, 300))
       } else {
         console.warn('解析结果为空')
-        updateParseProgress(100, '文件内容为空')
-        await new Promise((resolve) => setTimeout(resolve, 500))
       }
     } catch (error) {
       console.error('解析预加载内容失败:', error)
-      updateParseProgress(100, '解析失败')
-      await new Promise((resolve) => setTimeout(resolve, 500))
     } finally {
-      // 清除 sessionStorage 中的缓存
-      sessionStorage.removeItem(cachedContentKey)
-      // 隐藏进度条
-      isParsingFile.value = false
+      // 清除 IndexedDB 中的缓存
+      await removeDocContent(documentId.value)
     }
   }
 

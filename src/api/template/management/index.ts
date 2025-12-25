@@ -25,7 +25,9 @@ import type {
   PermissionCheckResponse,
   ExamRecordVO,
   ExamApplyReqVO,
-  PublishDocReqVO
+  PublishDocReqVO,
+  ElementItem,
+  GetElementListResponse
 } from './types'
 
 // ==================== Java 后端 API 实现 ====================
@@ -53,7 +55,8 @@ const javaApi = {
       templateName: data.templateName,
       temSubclass: data.temSubclass,
       temStatus: data.temStatus === '启用' ? '0' : '1',
-      description: data.description || ''
+      description: data.description || '',
+      elements_items: data.elements_items || []
     }
     if (data.fileId) {
       requestData.fileId = data.fileId
@@ -70,7 +73,8 @@ const javaApi = {
       templateName: data.templateName,
       temSubclass: data.temSubclass,
       temStatus: data.temStatus === '启用' ? '0' : '1',
-      description: data.description || ''
+      description: data.description || '',
+      elements_items: data.elements_items || []
     }
     return await javaRequest.post('/tbTemplate/editData', requestData)
   },
@@ -175,6 +179,21 @@ const javaApi = {
    */
   publishDocument: async (data: PublishDocReqVO) => {
     return await javaRequest.postOriginal('/tbTemplate/publishData', data)
+  },
+
+  /**
+   * 获取自定义要素列表 - Java 后端
+   * GET /api/getPlan/getElement
+   * @param id 记录ID
+   */
+  getElementList: async (id: string): Promise<ElementItem[]> => {
+    try {
+      const res = await javaRequest.get<GetElementListResponse>('/getPlan/getElement', { id })
+      return (res as any)?.data || (res as any) || []
+    } catch (error) {
+      console.error('获取要素列表失败:', error)
+      return []
+    }
   }
 }
 
@@ -258,6 +277,11 @@ const mockApi = {
   publishDocument: async (data: PublishDocReqVO) => {
     const { publishDocument } = await import('@/mock/template/management')
     return publishDocument(data)
+  },
+
+  getElementList: async (id: string): Promise<ElementItem[]> => {
+    const { getElementList } = await import('@/mock/template/management')
+    return getElementList(id)
   }
 }
 
@@ -357,6 +381,14 @@ export const examApply = api.examApply
  * @param data 发布参数 { id, visibleScope }
  */
 export const publishDocument = api.publishDocument
+
+/**
+ * 获取自定义要素列表
+ * GET /api/getPlan/getElement
+ * @param id 记录ID
+ * @returns 要素列表
+ */
+export const getElementList = api.getElementList
 
 // 重新导出分类配置
 export { templateCategories } from '@/views/template/management/config/categories'

@@ -33,6 +33,7 @@ export interface TemplateVO {
   createBy?: string // 创建人
   applyNode?: string // 审核状态：1-编辑中/2-审核中/3-审核通过/4-发布/5-驳回
   flowId?: string // 审核流程ID
+  elements_items?: ElementItem[] // 自定义要素列表
 }
 
 // 查询参数接口
@@ -124,4 +125,44 @@ export interface ExamApplyReqVO {
 export interface PublishDocReqVO {
   id: string // 模板ID
   visibleScope?: string[] // 可见范围（用户ID列表）
+}
+
+// ==================== 自定义要素相关类型 ====================
+
+// 要素类型枚举
+export type ElementItemType = 'text' | 'radio' | 'multiple' | 'number' | 'time'
+
+// 要素类型选项配置
+export interface ElementTypeOption {
+  value: ElementItemType
+  label: string
+  hasOptions: boolean // 是否需要配置选项（单选/多选）
+}
+
+// 要素类型选项列表 - 用于要素编辑器
+export const ELEMENT_TYPE_OPTIONS: ElementTypeOption[] = [
+  { value: 'text', label: '文本', hasOptions: false },
+  { value: 'radio', label: '单选', hasOptions: true },
+  { value: 'multiple', label: '多选', hasOptions: true },
+  { value: 'number', label: '数字', hasOptions: false },
+  { value: 'time', label: '日期', hasOptions: false }
+]
+
+// 单个要素项接口（与后端 Java 数据结构一致）
+export interface ElementItem {
+  item_type: ElementItemType // 要素类型
+  item_label: string // 要素名称
+  item_options?: string[] // 选项（仅 radio/multiple 时有值）
+}
+
+// 获取要素列表请求参数
+export interface GetElementListReqVO {
+  id: string // 记录ID
+}
+
+// 获取要素列表响应
+export interface GetElementListResponse {
+  code: number
+  data: ElementItem[]
+  msg?: string
 }

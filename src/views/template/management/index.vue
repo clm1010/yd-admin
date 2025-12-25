@@ -129,10 +129,10 @@
           <template #default="scope">
             <div class="flex items-center justify-center">
               <div
-                :class="getAuditStatusClass(scope.row.applyNode)"
+                :class="getApplyNodeClass(scope.row.applyNode)"
                 class="w-2 h-2 rounded-full mr-2"
               ></div>
-              {{ getAuditStatusText(scope.row.applyNode) }}
+              {{ getApplyNodeText(scope.row.applyNode) }}
             </div>
           </template>
         </el-table-column>
@@ -281,6 +281,19 @@
             placeholder="请输入描述"
           />
         </el-form-item>
+        <!-- 自定义要素 -->
+        <el-form-item label="自定义要素">
+          <div class="flex items-center gap-2">
+            <el-button type="primary" link @click="elementsEditorVisible = true">
+              <Icon icon="ep:setting" class="mr-1" />
+              配置要素
+            </el-button>
+            <el-tag v-if="formData.elements_items.length > 0" type="info" size="small">
+              已配置 {{ formData.elements_items.length }} 项
+            </el-tag>
+            <span v-else class="text-gray-400 text-sm">未配置</span>
+          </div>
+        </el-form-item>
         <el-form-item label="模板状态" prop="temStatus">
           <el-radio-group v-model="formData.temStatus">
             <el-radio label="启用">启用</el-radio>
@@ -426,6 +439,13 @@
         <el-button @click="publishDialogVisible = false">取消</el-button>
       </template>
     </el-dialog>
+
+    <!-- 自定义要素编辑器弹窗 -->
+    <ElementsEditor
+      v-model="elementsEditorVisible"
+      :elements="formData.elements_items"
+      @confirm="handleElementsConfirm"
+    />
   </div>
 </template>
 
@@ -437,6 +457,8 @@ import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import { useCollaborationUserStore } from '@/store/modules/collaborationUser'
 import { isEmpty, isNil, isString, isObject, pickBy, filter, map, every } from 'lodash-es'
 import AuditFlowDialog from '@/components/AuditFlowDialog/index.vue'
+import ElementsEditor from './components/ElementsEditor.vue'
+import type { ElementItem } from '@/api/template/management/types'
 import {
   templateCategories,
   templateSubCategories,
@@ -465,7 +487,7 @@ const selectedRows = ref<TemplateApi.TemplateVO[]>([])
 // 计算属性：判断是否可以批量删除（只有选中的数据都是"编辑中"(1)或"驳回"(5)状态才能删除）
 const canBatchDelete = computed(() => {
   if (isEmpty(selectedRows.value)) return false
-  // 如果数据没有 auditStatus 字段，则允许删除（兼容旧数据）
+  // 如果数据没有 applyNode 字段，则允许删除（兼容旧数据）
   return every(
     selectedRows.value,
     (row) => !row.applyNode || row.applyNode === '1' || row.applyNode === '5'
@@ -506,8 +528,12 @@ const formData = reactive({
   description: '',
   temStatus: '启用',
   temCategory: '',
-  creationMethod: 'new' as 'new' | 'upload'
+  creationMethod: 'new' as 'new' | 'upload',
+  elements_items: [] as ElementItem[]
 })
+
+// 自定义要素编辑器弹窗
+const elementsEditorVisible = ref(false)
 
 const formRules = {
   templateName: [{ required: true, message: '请输入模板名称', trigger: 'blur' }],
@@ -566,7 +592,7 @@ const getStatusType = (status: string) => {
 }
 
 // 审核状态文本映射（编辑中:1、审核中:2、审核通过:3、发布:4、驳回:5）
-const auditStatusTextMap: Record<string, string> = {
+const applyNodeTextMap: Record<string, string> = {
   '1': '编辑中',
   '2': '审核中',
   '3': '审核通过',
@@ -575,13 +601,13 @@ const auditStatusTextMap: Record<string, string> = {
 }
 
 // 获取审核状态文本
-const getAuditStatusText = (status?: string) => {
+const getApplyNodeText = (status?: string) => {
   if (!status) return '编辑中'
-  return auditStatusTextMap[status] || status
+  return applyNodeTextMap[status] || status
 }
 
 // 获取审核状态样式
-const getAuditStatusClass = (status?: string) => {
+const getApplyNodeClass = (status?: string) => {
   switch (status) {
     case '1': // 编辑中
       return 'bg-red-500'
@@ -685,7 +711,8 @@ const handleAdd = () => {
     temSubclass: '',
     description: '',
     temStatus: '启用',
-    creationMethod: 'new'
+    creationMethod: 'new',
+    elements_items: []
   })
   uploadFileList.value = []
   uploadFile.value = null
@@ -814,8 +841,10 @@ const handleSave = async () => {
         temCategory: formData.temCategory,
         temSubclass: formData.temSubclass,
         temStatus: formData.temStatus,
-        description: formData.description
+        description: formData.description,
+        elements_items: formData.elements_items
       } as TemplateApi.TemplateVO
+      console.log(updateData, '-----------updateData-----------')
       await TemplateApi.updateTemplate(updateData)
       ElMessage.success('更新成功')
     } else {
@@ -826,7 +855,8 @@ const handleSave = async () => {
         temCategory: formData.temCategory,
         temSubclass: formData.temSubclass,
         description: formData.description,
-        temStatus: formData.temStatus
+        temStatus: formData.temStatus,
+        elements_items: formData.elements_items
       } as TemplateApi.TemplateVO
 
       // 判断创建方式
@@ -865,11 +895,12 @@ const handleSave = async () => {
 
         // 将上传返回的 fileId 传递给 savaTemplate
         saveData.fileId = fileId as string
-
+        console.log(saveData, '-----------saveData-----------')
         // 创建模板记录
         await TemplateApi.savaTemplate(saveData)
         ElMessage.success('创建成功')
       } else {
+        console.log(saveData, '-----------saveData-----------')
         // 新建文档模式
         await TemplateApi.savaTemplate(saveData)
         ElMessage.success('创建成功')
@@ -958,7 +989,8 @@ const handleEditData = (row: TemplateApi.TemplateVO) => {
     templateName: row.templateName,
     temSubclass: row.temSubclass,
     description: row.description || '',
-    temStatus: row.temStatus || '启用'
+    temStatus: row.temStatus || '启用',
+    elements_items: row.elements_items || []
     // 编辑模式不设置 creationMethod
   })
   uploadFileList.value = []
@@ -974,6 +1006,11 @@ const handleFileChange = (file: any) => {
 // 文件移除
 const handleFileRemove = () => {
   uploadFile.value = null
+}
+
+// 自定义要素确认
+const handleElementsConfirm = (elements: ElementItem[]) => {
+  formData.elements_items = elements
 }
 
 // 提交审核（打开审核流配置弹窗）

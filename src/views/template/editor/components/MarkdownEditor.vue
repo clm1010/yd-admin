@@ -3,6 +3,44 @@
     <!-- 工具栏 - 只读模式下隐藏 -->
     <div v-if="editor && !loading && editable" class="editor-toolbar">
       <div class="toolbar-group">
+        <!-- 导入 Word -->
+        <button
+          class="toolbar-btn toolbar-btn-text"
+          @click="handleImportWord"
+          title="导入 Word 文档 (.docx)"
+        >
+          <Icon icon="mdi:file-word" />
+          <span class="btn-text">导入Word</span>
+        </button>
+        <!-- 导入 Markdown -->
+        <button
+          class="toolbar-btn toolbar-btn-text"
+          @click="handleImportMarkdown"
+          title="导入 Markdown 文件 (.md)"
+        >
+          <Icon icon="mdi:language-markdown" />
+          <span class="btn-text">导入MD</span>
+        </button>
+        <!-- 导出 Markdown -->
+        <button
+          class="toolbar-btn toolbar-btn-text"
+          @click="handleExportMarkdown"
+          title="导出为 Markdown 文件"
+        >
+          <Icon icon="mdi:file-export" />
+          <span class="btn-text">导出MD</span>
+        </button>
+        <!-- 预览 - 参考训练文档工具栏样式 -->
+        <el-tooltip content="文档预览" placement="bottom" :show-after="500">
+          <button class="toolbar-btn toolbar-btn-text" @click="handlePreview">
+            <Icon icon="mdi:file-eye-outline" />
+            <span class="btn-text">文档预览</span>
+          </button>
+        </el-tooltip>
+        <div class="toolbar-divider"></div>
+      </div>
+
+      <div class="toolbar-group">
         <!-- 撤销/重做 -->
         <button
           class="toolbar-btn"
@@ -84,6 +122,10 @@
         >
           <Icon icon="mdi:code-tags" />
         </button>
+        <!-- 清除格式 -->
+        <button class="toolbar-btn" @click="clearFormat" title="清除格式">
+          <Icon icon="mdi:format-clear" />
+        </button>
         <div class="toolbar-divider"></div>
       </div>
 
@@ -145,6 +187,119 @@
       </div>
 
       <div class="toolbar-group">
+        <!-- 表格 -->
+        <el-popover
+          placement="bottom"
+          :width="220"
+          trigger="click"
+          v-model:visible="tablePopoverVisible"
+        >
+          <template #reference>
+            <button
+              class="toolbar-btn"
+              :class="{ active: editor?.isActive('table') }"
+              title="插入表格"
+            >
+              <Icon icon="mdi:table" />
+              <Icon icon="mdi:chevron-down" class="ml-0.5 text-xs" />
+            </button>
+          </template>
+          <div class="table-grid-selector">
+            <div class="table-grid-header">插入表格</div>
+            <div class="table-grid" @mouseleave="resetTableSelection">
+              <div v-for="row in 8" :key="row" class="table-grid-row">
+                <div
+                  v-for="col in 8"
+                  :key="col"
+                  class="table-grid-cell"
+                  :class="{ selected: row <= selectedRows && col <= selectedCols }"
+                  @mouseenter="selectTableSize(row, col)"
+                  @click="insertTable(row, col)"
+                ></div>
+              </div>
+            </div>
+            <div class="table-grid-footer">
+              {{ selectedRows > 0 ? `${selectedRows} × ${selectedCols}` : '选择表格大小' }}
+            </div>
+          </div>
+        </el-popover>
+        <!-- 表格操作按钮（仅在表格中显示） -->
+        <template v-if="editor?.isActive('table')">
+          <button
+            class="toolbar-btn"
+            @click="editor?.chain().focus().addColumnBefore().run()"
+            title="在左侧插入列"
+          >
+            <Icon icon="mdi:table-column-plus-before" />
+          </button>
+          <button
+            class="toolbar-btn"
+            @click="editor?.chain().focus().addColumnAfter().run()"
+            title="在右侧插入列"
+          >
+            <Icon icon="mdi:table-column-plus-after" />
+          </button>
+          <button
+            class="toolbar-btn"
+            @click="editor?.chain().focus().deleteColumn().run()"
+            title="删除列"
+          >
+            <Icon icon="mdi:table-column-remove" />
+          </button>
+          <button
+            class="toolbar-btn"
+            @click="editor?.chain().focus().addRowBefore().run()"
+            title="在上方插入行"
+          >
+            <Icon icon="mdi:table-row-plus-before" />
+          </button>
+          <button
+            class="toolbar-btn"
+            @click="editor?.chain().focus().addRowAfter().run()"
+            title="在下方插入行"
+          >
+            <Icon icon="mdi:table-row-plus-after" />
+          </button>
+          <button
+            class="toolbar-btn"
+            @click="editor?.chain().focus().deleteRow().run()"
+            title="删除行"
+          >
+            <Icon icon="mdi:table-row-remove" />
+          </button>
+          <button
+            class="toolbar-btn"
+            @click="editor?.chain().focus().toggleHeaderRow().run()"
+            title="切换表头行"
+          >
+            <Icon icon="mdi:table-headers-eye" />
+          </button>
+          <button
+            class="toolbar-btn"
+            @click="editor?.chain().focus().mergeCells().run()"
+            title="合并单元格"
+          >
+            <Icon icon="mdi:table-merge-cells" />
+          </button>
+          <button
+            class="toolbar-btn"
+            @click="editor?.chain().focus().splitCell().run()"
+            title="拆分单元格"
+          >
+            <Icon icon="mdi:table-split-cell" />
+          </button>
+          <button
+            class="toolbar-btn text-red-500"
+            @click="editor?.chain().focus().deleteTable().run()"
+            title="删除表格"
+          >
+            <Icon icon="mdi:table-remove" />
+          </button>
+        </template>
+        <div class="toolbar-divider"></div>
+      </div>
+
+      <div class="toolbar-group">
         <!-- 对齐 -->
         <button
           class="toolbar-btn"
@@ -172,6 +327,89 @@
         </button>
       </div>
     </div>
+
+    <!-- 隐藏的文件输入框 -->
+    <input
+      ref="wordFileInputRef"
+      type="file"
+      accept=".docx"
+      style="display: none"
+      @change="handleWordFileChange"
+    />
+    <input
+      ref="markdownFileInputRef"
+      type="file"
+      accept=".md,.markdown"
+      style="display: none"
+      @change="handleMarkdownFileChange"
+    />
+
+    <!-- 预览对话框（全屏样式） -->
+    <el-dialog
+      v-model="previewDialogVisible"
+      :fullscreen="true"
+      :show-close="false"
+      class="document-preview-dialog"
+      :close-on-click-modal="false"
+    >
+      <template #header>
+        <div class="preview-header">
+          <div class="header-left">
+            <button class="menu-btn" @click="togglePreviewSidebar">
+              <Icon icon="mdi:menu" />
+            </button>
+            <span class="doc-title">{{ documentTitle || props.title || '文档预览' }}</span>
+          </div>
+          <div class="header-right">
+            <button class="close-btn" @click="previewDialogVisible = false">
+              <Icon icon="mdi:close" />
+            </button>
+          </div>
+        </div>
+      </template>
+      <div class="preview-body">
+        <div class="preview-content-wrapper">
+          <div class="preview-page" :style="{ transform: `scale(${previewZoom / 100})` }">
+            <div class="preview-text-content" v-html="previewContent"></div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="preview-footer">
+          <div class="footer-left">
+            <button class="sidebar-btn" @click="togglePreviewSidebar">
+              <Icon icon="mdi:dock-left" />
+              <span>打开边栏</span>
+            </button>
+          </div>
+          <div class="footer-right">
+            <button class="zoom-btn" @click="togglePreviewFullscreen" title="全屏">
+              <Icon icon="mdi:fullscreen" />
+            </button>
+            <div class="zoom-slider">
+              <button class="zoom-btn" @click="zoomOut" title="缩小">
+                <Icon icon="mdi:minus" />
+              </button>
+              <el-slider
+                v-model="previewZoom"
+                :min="50"
+                :max="200"
+                :step="10"
+                :show-tooltip="false"
+                class="zoom-slider-input"
+              />
+              <button class="zoom-btn" @click="zoomIn" title="放大">
+                <Icon icon="mdi:plus" />
+              </button>
+            </div>
+            <button class="zoom-btn fit-btn" @click="fitToWidth" title="适应宽度">
+              <Icon icon="mdi:fit-to-page-outline" />
+            </button>
+            <span class="zoom-value">{{ previewZoom }}%</span>
+          </div>
+        </div>
+      </template>
+    </el-dialog>
 
     <!-- 编辑器内容区域 -->
     <div class="editor-content-wrapper" ref="contentWrapperRef">
@@ -288,7 +526,7 @@
 
 <script setup lang="ts">
 // @ts-nocheck - 忽略 Tiptap 版本不兼容导致的类型问题
-import { ref, onBeforeUnmount, watch, onMounted, toRefs } from 'vue'
+import { ref, onBeforeUnmount, watch, onMounted, toRefs, nextTick } from 'vue'
 import { isNil, isEmpty } from 'lodash-es'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 // Tiptap v3: BubbleMenu 扩展 - 参考 https://tiptap.dev/docs/editor/extensions/functionality/bubble-menu
@@ -302,11 +540,22 @@ import { TextAlign } from '@tiptap/extension-text-align'
 import { Highlight } from '@tiptap/extension-highlight'
 import { Link } from '@tiptap/extension-link'
 import { TaskList, TaskItem } from '@tiptap/extension-list'
+import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
 // Tiptap v3: 使用官方 DragHandle Vue 组件
 import { DragHandle } from '@tiptap/extension-drag-handle-vue-3'
+// Tiptap v3: 官方 Markdown 扩展 - 参考 https://tiptap.dev/docs/editor/markdown
+import { Markdown } from '@tiptap/markdown'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 import { Icon } from '@/components/Icon'
+import { ElMessage } from 'element-plus'
+// 文件解析工具
+import {
+  parseWordDocument,
+  parseMarkdownDocument,
+  exportMarkdown,
+  generatePreviewHtml
+} from '../utils/fileParser'
 
 // Props
 interface Props {
@@ -347,6 +596,108 @@ const contentWrapperRef = ref<HTMLElement | null>(null)
 
 // 气泡菜单引用 - 参考 https://tiptap.dev/docs/editor/extensions/functionality/bubble-menu
 const bubbleMenuRef = ref<HTMLElement | null>(null)
+
+// 文件输入引用
+const wordFileInputRef = ref<HTMLInputElement | null>(null)
+const markdownFileInputRef = ref<HTMLInputElement | null>(null)
+
+// 预览相关状态
+const previewDialogVisible = ref(false)
+const previewContent = ref('')
+const documentTitle = ref('')
+const previewZoom = ref(100)
+const previewSidebarVisible = ref(false)
+
+// 规范化导入的 HTML，确保包含可放置光标的文本块
+const normalizeImportedHtml = (html: string): string => {
+  const content = (html || '').trim()
+  if (!content) return '<p></p>'
+
+  const hasBlock =
+    /^<(p|h[1-6]|ul|ol|table|blockquote|pre|div|section|article|figure|img|hr)/i.test(content)
+
+  const wrapped = hasBlock ? content : `<p>${content}</p>`
+
+  // 追加空段落，确保有可用的文本块，避免 TextSelection 错误
+  return `${wrapped}<p></p>`
+}
+
+// 将导入的 HTML 写入编辑器，并安全地设置光标
+const applyImportedHtml = async (html: string, fileName?: string) => {
+  if (isComponentDestroyed || isNil(editor.value)) return
+
+  const safeHtml = normalizeImportedHtml(html)
+
+  try {
+    editor.value.commands.clearContent(false)
+    editor.value.commands.setContent(safeHtml, false)
+  } catch (error) {
+    console.error('写入导入内容失败:', error)
+    editor.value.commands.clearContent(false)
+    editor.value.commands.setContent('<p></p>', false)
+    throw new Error('导入内容写入编辑器失败，请检查文件格式是否包含有效文本或块元素')
+  }
+
+  await nextTick()
+
+  requestAnimationFrame(() => {
+    if (isComponentDestroyed || isNil(editor.value)) return
+
+    try {
+      const { doc } = editor.value!.state
+      let targetPos = 1
+      let hasTextBlock = false
+
+      doc.descendants((node, pos) => {
+        if (node.isTextblock && node.content.size > 0) {
+          targetPos = pos + 1
+          hasTextBlock = true
+          return false
+        }
+        return true
+      })
+
+      if (hasTextBlock) {
+        editor.value?.commands.setTextSelection(targetPos)
+        if (props.editable) {
+          editor.value?.commands.focus()
+        }
+      }
+    } catch (focusError) {
+      console.warn('设置光标失败（已忽略）:', focusError)
+    }
+  })
+
+  if (fileName) {
+    ElMessage.success(`成功导入 ${fileName}`)
+  }
+}
+
+// 提取文档标题（优先 h1-h6，否则首段文本）
+const extractDocumentTitle = (html: string): string => {
+  const tempDiv = document.createElement('div')
+  tempDiv.innerHTML = html || ''
+
+  for (let i = 1; i <= 6; i++) {
+    const heading = tempDiv.querySelector(`h${i}`)
+    if (heading && heading.textContent?.trim()) {
+      return heading.textContent.trim()
+    }
+  }
+
+  const firstParagraph = tempDiv.querySelector('p')
+  if (firstParagraph && firstParagraph.textContent?.trim()) {
+    const text = firstParagraph.textContent.trim()
+    return text.length > 30 ? `${text.substring(0, 30)}...` : text
+  }
+
+  return '文档预览'
+}
+
+// 表格选择器状态
+const tablePopoverVisible = ref(false)
+const selectedRows = ref(0)
+const selectedCols = ref(0)
 
 // 编辑器实例
 const editor = useEditor({
@@ -394,7 +745,20 @@ const editor = useEditor({
     TaskList,
     TaskItem.configure({
       nested: true
-    })
+    }),
+    // 表格扩展
+    Table.configure({
+      resizable: true,
+      HTMLAttributes: {
+        class: 'editor-table'
+      }
+    }),
+    TableRow,
+    TableCell,
+    TableHeader,
+    // Markdown 扩展 - 支持 Markdown 内容的解析和序列化
+    // 参考: https://tiptap.dev/docs/editor/markdown
+    Markdown
   ],
   onUpdate: ({ editor }) => {
     // 防止组件销毁后触发回调
@@ -513,6 +877,191 @@ const handleHeading = (level: string) => {
   }
 }
 
+// ==================== 导入功能 ====================
+// 导入 Word 按钮点击
+const handleImportWord = () => {
+  wordFileInputRef.value?.click()
+}
+
+// 导入 Markdown 按钮点击
+const handleImportMarkdown = () => {
+  markdownFileInputRef.value?.click()
+}
+
+// 处理 Word 文件选择
+const handleWordFileChange = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  try {
+    const html = await parseWordDocument(file)
+
+    if (html) {
+      await applyImportedHtml(html, file.name)
+    } else {
+      ElMessage.warning('未解析到可导入的内容')
+    }
+  } catch (error: any) {
+    console.error('导入 Word 文件失败:', error)
+    const message =
+      error?.message?.includes('TextSelection') || error?.message?.includes('inline content')
+        ? '导入内容缺少可编辑的文本，请确认文件是否包含正文'
+        : error?.message || '导入 Word 文件失败，请检查文件格式'
+    ElMessage.error(message)
+  }
+
+  // 清空文件输入，允许重复选择同一文件
+  target.value = ''
+}
+
+// 处理 Markdown 文件选择
+const handleMarkdownFileChange = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  try {
+    const html = await parseMarkdownDocument(file)
+
+    if (html) {
+      await applyImportedHtml(html, file.name)
+    } else {
+      ElMessage.warning('未解析到可导入的内容')
+    }
+  } catch (error: any) {
+    console.error('导入 Markdown 文件失败:', error)
+    const message =
+      error?.message?.includes('TextSelection') || error?.message?.includes('inline content')
+        ? '导入内容缺少可编辑的文本，请确认文件是否包含正文'
+        : error?.message || '导入 Markdown 文件失败，请检查文件格式'
+    ElMessage.error(message)
+  }
+
+  // 清空文件输入，允许重复选择同一文件
+  target.value = ''
+}
+
+// ==================== 导出功能 ====================
+// 导出 Markdown 文件
+const handleExportMarkdown = () => {
+  if (isNil(editor.value)) return
+
+  try {
+    // 获取 Markdown 内容
+    const markdown = editor.value.storage.markdown?.getMarkdown() || ''
+
+    // 使用工具函数导出
+    exportMarkdown(markdown, props.title || '文档')
+
+    ElMessage.success('Markdown 文件导出成功')
+  } catch (error) {
+    console.error('导出文件失败:', error)
+    ElMessage.error('导出文件失败')
+  }
+}
+
+// ==================== 预览功能 ====================
+// 预览当前文档
+const handlePreview = () => {
+  if (isNil(editor.value)) {
+    ElMessage.warning('编辑器未就绪')
+    return
+  }
+
+  const html = editor.value.getHTML()
+  previewContent.value = html
+  documentTitle.value = extractDocumentTitle(html) || props.title || '文档预览'
+  previewZoom.value = 100
+  previewDialogVisible.value = true
+}
+
+// 复制 HTML
+const copyHtml = async () => {
+  try {
+    const html = generateFullHtml()
+    await navigator.clipboard.writeText(html)
+    ElMessage.success('HTML 已复制到剪贴板')
+  } catch (error) {
+    ElMessage.error('复制失败')
+  }
+}
+
+// 下载 HTML
+const downloadHtml = () => {
+  const html = generateFullHtml()
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${props.title || '文档'}.html`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+  ElMessage.success('HTML 已下载')
+}
+
+// 预览控制
+const togglePreviewSidebar = () => {
+  previewSidebarVisible.value = !previewSidebarVisible.value
+}
+
+const togglePreviewFullscreen = () => {
+  if (document.fullscreenElement) {
+    document.exitFullscreen()
+  } else {
+    document.documentElement.requestFullscreen()
+  }
+}
+
+const zoomOut = () => {
+  if (previewZoom.value > 50) {
+    previewZoom.value -= 10
+  }
+}
+
+const zoomIn = () => {
+  if (previewZoom.value < 200) {
+    previewZoom.value += 10
+  }
+}
+
+const fitToWidth = () => {
+  previewZoom.value = 100
+}
+
+// ==================== 表格功能 ====================
+// 选择表格大小
+const selectTableSize = (rows: number, cols: number) => {
+  selectedRows.value = rows
+  selectedCols.value = cols
+}
+
+// 重置表格选择
+const resetTableSelection = () => {
+  selectedRows.value = 0
+  selectedCols.value = 0
+}
+
+// 插入表格
+const insertTable = (rows: number, cols: number) => {
+  if (isNil(editor.value)) return
+
+  editor.value.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run()
+
+  tablePopoverVisible.value = false
+  resetTableSelection()
+}
+
+// ==================== 格式功能 ====================
+// 清除格式
+const clearFormat = () => {
+  if (isNil(editor.value)) return
+
+  editor.value.chain().focus().unsetAllMarks().clearNodes().run()
+}
+
 // 生成完整的 HTML 文档
 const generateFullHtml = () => {
   if (isNil(editor.value)) return ''
@@ -566,9 +1115,10 @@ const generateFullHtml = () => {
       overflow-x: auto;
     }
     pre code { background: transparent; color: inherit; padding: 0; }
-    table { border-collapse: collapse; width: 100%; margin: 1em 0; }
-    th, td { border: 1px solid #e5e7eb; padding: 8px 12px; text-align: left; }
-    th { background: #f9fafb; font-weight: 600; }
+    table { border-collapse: collapse; width: 100%; margin: 1em 0; table-layout: fixed; }
+    th, td { border: 1px solid #e5e7eb; padding: 8px 12px; text-align: left; vertical-align: top; }
+    th { background: #f9fafb; font-weight: 600; color: #374151; }
+    tr:nth-child(even) { background: #f9fafb; }
     a { color: #2563eb; text-decoration: underline; }
     mark { background: #fef08a; padding: 0 2px; }
     strong { font-weight: 600; }
@@ -623,10 +1173,19 @@ onBeforeUnmount(() => {
   bubbleMenuRef.value = null
 })
 
+// 获取 Markdown 内容
+// 使用 @tiptap/markdown 扩展的序列化功能
+const getMarkdown = () => {
+  if (isNil(editor.value)) return ''
+  // Markdown 扩展会自动添加 storage.markdown 对象
+  return editor.value.storage.markdown?.getMarkdown() || ''
+}
+
 // 暴露编辑器实例和方法
 defineExpose({
   editor,
   getHTML: () => editor.value?.getHTML() || '',
+  getMarkdown,
   generateFullHtml
 })
 </script>
@@ -695,6 +1254,18 @@ defineExpose({
     :deep(svg) {
       width: 18px;
       height: 18px;
+    }
+  }
+
+  // 带文字的工具栏按钮
+  .toolbar-btn-text {
+    width: auto;
+    padding: 0 8px;
+    gap: 4px;
+
+    .btn-text {
+      font-size: 12px;
+      white-space: nowrap;
     }
   }
 }
@@ -893,6 +1464,65 @@ defineExpose({
       height: 0;
       pointer-events: none;
     }
+
+    // 表格样式
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 1em 0;
+      table-layout: fixed;
+      overflow: hidden;
+
+      td,
+      th {
+        border: 1px solid #e5e7eb;
+        padding: 8px 12px;
+        text-align: left;
+        vertical-align: top;
+        position: relative;
+        min-width: 80px;
+        box-sizing: border-box;
+
+        > * {
+          margin: 0;
+        }
+      }
+
+      th {
+        background: #f9fafb;
+        font-weight: 600;
+        color: #374151;
+      }
+
+      // 选中的单元格
+      .selectedCell:after {
+        background: rgba(37, 99, 235, 0.1);
+        content: '';
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        pointer-events: none;
+        position: absolute;
+        z-index: 2;
+      }
+
+      // 列调整手柄
+      .column-resize-handle {
+        background-color: #2563eb;
+        bottom: -2px;
+        pointer-events: none;
+        position: absolute;
+        right: -2px;
+        top: 0;
+        width: 4px;
+      }
+
+      // 表格调整手柄
+      .resize-cursor {
+        cursor: col-resize;
+      }
+    }
   }
 }
 
@@ -1057,5 +1687,428 @@ defineExpose({
   height: 20px;
   background: #e5e7eb;
   margin: 0 4px;
+}
+
+// ==================== 表格网格选择器样式 ====================
+.table-grid-selector {
+  padding: 8px;
+}
+
+.table-grid-header {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.table-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px;
+  background: #f9fafb;
+  border-radius: 6px;
+}
+
+.table-grid-row {
+  display: flex;
+  gap: 3px;
+}
+
+.table-grid-cell {
+  width: 20px;
+  height: 20px;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.1s ease;
+
+  &:hover {
+    border-color: #2563eb;
+  }
+
+  &.selected {
+    background: #dbeafe;
+    border-color: #2563eb;
+  }
+}
+
+.table-grid-footer {
+  font-size: 12px;
+  color: #6b7280;
+  text-align: center;
+  margin-top: 8px;
+  min-height: 18px;
+}
+
+// ==================== 预览对话框样式 ====================
+.preview-tabs {
+  margin-bottom: 16px;
+}
+
+.html-source {
+  background: #1f2937;
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+
+  pre {
+    margin: 0;
+    color: #f9fafb;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+}
+
+:deep(.preview-dialog) {
+  .el-dialog__body {
+    padding: 16px;
+  }
+
+  .dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+  }
+}
+// ==================== 文档预览样式（对齐训练文档预览） ====================
+::global(.document-preview-dialog) {
+  .el-dialog__header {
+    padding: 0;
+    margin: 0;
+  }
+
+  .el-dialog__body {
+    padding: 0;
+    height: calc(100vh - 100px);
+    background: #f0f0f0;
+  }
+
+  .el-dialog__footer {
+    padding: 0;
+    border-top: 1px solid #e0e0e0;
+  }
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 16px;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .menu-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #333;
+
+      &:hover {
+        background: #f0f0f0;
+      }
+
+      :deep(svg) {
+        width: 24px;
+        height: 24px;
+      }
+    }
+
+    .doc-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: #333;
+    }
+  }
+
+  .header-right {
+    .close-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #666;
+
+      &:hover {
+        background: #f0f0f0;
+        color: #333;
+      }
+
+      :deep(svg) {
+        width: 24px;
+        height: 24px;
+      }
+    }
+  }
+}
+
+.preview-body {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  height: 100%;
+  overflow: auto;
+  padding: 40px 20px;
+  background: #e8eaed;
+}
+
+.preview-content-wrapper {
+  transform-origin: top center;
+}
+
+.preview-page {
+  width: 794px;
+  min-height: 1123px;
+  background: #fff;
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.1),
+    0 0 1px rgba(0, 0, 0, 0.1);
+  padding: 96px 120px;
+  transform-origin: top center;
+  position: relative;
+
+  // 页面边角装饰
+  &::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 30px;
+    height: 30px;
+    border-left: 2px solid #ccc;
+    border-top: 2px solid #ccc;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 30px;
+    height: 30px;
+    border-right: 2px solid #ccc;
+    border-top: 2px solid #ccc;
+  }
+}
+
+.preview-text-content {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #333;
+
+  :deep(h1) {
+    font-size: 2em;
+    font-weight: 700;
+    margin: 0.67em 0;
+    color: #1a1a1a;
+  }
+
+  :deep(h2) {
+    font-size: 1.5em;
+    font-weight: 600;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    color: #2a2a2a;
+  }
+
+  :deep(h3) {
+    font-size: 1.25em;
+    font-weight: 600;
+    margin-top: 1.2em;
+    margin-bottom: 0.5em;
+    color: #3a3a3a;
+  }
+
+  :deep(p) {
+    margin: 1em 0;
+  }
+
+  :deep(ul),
+  :deep(ol) {
+    padding-left: 2em;
+    margin: 1em 0;
+  }
+
+  :deep(blockquote) {
+    border-left: 4px solid #2563eb;
+    padding-left: 1em;
+    margin: 1em 0;
+    color: #666;
+    font-style: italic;
+    background: #f8fafc;
+    padding: 0.5em 1em;
+  }
+
+  :deep(code) {
+    background: #f3f4f6;
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.9em;
+  }
+
+  :deep(pre) {
+    background: #1f2937;
+    color: #f9fafb;
+    padding: 1em;
+    border-radius: 8px;
+    overflow-x: auto;
+  }
+
+  :deep(table) {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1em 0;
+  }
+
+  :deep(th),
+  :deep(td) {
+    border: 1px solid #e5e7eb;
+    padding: 8px 12px;
+  }
+
+  :deep(th) {
+    background: #f9fafb;
+    font-weight: 600;
+  }
+
+  :deep(img) {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+  }
+
+  :deep(a) {
+    color: #2563eb;
+    text-decoration: underline;
+  }
+}
+
+.preview-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 16px;
+  background: #fff;
+
+  .footer-left {
+    .sidebar-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #666;
+      font-size: 13px;
+
+      &:hover {
+        background: #f0f0f0;
+        color: #333;
+      }
+
+      :deep(svg) {
+        width: 18px;
+        height: 18px;
+      }
+    }
+  }
+
+  .footer-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .zoom-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #666;
+
+      &:hover {
+        background: #f0f0f0;
+        color: #333;
+      }
+
+      :deep(svg) {
+        width: 18px;
+        height: 18px;
+      }
+
+      &.fit-btn {
+        :deep(svg) {
+          width: 20px;
+          height: 20px;
+        }
+      }
+    }
+
+    .zoom-slider {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+
+      .zoom-slider-input {
+        width: 100px;
+
+        :deep(.el-slider__runway) {
+          height: 4px;
+          background: #e0e0e0;
+        }
+
+        :deep(.el-slider__bar) {
+          height: 4px;
+          background: #1a73e8;
+        }
+
+        :deep(.el-slider__button) {
+          width: 12px;
+          height: 12px;
+          border: 2px solid #1a73e8;
+        }
+      }
+    }
+
+    .zoom-value {
+      min-width: 45px;
+      font-size: 13px;
+      color: #666;
+      text-align: right;
+    }
+  }
 }
 </style>

@@ -36,7 +36,7 @@ const generateMockId = () => ++mockIdCounter
 /**
  * 审核状态枚举（编辑中:1、审核中:2、审核通过:3、发布:4、驳回:5）
  */
-const AuditStatus = {
+const ApplyNode = {
   EDITING: '1', // 编辑中
   REVIEWING: '2', // 审核中
   APPROVED: '3', // 审核通过
@@ -62,7 +62,7 @@ const mockDataList: TrainingPerformanceVO[] = [
     exerciseTheme: '联合作战',
     docType: 'docx',
     createBy: 'admin',
-    applyNode: AuditStatus.EDITING, // 编辑中
+    applyNode: ApplyNode.EDITING, // 编辑中
     createTime: '2024-12-10 09:30:00',
     updateTime: '2024-12-12 14:20:00',
     delFlg: '0'
@@ -81,7 +81,7 @@ const mockDataList: TrainingPerformanceVO[] = [
     exerciseTheme: '战略演练',
     docType: 'docx',
     createBy: 'staff_b',
-    applyNode: AuditStatus.REVIEWING, // 审核中
+    applyNode: ApplyNode.REVIEWING, // 审核中
     createTime: '2024-12-08 10:00:00',
     updateTime: '2024-12-11 16:45:00',
     delFlg: '0'
@@ -100,7 +100,7 @@ const mockDataList: TrainingPerformanceVO[] = [
     exerciseTheme: '网络安全',
     docType: 'docx',
     createBy: 'admin',
-    applyNode: AuditStatus.APPROVED, // 审核通过
+    applyNode: ApplyNode.APPROVED, // 审核通过
     createTime: '2024-12-05 08:30:00',
     updateTime: '2024-12-10 11:20:00',
     delFlg: '0'
@@ -119,7 +119,7 @@ const mockDataList: TrainingPerformanceVO[] = [
     exerciseTheme: '后勤保障',
     docType: 'docx',
     createBy: 'staff_a',
-    applyNode: AuditStatus.PUBLISHED, // 发布
+    applyNode: ApplyNode.PUBLISHED, // 发布
     createTime: '2024-12-01 14:00:00',
     updateTime: '2024-12-09 09:15:00',
     delFlg: '0'
@@ -138,7 +138,7 @@ const mockDataList: TrainingPerformanceVO[] = [
     exerciseTheme: '电磁管控',
     docType: 'docx',
     createBy: 'admin',
-    applyNode: AuditStatus.REJECTED, // 驳回
+    applyNode: ApplyNode.REJECTED, // 驳回
     createTime: '2024-11-28 11:30:00',
     updateTime: '2024-12-08 15:40:00',
     delFlg: '0'
@@ -157,7 +157,7 @@ const mockDataList: TrainingPerformanceVO[] = [
     exerciseTheme: '后勤保障',
     docType: 'docx',
     createBy: 'staff_a',
-    applyNode: AuditStatus.REVIEWING, // 审核中
+    applyNode: ApplyNode.REVIEWING, // 审核中
     createTime: '2024-11-28 11:30:00',
     updateTime: '2024-12-08 15:40:00',
     delFlg: '0'
@@ -176,7 +176,7 @@ const mockDataList: TrainingPerformanceVO[] = [
     exerciseTheme: '太空作战',
     docType: 'docx', // 文档类型
     createBy: 'staff_a', // 创建人
-    applyNode: AuditStatus.REJECTED, // 驳回
+    applyNode: ApplyNode.REJECTED, // 驳回
     createTime: '2024-11-28 11:30:00',
     updateTime: '2024-12-08 15:40:00',
     delFlg: '0'
@@ -345,10 +345,10 @@ export const getPageList = async (params: TrainingPerformancePageReqVO) => {
   // tabType=publish: 只显示发布(4)
   if (params.tabType === 'review') {
     filteredList = filteredList.filter((item) =>
-      [AuditStatus.REVIEWING, AuditStatus.APPROVED].includes(item.applyNode || '')
+      [ApplyNode.REVIEWING, ApplyNode.APPROVED].includes(item.applyNode || '')
     )
   } else if (params.tabType === 'publish') {
-    filteredList = filteredList.filter((item) => item.applyNode === AuditStatus.PUBLISHED)
+    filteredList = filteredList.filter((item) => item.applyNode === ApplyNode.PUBLISHED)
   }
 
   // 分页
@@ -385,7 +385,7 @@ export const createNewData = async (data: TrainingPerformanceVO) => {
   const newItem: TrainingPerformanceVO = {
     ...data,
     id: String(generateMockId()),
-    applyNode: AuditStatus.EDITING, // 编辑中
+    applyNode: ApplyNode.EDITING, // 编辑中
     createTime: new Date().toLocaleString('zh-CN'),
     updateTime: new Date().toLocaleString('zh-CN'),
     delFlg: '0'
@@ -458,7 +458,7 @@ export const submitAudit = async (data: SubmitAuditReqVO) => {
 
   const index = mockDataList.findIndex((item) => item.id === data.id)
   if (index !== -1) {
-    mockDataList[index].applyNode = AuditStatus.REVIEWING // 审核中
+    mockDataList[index].applyNode = ApplyNode.REVIEWING // 审核中
     mockDataList[index].flowId = data.flowId
     mockDataList[index].updateTime = new Date().toLocaleString('zh-CN')
 
@@ -484,7 +484,7 @@ export const publishDocument = async (data: PublishDocReqVO) => {
 
   const index = mockDataList.findIndex((item) => item.id === data.id)
   if (index !== -1) {
-    mockDataList[index].applyNode = AuditStatus.PUBLISHED // 发布
+    mockDataList[index].applyNode = ApplyNode.PUBLISHED // 发布
     mockDataList[index].updateTime = new Date().toLocaleString('zh-CN')
 
     return {
@@ -562,7 +562,7 @@ export const rejectTrainingPerformance = async (data: RejectReqVO) => {
 
   const index = mockDataList.findIndex((item) => item.id === data.id)
   if (index !== -1) {
-    mockDataList[index].applyNode = AuditStatus.REJECTED // 驳回
+    mockDataList[index].applyNode = ApplyNode.REJECTED // 驳回
     mockDataList[index].updateTime = new Date().toLocaleString('zh-CN')
 
     // 添加驳回记录
@@ -638,10 +638,10 @@ export const examApply = async (data: ExamApplyReqVO) => {
     // 更新审核状态
     if (data.examResult === '1') {
       // 审核通过
-      mockDataList[index].applyNode = AuditStatus.APPROVED
+      mockDataList[index].applyNode = ApplyNode.APPROVED
     } else if (data.examResult === '2') {
       // 驳回
-      mockDataList[index].applyNode = AuditStatus.REJECTED
+      mockDataList[index].applyNode = ApplyNode.REJECTED
     }
     mockDataList[index].updateTime = new Date().toLocaleString('zh-CN')
 

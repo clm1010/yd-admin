@@ -11,6 +11,7 @@ import {
   downloadBlob,
   DocumentExportInfo
 } from '@/utils/documentExport'
+import type { ElementItem } from '@/api/template/management/types'
 
 // 提交审核请求参数接口
 export interface SubmitAuditReqVO {
@@ -325,3 +326,36 @@ const examApplyMock = async (data: ExamApplyReqVO): Promise<ExamApplyResponse> =
  * @param data 审核/驳回参数 { applyId, examResult, examOpinion, examUserId }
  */
 export const examApply = USE_MOCK ? examApplyMock : examApplyJava
+
+// ==================== 自定义要素 API ====================
+
+/**
+ * 获取自定义要素列表 - Java 后端
+ * GET /api/getPlan/getElement
+ * @param id 记录ID
+ */
+const getElementListJava = async (id: string): Promise<ElementItem[]> => {
+  try {
+    const res = await javaRequest.get<{ data?: ElementItem[] }>('/api/getPlan/getElement', { id })
+    return (res as any)?.data || (res as any) || []
+  } catch (error) {
+    console.error('获取要素列表失败:', error)
+    return []
+  }
+}
+
+/**
+ * 获取自定义要素列表 - Mock 实现
+ * @param id 记录ID
+ */
+const getElementListMock = async (id: string): Promise<ElementItem[]> => {
+  const { getElementList } = await import('@/mock/template/management')
+  return getElementList(id)
+}
+
+/**
+ * 获取自定义要素列表（自动切换 Mock/Java）
+ * GET /api/getPlan/getElement
+ * @param id 记录ID
+ */
+export const getElementList = USE_MOCK ? getElementListMock : getElementListJava

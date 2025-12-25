@@ -76,9 +76,8 @@
       <div class="w-[300px] flex-shrink-0 border-l border-gray-200 bg-white h-full z-10 shadow-sm">
         <MarkdownCollaborationPanel
           :collaborators="collaborators"
-          :materials="referenceMaterials"
+          :elements="customElements"
           :properties="docProperties"
-          @click-material="handleMaterialClick"
         />
       </div>
 
@@ -109,43 +108,6 @@
         </template>
       </el-dialog>
 
-      <!-- 参考素材抽屉 (无遮罩，从协同面板左侧滑出) -->
-      <el-drawer
-        v-model="drawerVisible"
-        :title="currentMaterial?.title || '参考素材'"
-        :modal="false"
-        :lock-scroll="false"
-        :append-to-body="true"
-        modal-class="material-drawer-overlay"
-        :close-on-click-modal="false"
-        direction="rtl"
-        class="material-drawer"
-        :show-close="true"
-        :style="{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          width: '500px',
-          height: '100%'
-        }"
-      >
-        <div v-if="currentMaterial" class="h-full flex flex-col">
-          <div class="text-xs text-gray-400 mb-4 flex justify-between">
-            <span>发布时间: {{ currentMaterial.date }}</span>
-            <span>作者: {{ currentMaterial.author }}</span>
-          </div>
-          <div
-            class="prose prose-sm flex-1 overflow-y-auto border p-3 rounded bg-gray-50 mb-4"
-            v-html="currentMaterial.content"
-          ></div>
-          <div class="flex justify-end gap-2">
-            <el-button type="primary" @click="copyContent(currentMaterial.content)">
-              复制内容
-            </el-button>
-            <el-button @click="drawerVisible = false">关闭</el-button>
-          </div>
-        </div>
-      </el-drawer>
     </div>
 
     <!-- 审核流配置弹窗 -->
@@ -175,13 +137,14 @@ import MarkdownEditor from './components/MarkdownEditor.vue'
 import { useCollaborationUserStore } from '@/store/modules/collaborationUser'
 import { defaultMarkdownConfig } from './config/markdownConfig'
 import {
-  getReferenceMaterials,
   saveMarkdownFile,
   submitAudit,
   examApply,
+  getElementList,
   type MarkdownDocumentInfo,
   type SubmitAuditReqVO
 } from './api/markdownApi'
+import type { ElementItem } from '@/api/template/management/types'
 
 // Props
 interface Props {
@@ -235,8 +198,8 @@ let isComponentDestroyed = false // 标记组件是否已销毁
 let hasShownConnectedMessage = false // 是否已显示连接成功消息
 let hasShownSyncedMessage = false // 是否已显示同步完成消息
 
-// 参考素材
-const referenceMaterials = ref<any[]>([])
+// 自定义要素
+const customElements = ref<ElementItem[]>([])
 
 // 文档属性 - 使用与 document 一致的格式
 const docProperties = computed(() => ({
@@ -249,10 +212,6 @@ const docProperties = computed(() => ({
   version: documentInfo.value?.version || 'V1.0',
   tags: documentInfo.value?.tags || []
 }))
-
-// 抽屉状态
-const drawerVisible = ref(false)
-const currentMaterial = ref<any>(null)
 
 // 审核弹窗
 const auditDialogVisible = ref(false)
@@ -299,12 +258,6 @@ const userOptions = [
 let ydoc: Y.Doc | null = null
 let provider: WebsocketProvider | null = null
 let syncTimeoutId: ReturnType<typeof setTimeout> | null = null // 用于清理 setTimeout
-
-// 处理素材点击
-const handleMaterialClick = (item: any) => {
-  currentMaterial.value = item
-  drawerVisible.value = true
-}
 
 // 复制内容
 const copyContent = (html: string) => {
@@ -888,8 +841,8 @@ const loadDocument = async () => {
       }
     }
 
-    // 加载参考素材
-    referenceMaterials.value = await getReferenceMaterials(documentId.value)
+    // 加载自定义要素
+    customElements.value = await getElementList(documentId.value)
   } catch (error) {
     console.error('加载文档失败:', error)
     // 确保即使出错也有默认值
@@ -981,9 +934,8 @@ onBeforeUnmount(() => {
 
   // 清理其他响应式引用
   collaborators.value = []
-  referenceMaterials.value = []
+  customElements.value = []
   documentInfo.value = null
-  currentMaterial.value = null
   initialMarkdownContent.value = ''
 
   console.log('Markdown 协同编辑组件已清理')

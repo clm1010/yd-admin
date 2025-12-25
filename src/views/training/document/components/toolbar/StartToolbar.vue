@@ -127,13 +127,13 @@
       <ColorPicker
         v-model="textColor"
         icon="mdi:format-color-text"
-        title="文字颜色"
+        title="字体颜色"
         @change="handleTextColor"
       />
       <ColorPicker
         v-model="highlightColor"
         icon="mdi:format-color-highlight"
-        title="高亮颜色"
+        title="字体背景颜色"
         @change="handleHighlightColor"
       />
     </div>
@@ -521,7 +521,10 @@ import {
   isZipFormat,
   validateDocxFile,
   parseOoxmlDocument,
-  parseRedHeadDocument
+  parseRedHeadDocument,
+  smartParseDocument,
+  parseWithDocxPreview,
+  parseOoxmlDocumentEnhanced
 } from '../../utils/wordParser'
 
 // 获取编辑器实例
@@ -796,30 +799,57 @@ const handleWordFileSelect = async (uploadFile: any) => {
     // 2. 保存 ArrayBuffer 供后续使用
     wordArrayBuffer.value = arrayBuffer
 
-    // 3. 自动检测文件类型并直接开始解析
+    // 3. 使用智能策略选择最佳解析方案
     importProgress.value = 20
     importProgressText.value = '正在解析文档...'
 
     let html: string
 
-    if (validation.hasAltChunk) {
-      // 红头文件：altChunk HTML 提取
-      console.log('检测到红头文件，使用红头文件方案解析')
-      html = await parseRedHeadDocument(arrayBuffer, updateProgress)
-    } else {
-      // 普通文件：OOXML 完整解析
-      console.log('检测到普通文档，使用 OOXML 方案解析')
-      html = await parseOoxmlDocument(arrayBuffer, updateProgress)
+    // 使用智能解析策略，根据文件大小和类型自动选择最佳方案
+    // - 小文件 (<2MB): docx-preview 高保真解析
+    // - 中等文件 (2-5MB): docx-preview 高保真解析
+    // - 大文件 (>5MB): Web Worker 非阻塞解析
+    // - 红头文件: altChunk HTML 提取
+    try {
+      html = await smartParseDocument(file, arrayBuffer, updateProgress)
+      console.log('智能解析完成，原始HTML长度:', html?.length || 0)
+    } catch (e) {
+      console.warn('智能解析失败，尝试后备方案:', e)
+      // 回退到原有的解析方案
+      if (validation.hasAltChunk) {
+        console.log('回退到红头文件方案')
+        html = await parseRedHeadDocument(arrayBuffer, updateProgress)
+      } else {
+        console.log('回退到 OOXML 方案')
+        html = await parseOoxmlDocument(arrayBuffer, updateProgress)
+      }
+      console.log('后备方案解析完成，HTML长度:', html?.length || 0)
+    }
+
+    // 检查解析结果
+    if (!html || html.trim().length < 20) {
+      console.warn('解析结果过短，尝试 mammoth 后备方案')
+      await parseWithMammothFallback()
+      return
     }
 
     // 清理和优化 HTML
+    const beforeCleanLength = html.length
     html = cleanWordHtml(html)
+    console.log(`cleanWordHtml: ${beforeCleanLength} -> ${html.length}`)
+
+    // 再次检查
+    if (!html || html.trim().length < 20) {
+      console.warn('cleanWordHtml 后内容过短，尝试 mammoth 后备方案')
+      await parseWithMammothFallback()
+      return
+    }
 
     wordImportPreview.value = html
     importProgress.value = 100
     importProgressText.value = '解析完成'
 
-    console.log(`使用 ${validation.hasAltChunk ? '红头文件' : 'OOXML'} 方案解析成功`)
+    console.log('Word 文档解析成功，最终HTML长度:', html.length)
   } catch (error) {
     console.error('Word解析失败:', error)
 
@@ -950,7 +980,24 @@ const parseWithMammothFallback = async () => {
 
 // 清理 Word 导出的 HTML - 保持更好的排版和样式
 const cleanWordHtml = (html: string): string => {
-  // === 首先处理颜色样式，确保 Tiptap 能正确解析 ===
+  const originalHtml = html
+  const originalLength = html.length
+
+  // === 首先清理开头的空白和空段落 - 解决"总是空出一行"的问题 ===
+  html = html.trim()
+  // 移除开头的空段落（但保护内容不被完全清除）
+  const beforeClean = html
+  html = html.replace(/^(\s*<p[^>]*>\s*(<br\s*\/?>)?\s*<\/p>\s*)+/gi, '')
+  // 移除开头的空白字符
+  html = html.replace(/^\s+/, '')
+
+  // 安全检查：如果清理后内容为空，恢复
+  if (!html.trim()) {
+    console.warn('cleanWordHtml: 清理开头空段落后内容为空，恢复原始内容')
+    html = beforeClean
+  }
+
+  // === 处理颜色样式，确保 Tiptap 能正确解析 ===
 
   // 转换 font 标签为 span（Tiptap 不支持 font 标签）
   html = html.replace(
@@ -1163,7 +1210,14 @@ const cleanWordHtml = (html: string): string => {
   // Tiptap 只能识别 span 标签上的 TextStyle（color, font-size, font-family）
   html = convertBlockStylesToInline(html)
 
-  return html.trim()
+  // 最终安全检查：如果处理后内容太短，恢复原始内容
+  const finalHtml = html.trim()
+  if (finalHtml.length < originalLength * 0.1 && originalLength > 100) {
+    console.warn('cleanWordHtml: 处理后内容过短，恢复原始内容')
+    return originalHtml
+  }
+
+  return finalHtml
 }
 
 /**
@@ -1171,67 +1225,74 @@ const cleanWordHtml = (html: string): string => {
  * Tiptap 只能识别 mark 级别（span）的 TextStyle，不能识别 block 级别的
  */
 const convertBlockStylesToInline = (html: string): string => {
-  // 匹配带有文本样式的 p 或 div 标签
-  const blockStyleRegex =
-    /<(p|div)([^>]*?)style="([^"]*?)(color:\s*[^;]+|font-size:\s*[^;]+|font-family:\s*[^;]+)([^"]*?)"([^>]*?)>([\s\S]*?)<\/\1>/gi
+  try {
+    // 使用 DOM 解析器更可靠地处理 HTML
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(`<div id="root">${html}</div>`, 'text/html')
+    const root = doc.getElementById('root')
 
-  let result = html
-  let match
+    if (!root) return html
 
-  // 循环处理所有匹配（避免正则递归问题）
-  while ((match = blockStyleRegex.exec(html)) !== null) {
-    const [fullMatch, tag, beforeStyle, stylePrefix, textStyle, styleSuffix, afterStyle, content] =
-      match
+    // 处理所有块级元素（包括段落、div 和标题）
+    const blockElements = root.querySelectorAll('p, div, h1, h2, h3, h4, h5, h6')
 
-    // 提取所有文本相关样式
-    const fullStyle = stylePrefix + textStyle + styleSuffix
-    const textStyles: string[] = []
+    blockElements.forEach((element) => {
+      const style = element.getAttribute('style')
+      if (!style) return
 
-    // 提取 color
-    const colorMatch = fullStyle.match(/color:\s*([^;]+)/i)
-    if (colorMatch) {
-      textStyles.push(`color: ${colorMatch[1].trim()}`)
-    }
+      // 提取文本相关样式
+      const textStyles: string[] = []
+      const blockStyles: string[] = []
 
-    // 提取 font-size
-    const fontSizeMatch = fullStyle.match(/font-size:\s*([^;]+)/i)
-    if (fontSizeMatch) {
-      textStyles.push(`font-size: ${fontSizeMatch[1].trim()}`)
-    }
+      // 解析样式
+      style.split(';').forEach((s) => {
+        const trimmed = s.trim()
+        if (!trimmed) return
 
-    // 提取 font-family
-    const fontFamilyMatch = fullStyle.match(/font-family:\s*([^;]+)/i)
-    if (fontFamilyMatch) {
-      textStyles.push(`font-family: ${fontFamilyMatch[1].trim()}`)
-    }
+        if (
+          trimmed.match(/^color:/i) ||
+          trimmed.match(/^font-size:/i) ||
+          trimmed.match(/^font-family:/i)
+        ) {
+          textStyles.push(trimmed)
+        } else {
+          blockStyles.push(trimmed)
+        }
+      })
 
-    // 如果有文本样式，用 span 包装内容
-    if (textStyles.length > 0) {
-      // 移除块级元素上的文本样式，保留其他样式（如 text-align）
-      const cleanedBlockStyle = fullStyle
-        .replace(/color:\s*[^;]+;?\s*/gi, '')
-        .replace(/font-size:\s*[^;]+;?\s*/gi, '')
-        .replace(/font-family:\s*[^;]+;?\s*/gi, '')
-        .replace(/;\s*;/g, ';')
-        .replace(/^\s*;\s*/g, '')
-        .replace(/\s*;\s*$/g, '')
-        .trim()
+      // 如果有文本样式需要转移
+      if (textStyles.length > 0) {
+        // 更新块级元素的样式（只保留非文本样式）
+        if (blockStyles.length > 0) {
+          element.setAttribute('style', blockStyles.join('; '))
+        } else {
+          element.removeAttribute('style')
+        }
 
-      const blockStyleAttr = cleanedBlockStyle ? ` style="${cleanedBlockStyle}"` : ''
-      const spanStyle = textStyles.join('; ')
+        // 如果内容不为空，用 span 包装
+        const innerHTML = element.innerHTML.trim()
+        if (innerHTML && innerHTML !== '<br>') {
+          // 检查是否已经有带样式的 span
+          const hasStyledSpan = innerHTML.match(/<span[^>]*style="[^"]*"/i)
+          if (hasStyledSpan) {
+            // 将样式添加到现有的 span
+            element.innerHTML = innerHTML.replace(
+              /(<span[^>]*style=")([^"]*")([^>]*>)/gi,
+              `$1${textStyles.join('; ')}; $2$3`
+            )
+          } else {
+            // 用新的 span 包装内容
+            element.innerHTML = `<span style="${textStyles.join('; ')}">${innerHTML}</span>`
+          }
+        }
+      }
+    })
 
-      // 如果内容不是空的，用 span 包装
-      const wrappedContent =
-        content.trim() && !content.includes('<span')
-          ? `<span style="${spanStyle}">${content}</span>`
-          : content.replace(/(<span[^>]*style=")([^"]*?)(")/gi, `$1${spanStyle}; $2$3`)
-
-      const replacement = `<${tag}${beforeStyle}${blockStyleAttr}${afterStyle}>${wrappedContent}</${tag}>`
-      result = result.replace(fullMatch, replacement)
-    }
+    return root.innerHTML
+  } catch (e) {
+    console.warn('convertBlockStylesToInline 处理失败:', e)
+    return html // 出错时返回原始内容
   }
-
-  return result
 }
 
 // 确认导入 Word
@@ -1249,68 +1310,93 @@ const confirmWordImport = async () => {
       return
     }
 
+    console.log('原始预览内容长度:', content.length)
+
+    // 清理开头的空段落和空白 - 解决"总是空出一行"的问题
+    // 但要小心不要删除所有内容
+    const beforeClean = content
+    content = content.replace(/^(\s*<p[^>]*>\s*(<br\s*\/?>)?\s*<\/p>\s*)+/gi, '')
+    content = content.replace(/^\s+/, '')
+
+    // 如果清理后内容为空，恢复原始内容
+    if (!content.trim()) {
+      console.warn('清理后内容为空，恢复原始内容')
+      content = beforeClean
+    }
+
     // 如果内容不是以块级元素开始，包装在段落中
-    if (!content.match(/^<(p|h[1-6]|ul|ol|blockquote|pre|table|div)/i)) {
+    if (!content.match(/^<(p|h[1-6]|ul|ol|blockquote|pre|table|div|span)/i)) {
       content = `<p>${content}</p>`
     }
 
-    // 只在末尾追加空段落，避免开头空行问题
-    content += '<p></p>'
-
-    // 第一步：先清空文档，确保从干净状态开始
-    editor.value.commands.clearContent(false)
-
-    // 等待清空操作完成
-    await nextTick()
-
-    // 第二步：设置新内容
-    try {
-      editor.value.commands.setContent(content, false)
-    } catch (setContentError) {
-      // 如果第一次设置失败，等待后再尝试一次
-      console.warn('setContent 第一次失败，准备重试...', setContentError)
-      await new Promise<void>((resolve) => setTimeout(() => resolve(), 100))
-      editor.value.commands.setContent(content, false)
+    // 确保内容末尾有一个空段落（Tiptap 需要）
+    if (!content.match(/<p[^>]*>\s*(<br\s*\/?>)?\s*<\/p>\s*$/i)) {
+      content += '<p></p>'
     }
 
-    // 等待内容设置完成
-    await nextTick()
+    console.log('处理后内容长度:', content.length)
+    console.log('内容前100字符:', content.substring(0, 100))
 
-    // 使用多个 requestAnimationFrame 确保 DOM 和编辑器状态完全稳定
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-
-    // 第三步：安全地设置光标位置到第一个有内容的文本块
+    // 使用 setContent 设置内容，emitUpdate=false 避免触发不必要的更新
     try {
-      if (editor.value && editor.value.state.doc.content.size > 0) {
+      // 先清空编辑器
+      editor.value.commands.clearContent(false)
+      await nextTick()
+
+      // 设置新内容
+      editor.value.commands.setContent(content, false, {
+        preserveWhitespace: 'full'
+      })
+      await nextTick()
+
+      // 等待 DOM 更新
+      await new Promise((resolve) => setTimeout(resolve, 100))
+
+      // 安全地设置光标位置到文档开始
+      try {
         const { doc } = editor.value.state
-        let targetPos = 1
-
-        // 遍历文档，找到第一个非空的文本块
-        doc.descendants((node, pos) => {
-          if (node.isTextblock) {
-            // 如果是空段落（只有换行或完全为空），跳过
-            if (node.textContent.trim().length === 0) {
-              return true // 继续遍历
-            }
-            // 找到第一个有内容的文本块
-            targetPos = pos + 1
-            return false // 停止遍历
+        if (doc.content.size > 0) {
+          // 找到第一个可以放置光标的位置
+          const firstPos = doc.resolve(1)
+          if (firstPos) {
+            editor.value.commands.setTextSelection(1)
           }
-        })
-
-        // 设置光标位置
-        editor.value.commands.setTextSelection(targetPos)
+        }
+      } catch (focusErr) {
+        // 忽略光标设置错误
+        console.log('光标设置忽略:', focusErr)
       }
-    } catch (focusError) {
-      // 如果设置光标失败，忽略错误，不影响导入结果
-      console.warn('设置光标位置失败（可忽略）:', focusError)
+    } catch (setContentError) {
+      console.error('setContent 失败:', setContentError)
+
+      // 备用方案：使用 insertContent
+      try {
+        editor.value.commands.clearContent(false)
+        await nextTick()
+        editor.value.commands.insertContent(content)
+        await nextTick()
+      } catch (insertError) {
+        console.error('insertContent 也失败:', insertError)
+        throw insertError
+      }
+    }
+
+    // 验证内容是否成功设置
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    const finalContent = editor.value.getHTML()
+    console.log('最终编辑器内容长度:', finalContent.length)
+
+    if (finalContent.length < 30) {
+      console.error('内容可能未成功导入，当前内容:', finalContent)
+      ElMessage.warning('内容可能未完全导入，请检查编辑器')
+    } else {
+      ElMessage.success('Word 文档已成功导入')
     }
 
     wordImportDialogVisible.value = false
     wordImportPreview.value = ''
     wordImportFile.value = null
-    ElMessage.success('Word 文档已成功导入')
+    wordArrayBuffer.value = null
   } catch (error) {
     console.error('Word导入失败:', error)
     ElMessage.error('导入失败: ' + (error as Error).message)
@@ -1889,6 +1975,17 @@ const printDocument = () => {
       }
       :deep(p) {
         margin: 0.5em 0;
+      }
+      // 确保段落和 span 能正确显示自定义样式
+      :deep(p[style]),
+      :deep(span[style]) {
+        // 允许自定义颜色和字号覆盖默认样式
+        all: revert;
+        margin: 0.5em 0;
+        display: inline;
+      }
+      :deep(p[style]) {
+        display: block;
       }
       :deep(table) {
         border-collapse: collapse;

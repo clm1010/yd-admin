@@ -587,6 +587,7 @@ import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import { Search, ArrowDown } from '@element-plus/icons-vue'
 import { useCollaborationUserStore } from '@/store/modules/collaborationUser'
 import AuditFlowDialog from '@/components/AuditFlowDialog/index.vue'
+import { saveDocContent } from '@/utils/docStorage'
 import {
   isEmpty,
   isArray,
@@ -655,7 +656,7 @@ const getList = async () => {
 
     console.log('查询参数:', params)
     const data = await PerformanceApi.getPageList(params as any)
-    list.value = data.records || []
+    list.value = data.records || data || []
     total.value = data.total || 0
     // list.value = [
     //   {
@@ -1160,6 +1161,8 @@ const handleSave = async () => {
       activeUser: formData.editableUser.join(',') // 映射 activeUser -> activeUser
     }
 
+    console.log(saveData, 'saveData------')
+
     await PerformanceApi.createNewData(saveData as PerformanceApi.TrainingPerformanceVO)
     ElMessage.success('创建成功')
 
@@ -1244,7 +1247,7 @@ const handleEdit = async (row: any) => {
     let hasContent = false
     if (streamResult && streamResult.size > 0) {
       console.log('文件流有效, size:', streamResult.size, 'type:', streamResult.type)
-      // 将 blob 转为 base64 存储到 sessionStorage
+      // 将 blob 转为 base64 存储到 IndexedDB（避免 sessionStorage 配额限制）
       const base64Content = await blobToBase64(streamResult)
       console.log(
         'base64 转换完成, 长度:',
@@ -1252,9 +1255,9 @@ const handleEdit = async (row: any) => {
         '前100字符:',
         base64Content.substring(0, 100)
       )
-      sessionStorage.setItem(`doc_content_${row.id}`, base64Content)
+      await saveDocContent(row.id, base64Content)
       hasContent = true
-      console.log('文件流已存储到 sessionStorage, key:', `doc_content_${row.id}`)
+      console.log('文件流已存储到 IndexedDB, key:', `doc_content_${row.id}`)
     } else {
       console.warn('文件流为空或无效:', streamResult)
     }
@@ -1546,11 +1549,11 @@ const handleReviewExecute = async (row: PerformanceApi.TrainingPerformanceVO) =>
     loadingInstance.setText('正在加载文档内容...')
     const streamResult = await PerformanceApi.getFileStream(row.id!)
 
-    // 处理文件流数据
+    // 处理文件流数据（使用 IndexedDB 避免 sessionStorage 配额限制）
     let hasContent = false
     if (streamResult && streamResult.size > 0) {
       const base64Content = await blobToBase64(streamResult)
-      sessionStorage.setItem(`doc_content_${row.id}`, base64Content)
+      await saveDocContent(row.id!, base64Content)
       hasContent = true
     }
 
