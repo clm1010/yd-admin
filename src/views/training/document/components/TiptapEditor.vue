@@ -208,7 +208,6 @@
 import { ref, onBeforeUnmount, watch, computed, provide, reactive, onMounted, toRefs } from 'vue'
 import { isNil, isEmpty } from 'lodash-es'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
-// Tiptap v3: 所有扩展使用命名导出
 import { StarterKit } from '@tiptap/starter-kit'
 import { Collaboration } from '@tiptap/extension-collaboration'
 import { CollaborationCaret } from '@tiptap/extension-collaboration-caret'
@@ -221,15 +220,12 @@ import { CustomTableCell } from './toolbar/extensions/CustomTableCell'
 import { CustomTableHeader } from './toolbar/extensions/CustomTableHeader'
 import { ResizableImage } from './toolbar/extensions/ResizableImage'
 import { TaskList, TaskItem } from '@tiptap/extension-list'
-// Tiptap v3: TextStyle, FontSize, FontFamily 从 @tiptap/extension-text-style 导入
 import { TextStyle, FontSize } from '@tiptap/extension-text-style'
 import { FontFamily } from '@tiptap/extension-font-family'
 import { Color } from '@tiptap/extension-color'
-// Tiptap v3: BubbleMenu 扩展 - 参考 https://tiptap.dev/docs/editor/extensions/functionality/bubble-menu
 import { BubbleMenuPlugin } from '@tiptap/extension-bubble-menu'
 import { Subscript } from '@tiptap/extension-subscript'
 import { Superscript } from '@tiptap/extension-superscript'
-// Tiptap v3: 使用官方 DragHandle Vue 组件
 import { DragHandle } from '@tiptap/extension-drag-handle-vue-3'
 import { PageBreak } from './toolbar/extensions/PageBreak'
 import * as Y from 'yjs'
@@ -280,7 +276,7 @@ const saveStatus = ref<'saved' | 'saving' | 'unsaved'>('saved')
 // 内容区域引用
 const contentWrapperRef = ref<HTMLElement | null>(null)
 
-// 气泡菜单引用 - 参考 https://tiptap.dev/docs/editor/extensions/functionality/bubble-menu
+// 气泡菜单引用
 const bubbleMenuRef = ref<HTMLElement | null>(null)
 
 // 气泡菜单颜色选择
@@ -437,13 +433,13 @@ const editor = useEditor({
     TaskItem.configure({
       nested: true
     }),
-    // 文本样式 - 参考 https://tiptap.dev/docs/editor/extensions/marks/text-style
+    // 文本样式
     TextStyle,
-    // 字号 - 参考 https://tiptap.dev/docs/editor/extensions/functionality/fontsize
+    // 字号
     FontSize.configure({
       types: ['textStyle']
     }),
-    // 字体 - 参考 https://tiptap.dev/docs/editor/extensions/functionality/fontfamily
+    // 字体
     FontFamily.configure({
       types: ['textStyle']
     }),
@@ -517,7 +513,7 @@ watch(
   { immediate: true }
 )
 
-// 注册 BubbleMenu 插件 - 参考 https://github.com/ueberdosis/tiptap/tree/main/packages/extension-bubble-menu
+// 注册 BubbleMenu 插件
 const registerBubbleMenu = () => {
   if (isNil(editor.value) || isNil(bubbleMenuRef.value)) return
 

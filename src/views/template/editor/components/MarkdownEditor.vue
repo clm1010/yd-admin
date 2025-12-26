@@ -529,9 +529,7 @@
 import { ref, onBeforeUnmount, watch, onMounted, toRefs, nextTick } from 'vue'
 import { isNil, isEmpty } from 'lodash-es'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
-// Tiptap v3: BubbleMenu 扩展 - 参考 https://tiptap.dev/docs/editor/extensions/functionality/bubble-menu
 import { BubbleMenuPlugin } from '@tiptap/extension-bubble-menu'
-// Tiptap v3: 所有扩展使用命名导出
 import { StarterKit } from '@tiptap/starter-kit'
 import { Collaboration } from '@tiptap/extension-collaboration'
 import { CollaborationCaret } from '@tiptap/extension-collaboration-caret'
@@ -541,9 +539,7 @@ import { Highlight } from '@tiptap/extension-highlight'
 import { Link } from '@tiptap/extension-link'
 import { TaskList, TaskItem } from '@tiptap/extension-list'
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
-// Tiptap v3: 使用官方 DragHandle Vue 组件
 import { DragHandle } from '@tiptap/extension-drag-handle-vue-3'
-// Tiptap v3: 官方 Markdown 扩展 - 参考 https://tiptap.dev/docs/editor/markdown
 import { Markdown } from '@tiptap/markdown'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'

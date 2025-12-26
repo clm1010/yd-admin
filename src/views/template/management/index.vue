@@ -406,9 +406,9 @@
           align="left"
           show-overflow-tooltip
         />
-        <el-table-column prop="examofficeName" label="审核部门" width="120" align="center" />
-        <el-table-column prop="examUserid" label="审批用户" width="100" align="center" />
-        <el-table-column prop="nextUserid" label="下一审批人" width="100" align="center" />
+        <el-table-column prop="examOfficeName" label="审核部门" width="120" align="center" />
+        <el-table-column prop="examUserId" label="审批用户" width="100" align="center" />
+        <el-table-column prop="nextUserId" label="下一审批人" width="100" align="center" />
         <el-table-column prop="createTime" label="审核时间" width="160" align="center" />
       </el-table>
       <template #footer>
@@ -1067,12 +1067,12 @@ const rejectReason = ref('')
 const currentRejectRow = ref<TemplateApi.TemplateVO>()
 
 // 打开驳回弹窗
-const openRejectDialog = (row: TemplateApi.TemplateVO) => {
-  if (!row.id) return
-  currentRejectRow.value = row
-  rejectDialogVisible.value = true
-  rejectReason.value = ''
-}
+// const openRejectDialog = (row: TemplateApi.TemplateVO) => {
+//   if (!row.id) return
+//   currentRejectRow.value = row
+//   rejectDialogVisible.value = true
+//   rejectReason.value = ''
+// }
 
 // 提交驳回 - POST /examRecord/examTem
 const handleRejectSubmit = async () => {
@@ -1107,35 +1107,35 @@ const handleRejectSubmit = async () => {
 }
 
 // 审核通过 - POST /examRecord/examTem
-const handleApprove = async (row: TemplateApi.TemplateVO) => {
-  if (!row.id) return
+// const handleApprove = async (row: TemplateApi.TemplateVO) => {
+//   if (!row.id) return
 
-  try {
-    await ElMessageBox.confirm('确认审核通过该模板吗？', '审核确认', {
-      confirmButtonText: '确认提交',
-      cancelButtonText: '取消',
-      type: 'info'
-    })
+//   try {
+//     await ElMessageBox.confirm('确认审核通过该模板吗？', '审核确认', {
+//       confirmButtonText: '确认提交',
+//       cancelButtonText: '取消',
+//       type: 'info'
+//     })
 
-    // 获取当前用户ID
-    const collaborationUser = collaborationUserStore.getOrCreateUser()
-    const userId = collaborationUser.id || 'admin'
+//     // 获取当前用户ID
+//     const collaborationUser = collaborationUserStore.getOrCreateUser()
+//     const userId = collaborationUser.id || 'admin'
 
-    await TemplateApi.examApply({
-      applyId: row.id,
-      examResult: '1', // 通过
-      examOpinion: '',
-      examUserId: userId
-    })
-    ElMessage.success('审核通过')
-    getList()
-  } catch (error: any) {
-    if (error !== 'cancel') {
-      console.error('审核失败:', error)
-      ElMessage.error('审核失败')
-    }
-  }
-}
+//     await TemplateApi.examApply({
+//       applyId: row.id,
+//       examResult: '1', // 通过
+//       examOpinion: '',
+//       examUserId: userId
+//     })
+//     ElMessage.success('审核通过')
+//     getList()
+//   } catch (error: any) {
+//     if (error !== 'cancel') {
+//       console.error('审核失败:', error)
+//       ElMessage.error('审核失败')
+//     }
+//   }
+// }
 
 // 审核记录弹窗相关
 const examRecordDialogVisible = ref(false)
