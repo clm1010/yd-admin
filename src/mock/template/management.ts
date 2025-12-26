@@ -472,21 +472,6 @@ export const saveDocument = async (data: ImportTemplateData) => {
 }
 
 /**
- * 保存模板文件（带 ID）
- */
-export const saveTemplateFile = async (_id: string, _file: File) => {
-  await mockDelay(500)
-
-  return {
-    code: 200,
-    data: {
-      fileId: `mock-file-${Date.now()}`
-    },
-    msg: '保存成功'
-  }
-}
-
-/**
  * 获取审核记录列表
  * GET /examRecord/examApply
  * @param id 当前表格数据id
@@ -580,7 +565,6 @@ export default {
   checkWritePermission,
   getFileStream,
   saveDocument,
-  saveTemplateFile,
   getExamRecordList,
   examApply,
   publishDocument,

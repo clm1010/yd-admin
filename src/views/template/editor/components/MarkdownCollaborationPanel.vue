@@ -60,7 +60,7 @@
 
     <!-- 自定义要素（只读展示） -->
     <el-splitter-panel
-      class="section p-4 border-b border-gray-100 flex-1 overflow-hidden flex flex-col"
+      class="section p-4 flex-1 overflow-hidden flex flex-col"
     >
       <h3 class="font-bold text-gray-800 mb-3">自定义要素</h3>
       <div class="overflow-y-auto flex-1 custom-scrollbar -mx-2 px-2">
@@ -88,39 +88,6 @@
         <div v-else class="text-center text-gray-400 py-8"> 暂无自定义要素 </div>
       </div>
     </el-splitter-panel>
-
-    <!-- 文档属性 -->
-    <div class="section p-4 bg-gray-50">
-      <h3 class="font-bold text-gray-800 mb-3">文档属性</h3>
-      <div class="space-y-2 text-xs text-gray-600">
-        <div class="flex justify-between">
-          <span class="text-gray-400">创建时间:</span>
-          <span>{{ properties?.createTime || '-' }}</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-gray-400">最后更新:</span>
-          <span>{{ properties?.updateTime || '-' }}</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-gray-400">版本:</span>
-          <span>{{ properties?.version || 'V1.0' }}</span>
-        </div>
-        <div class="flex justify-between" v-if="properties?.tags?.length">
-          <span class="text-gray-400 block mb-1">标签:</span>
-          <div class="flex flex-wrap gap-1">
-            <el-tag
-              v-for="tag in properties?.tags || []"
-              :key="tag"
-              size="small"
-              type="primary"
-              effect="plain"
-            >
-              {{ tag }}
-            </el-tag>
-          </div>
-        </div>
-      </div>
-    </div>
   </el-splitter>
 </template>
 

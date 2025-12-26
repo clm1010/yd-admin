@@ -59,9 +59,7 @@
     </el-splitter-panel>
 
     <!-- 参考素材 -->
-    <el-splitter-panel
-      class="section p-4 border-b border-gray-100 flex-1 overflow-hidden flex flex-col"
-    >
+    <el-splitter-panel class="section p-4 flex-1 overflow-hidden flex flex-col">
       <h3 class="font-bold text-gray-800 mb-3">参考素材</h3>
       <div class="overflow-y-auto flex-1 custom-scrollbar -mx-2 px-2">
         <div v-if="materials && materials.length > 0" class="space-y-2">
@@ -81,43 +79,10 @@
         <div v-else class="text-center text-gray-400 py-8"> 暂无参考素材 </div>
       </div>
     </el-splitter-panel>
-
-    <!-- 文档属性 -->
-    <div class="section p-4 bg-gray-50">
-      <h3 class="font-bold text-gray-800 mb-3">文档属性</h3>
-      <div class="space-y-2 text-xs text-gray-600">
-        <div class="flex justify-between">
-          <span class="text-gray-400">创建时间:</span>
-          <span>{{ properties?.createTime || '-' }}</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-gray-400">最后更新:</span>
-          <span>{{ properties?.updateTime || '-' }}</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-gray-400">版本:</span>
-          <span>{{ properties?.version || 'V1.0' }}</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-gray-400 block mb-1">标签:</span>
-          <el-tag
-            v-for="tag in properties?.tags || []"
-            :key="tag"
-            size="small"
-            type="primary"
-            effect="plain"
-          >
-            {{ tag }}
-          </el-tag>
-        </div>
-      </div>
-    </div>
   </el-splitter>
 </template>
 
 <script setup lang="ts">
-import dayjs from 'dayjs'
-
 defineProps<{
   collaborators: any[]
   materials?: any[]

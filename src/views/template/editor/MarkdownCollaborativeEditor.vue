@@ -10,6 +10,17 @@
         </el-button>
         <!-- 文档标题 -->
         <div class="text-lg font-bold text-gray-800">{{ documentTitle }}</div>
+        <!-- 文档时间信息 -->
+        <div class="flex items-center gap-4 text-xs text-gray-500">
+          <div class="flex items-center">
+            <span class="text-gray-400">创建时间:</span>
+            <span class="ml-1">{{ docProperties.createTime }}</span>
+          </div>
+          <div class="flex items-center">
+            <span class="text-gray-400">最后更新:</span>
+            <span class="ml-1">{{ docProperties.updateTime }}</span>
+          </div>
+        </div>
         <!-- <el-tag type="success" size="small" v-if="isCollaborationReady">
           <Icon icon="mdi:cursor-default-click" class="mr-1" />
           协同光标已启用
@@ -87,6 +98,7 @@
         title="驳回原因"
         width="500px"
         :close-on-click-modal="false"
+        class="custom-dialog-header"
         append-to-body
       >
         <el-form label-position="top">
@@ -107,7 +119,6 @@
           >
         </template>
       </el-dialog>
-
     </div>
 
     <!-- 审核流配置弹窗 -->
@@ -950,6 +961,54 @@ onBeforeUnmount(() => {
 </style>
 
 <style lang="scss">
+// 统一弹窗样式 - 全局样式
+.el-dialog.custom-dialog-header {
+  padding: 0;
+
+  .el-dialog__header {
+    background: linear-gradient(to bottom, #1f8a8f, #67d4ff);
+    padding: 20px 24px;
+    margin: 0;
+    border-bottom: 1px solid #67d4ff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .el-dialog__title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #303133;
+    line-height: 1;
+  }
+
+  .el-dialog__headerbtn {
+    position: static;
+    width: 24px;
+    height: 24px;
+    margin: 0;
+
+    .el-dialog__close {
+      color: #909399;
+      font-size: 20px;
+
+      &:hover {
+        color: #606266;
+      }
+    }
+  }
+
+  .el-dialog__body {
+    padding: 24px;
+  }
+
+  .el-dialog__footer {
+    padding: 16px 24px;
+    border-top: 1px solid #e4e7ed;
+    margin: 0;
+  }
+}
+
 // 全局样式：让无遮罩的 drawer 不阻挡编辑器操作
 // 由于 append-to-body，需要用全局样式
 .material-drawer-overlay {

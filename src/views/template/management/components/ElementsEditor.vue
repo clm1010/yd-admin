@@ -5,6 +5,7 @@
     width="700px"
     :close-on-click-modal="false"
     destroy-on-close
+    class="custom-dialog-header"
   >
     <!-- 添加要素按钮 -->
     <div class="flex justify-center mb-4">
@@ -25,11 +26,7 @@
 
       <!-- 要素行 -->
       <div v-if="elementsList.length > 0" class="table-body">
-        <div
-          v-for="(item, index) in elementsList"
-          :key="index"
-          class="table-row"
-        >
+        <div v-for="(item, index) in elementsList" :key="index" class="table-row">
           <!-- 类型选择 -->
           <div class="col-type">
             <el-select
@@ -49,11 +46,7 @@
 
           <!-- 要素名称 -->
           <div class="col-label">
-            <el-input
-              v-model="item.item_label"
-              placeholder="请输入文本"
-              clearable
-            />
+            <el-input v-model="item.item_label" placeholder="请输入文本" clearable />
             <!-- 单选/多选时显示选项配置 -->
             <el-input
               v-if="needOptions(item.item_type)"
@@ -67,11 +60,7 @@
 
           <!-- 操作 -->
           <div class="col-action">
-            <el-button
-              type="danger"
-              link
-              @click="handleDeleteElement(index)"
-            >
+            <el-button type="danger" link @click="handleDeleteElement(index)">
               <Icon icon="ep:delete" />
             </el-button>
           </div>
@@ -267,3 +256,52 @@ const handleConfirm = () => {
 }
 </style>
 
+<style lang="scss">
+// 统一弹窗样式 - 全局样式
+.el-dialog.custom-dialog-header {
+  padding: 0;
+
+  .el-dialog__header {
+    background: linear-gradient(to bottom, #1f8a8f, #67d4ff);
+    padding: 20px 24px;
+    margin: 0;
+    border-bottom: 1px solid #67d4ff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .el-dialog__title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #303133;
+    line-height: 1;
+  }
+
+  .el-dialog__headerbtn {
+    position: static;
+    width: 24px;
+    height: 24px;
+    margin: 0;
+
+    .el-dialog__close {
+      color: #909399;
+      font-size: 20px;
+
+      &:hover {
+        color: #606266;
+      }
+    }
+  }
+
+  .el-dialog__body {
+    padding: 24px;
+  }
+
+  .el-dialog__footer {
+    padding: 16px 24px;
+    border-top: 1px solid #e4e7ed;
+    margin: 0;
+  }
+}
+</style>

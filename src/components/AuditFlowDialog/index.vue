@@ -4,6 +4,7 @@
     title="审核流配置"
     width="600px"
     :close-on-click-modal="false"
+    class="custom-dialog-header"
     @close="handleClose"
   >
     <el-form ref="formRef" :model="formData" label-width="100px">
@@ -229,3 +230,53 @@ defineExpose({
   resetForm
 })
 </script>
+
+<style lang="scss">
+// 统一弹窗样式 - 全局样式
+.el-dialog.custom-dialog-header {
+  padding: 0;
+
+  .el-dialog__header {
+    background: linear-gradient(to bottom, #1f8a8f, #67d4ff);
+    padding: 20px 24px;
+    margin: 0;
+    border-bottom: 1px solid #67d4ff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .el-dialog__title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #303133;
+    line-height: 1;
+  }
+
+  .el-dialog__headerbtn {
+    position: static;
+    width: 24px;
+    height: 24px;
+    margin: 0;
+
+    .el-dialog__close {
+      color: #909399;
+      font-size: 20px;
+
+      &:hover {
+        color: #606266;
+      }
+    }
+  }
+
+  .el-dialog__body {
+    padding: 24px;
+  }
+
+  .el-dialog__footer {
+    padding: 16px 24px;
+    border-top: 1px solid #e4e7ed;
+    margin: 0;
+  }
+}
+</style>

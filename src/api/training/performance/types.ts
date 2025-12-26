@@ -167,5 +167,5 @@ export interface ExamApplyReqVO {
   applyId: string // 当前数据id
   examResult: string // 审核结果 1通过 2驳回
   examOpinion: string // 审核意见/驳回原因
-  examuserId: string // 审批用户id
+  examUserId: string // 审批用户id
 }

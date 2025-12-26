@@ -1,15 +1,7 @@
 <template>
   <div class="template-management">
-    <!-- 页面头部信息 -->
-    <!-- <ContentWrap class="mb-4">
-      <div class="header-info">
-        <div class="text-18px font-bold mb-2">模板分类：筹划文档</div>
-        <div class="text-14px text-gray-500">模板子类：11种文档分类</div>
-      </div>
-    </ContentWrap> -->
-
     <!-- 工具栏和搜索栏 -->
-    <ContentWrap>
+    <ContentWrap class="flex-shrink-0">
       <!-- 搜索栏 -->
       <el-form
         class="-mb-15px"
@@ -81,164 +73,172 @@
     </ContentWrap>
 
     <!-- 标签页和表格 -->
-    <ContentWrap class="mt-4">
-      <el-button type="primary" @click="handleAdd">
-        <Icon icon="ep:plus" class="mr-1" />
-        新建
-      </el-button>
-      <el-button type="danger" plain :disabled="!canBatchDelete" @click="handleBatchDelete">
-        <Icon icon="ep:delete" class="mr-1" />
-        批量删除 {{ selectedIds.length > 0 ? `(${selectedIds.length})` : '' }}
-      </el-button>
-      <!-- 标签页 -->
-      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-        <el-tab-pane label="最近文档" name="recent" />
-        <el-tab-pane label="审核列表" name="review" />
-        <el-tab-pane label="文档发布" name="publish" />
-      </el-tabs>
+    <ContentWrap class="flex-1 overflow-hidden mt-4 table-container-wrap">
+      <div class="h-full flex flex-col p-4">
+        <div class="mb-4 flex-shrink-0">
+          <el-button type="primary" @click="handleAdd">
+            <Icon icon="ep:plus" class="mr-1" />
+            新建
+          </el-button>
+          <el-button type="danger" plain :disabled="!canBatchDelete" @click="handleBatchDelete">
+            <Icon icon="ep:delete" class="mr-1" />
+            批量删除 {{ selectedIds.length > 0 ? `(${selectedIds.length})` : '' }}
+          </el-button>
+        </div>
 
-      <!-- 表格 -->
-      <el-table
-        ref="tableRef"
-        v-loading="loading"
-        :data="list"
-        stripe
-        @selection-change="handleSelectionChange"
-      >
-        <el-table-column type="selection" width="55" align="center" />
-        <el-table-column label="序号" type="index" width="60" align="center" />
-        <el-table-column label="模板名称" prop="templateName" align="center" min-width="150" />
-        <el-table-column label="模板分类" prop="temCategory" align="center" min-width="120">
-          <template #default>
-            {{ templateCategories[0]?.name || '筹划文档' }}
-          </template>
-        </el-table-column>
-        <el-table-column label="模板子类" prop="temSubclass" align="center" width="120">
-          <template #default="scope">
-            {{ getSubCategoryNameById(scope.row.temSubclass) || scope.row.temSubclass }}
-          </template>
-        </el-table-column>
-        <el-table-column label="模板状态" prop="temStatus" align="center" width="100">
-          <template #default="scope">
-            <el-tag :type="getStatusType(scope.row.temStatus)">
-              {{ getStatusText(scope.row.temStatus) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="审核状态" prop="applyNode" align="center" width="120">
-          <template #default="scope">
-            <div class="flex items-center justify-center">
-              <div
-                :class="getApplyNodeClass(scope.row.applyNode)"
-                class="w-2 h-2 rounded-full mr-2"
-              ></div>
-              {{ getApplyNodeText(scope.row.applyNode) }}
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="描述"
-          prop="description"
-          align="center"
-          min-width="150"
-          show-overflow-tooltip
-        />
-        <el-table-column label="创建时间" prop="createTime" align="center" width="180" />
-        <el-table-column label="创建人" prop="createBy" align="center" width="120" />
-        <el-table-column label="操作" align="center" width="320" fixed="right">
-          <template #default="scope">
-            <!-- 编辑中状态(1)显示：编辑、写作、提交审核、删除 -->
-            <template v-if="scope.row.applyNode === '1'">
-              <el-button link type="primary" @click="handleEditData(scope.row)">
-                <Icon icon="ep:edit-pen" />
-                编辑
-              </el-button>
-              <el-button link type="primary" @click="handleEdit(scope.row)">
-                <Icon icon="ep:edit" />
-                写作
-              </el-button>
-              <el-button link type="primary" @click="handleSubmitAudit(scope.row)">
-                <Icon icon="ep:upload" />
-                提交审核
-              </el-button>
-              <el-button link type="danger" @click="handleDelete(scope.row)">
-                <Icon icon="ep:delete" />
-                删除
-              </el-button>
-            </template>
+        <!-- 标签页 -->
+        <el-tabs v-model="activeTab" @tab-change="handleTabChange" class="flex-shrink-0">
+          <el-tab-pane label="最近文档" name="recent" />
+          <el-tab-pane label="审核列表" name="review" />
+          <el-tab-pane label="文档发布" name="publish" />
+        </el-tabs>
 
-            <!-- 审核中状态(2)显示：审核执行、审核记录 -->
-            <template v-else-if="scope.row.applyNode === '2'">
-              <el-button link type="primary" @click="handleReviewExecute(scope.row)">
-                <Icon icon="ep:view" />
-                审核执行
-              </el-button>
-              <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
-                <Icon icon="ep:document" />
-                审核记录
-              </el-button>
-            </template>
+        <!-- 表格 -->
+        <div class="flex-1 overflow-hidden">
+          <el-table
+            ref="tableRef"
+            v-loading="loading"
+            :data="list"
+            stripe
+            @selection-change="handleSelectionChange"
+            height="100%"
+          >
+            <el-table-column type="selection" width="55" align="center" />
+            <el-table-column label="序号" type="index" width="60" align="center" />
+            <el-table-column label="模板名称" prop="templateName" align="center" min-width="150" />
+            <el-table-column label="模板分类" prop="temCategory" align="center" min-width="120">
+              <template #default>
+                {{ templateCategories[0]?.name || '筹划文档' }}
+              </template>
+            </el-table-column>
+            <el-table-column label="模板子类" prop="temSubclass" align="center" width="120">
+              <template #default="scope">
+                {{ getSubCategoryNameById(scope.row.temSubclass) || scope.row.temSubclass }}
+              </template>
+            </el-table-column>
+            <el-table-column label="模板状态" prop="temStatus" align="center" width="100">
+              <template #default="scope">
+                <el-tag :type="getStatusType(scope.row.temStatus)">
+                  {{ getStatusText(scope.row.temStatus) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="审核状态" prop="applyNode" align="center" width="120">
+              <template #default="scope">
+                <div class="flex items-center justify-center">
+                  <div
+                    :class="getApplyNodeClass(scope.row.applyNode)"
+                    class="w-2 h-2 rounded-full mr-2"
+                  ></div>
+                  {{ getApplyNodeText(scope.row.applyNode) }}
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="描述"
+              prop="description"
+              align="center"
+              min-width="150"
+              show-overflow-tooltip
+            />
+            <el-table-column label="创建时间" prop="createTime" align="center" width="180" />
+            <el-table-column label="创建人" prop="createBy" align="center" width="120" />
+            <el-table-column label="操作" align="center" width="320" fixed="right">
+              <template #default="scope">
+                <!-- 编辑中状态(1)显示：编辑、写作、提交审核、删除 -->
+                <template v-if="scope.row.applyNode === '1'">
+                  <el-button link type="primary" @click="handleEditData(scope.row)">
+                    <Icon icon="ep:edit-pen" />
+                    编辑
+                  </el-button>
+                  <el-button link type="primary" @click="handleEdit(scope.row)">
+                    <Icon icon="ep:edit" />
+                    写作
+                  </el-button>
+                  <el-button link type="primary" @click="handleSubmitAudit(scope.row)">
+                    <Icon icon="ep:upload" />
+                    提交审核
+                  </el-button>
+                  <el-button link type="danger" @click="handleDelete(scope.row)">
+                    <Icon icon="ep:delete" />
+                    删除
+                  </el-button>
+                </template>
 
-            <!-- 审核通过状态(3)显示：发布按钮 + 审核记录 -->
-            <template v-else-if="scope.row.applyNode === '3'">
-              <el-button link type="primary" @click="openPublishDialog(scope.row)">
-                <Icon icon="ep:promotion" />
-                发布
-              </el-button>
-              <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
-                <Icon icon="ep:document" />
-                审核记录
-              </el-button>
-            </template>
+                <!-- 审核中状态(2)显示：审核执行、审核记录 -->
+                <template v-else-if="scope.row.applyNode === '2'">
+                  <el-button link type="primary" @click="handleReviewExecute(scope.row)">
+                    <Icon icon="ep:view" />
+                    审核执行
+                  </el-button>
+                  <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
+                    <Icon icon="ep:document" />
+                    审核记录
+                  </el-button>
+                </template>
 
-            <!-- 发布状态(4)显示：已发布 + 审核记录 -->
-            <template v-else-if="scope.row.applyNode === '4'">
-              <el-button link type="success" disabled>
-                <Icon icon="ep:check" />
-                已发布
-              </el-button>
-              <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
-                <Icon icon="ep:document" />
-                审核记录
-              </el-button>
-            </template>
+                <!-- 审核通过状态(3)显示：发布按钮 + 审核记录 -->
+                <template v-else-if="scope.row.applyNode === '3'">
+                  <el-button link type="primary" @click="openPublishDialog(scope.row)">
+                    <Icon icon="ep:promotion" />
+                    发布
+                  </el-button>
+                  <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
+                    <Icon icon="ep:document" />
+                    审核记录
+                  </el-button>
+                </template>
 
-            <!-- 驳回状态(5)显示：编辑、写作、提交审核、删除、审核记录 -->
-            <template v-else-if="scope.row.applyNode === '5'">
-              <el-button link type="primary" @click="handleEditData(scope.row)">
-                <Icon icon="ep:edit-pen" />
-                编辑
-              </el-button>
-              <el-button link type="primary" @click="handleEdit(scope.row)">
-                <Icon icon="ep:edit" />
-                写作
-              </el-button>
-              <el-button link type="primary" @click="handleSubmitAudit(scope.row)">
-                <Icon icon="ep:upload" />
-                提交审核
-              </el-button>
-              <el-button link type="danger" @click="handleDelete(scope.row)">
-                <Icon icon="ep:delete" />
-                删除
-              </el-button>
-              <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
-                <Icon icon="ep:document" />
-                审核记录
-              </el-button>
-            </template>
-          </template>
-        </el-table-column>
-      </el-table>
+                <!-- 发布状态(4)显示：已发布 + 审核记录 -->
+                <template v-else-if="scope.row.applyNode === '4'">
+                  <el-button link type="success" disabled>
+                    <Icon icon="ep:check" />
+                    已发布
+                  </el-button>
+                  <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
+                    <Icon icon="ep:document" />
+                    审核记录
+                  </el-button>
+                </template>
 
-      <!-- 分页 -->
-      <div class="mt-4 flex justify-between items-center">
-        <div class="text-gray-500">共 {{ total }} 条</div>
-        <Pagination
-          :total="total"
-          v-model:page="queryParams.pageNo"
-          v-model:limit="queryParams.pageSize"
-          @pagination="getList"
-        />
+                <!-- 驳回状态(5)显示：编辑、写作、提交审核、删除、审核记录 -->
+                <template v-else-if="scope.row.applyNode === '5'">
+                  <el-button link type="primary" @click="handleEditData(scope.row)">
+                    <Icon icon="ep:edit-pen" />
+                    编辑
+                  </el-button>
+                  <el-button link type="primary" @click="handleEdit(scope.row)">
+                    <Icon icon="ep:edit" />
+                    写作
+                  </el-button>
+                  <el-button link type="primary" @click="handleSubmitAudit(scope.row)">
+                    <Icon icon="ep:upload" />
+                    提交审核
+                  </el-button>
+                  <el-button link type="danger" @click="handleDelete(scope.row)">
+                    <Icon icon="ep:delete" />
+                    删除
+                  </el-button>
+                  <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
+                    <Icon icon="ep:document" />
+                    审核记录
+                  </el-button>
+                </template>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+
+        <!-- 分页 -->
+        <div class="mt-4 flex justify-between items-center flex-shrink-0">
+          <div class="text-gray-500">共 {{ total }} 条</div>
+          <Pagination
+            :total="total"
+            v-model:page="queryParams.pageNo"
+            v-model:limit="queryParams.pageSize"
+            @pagination="getList"
+          />
+        </div>
       </div>
     </ContentWrap>
 
@@ -248,6 +248,7 @@
       :title="dialogTitle"
       width="600px"
       :close-on-click-modal="false"
+      class="custom-dialog-header"
     >
       <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
         <el-form-item label="模板名称" prop="templateName">
@@ -296,8 +297,8 @@
         </el-form-item>
         <el-form-item label="模板状态" prop="temStatus">
           <el-radio-group v-model="formData.temStatus">
-            <el-radio label="启用">启用</el-radio>
-            <el-radio label="禁用">禁用</el-radio>
+            <el-radio label="启用" value="0">启用</el-radio>
+            <el-radio label="禁用" value="1">禁用</el-radio>
           </el-radio-group>
         </el-form-item>
         <!-- 创建方式（仅新建时显示） -->
@@ -353,6 +354,7 @@
       width="500px"
       :close-on-click-modal="false"
       append-to-body
+      class="custom-dialog-header"
     >
       <el-form label-position="top">
         <el-form-item label="请输入驳回原因" required>
@@ -379,6 +381,7 @@
       title="审核记录"
       width="900px"
       :close-on-click-modal="false"
+      class="custom-dialog-header"
     >
       <el-table
         v-loading="examRecordLoading"
@@ -419,6 +422,7 @@
       title="发布配置"
       width="600px"
       :close-on-click-modal="false"
+      class="custom-dialog-header"
     >
       <el-form ref="publishFormRef" :model="publishFormData" label-width="100px">
         <el-form-item label="可见范围">
@@ -526,7 +530,7 @@ const formData = reactive({
   templateName: '',
   temSubclass: '',
   description: '',
-  temStatus: '启用',
+  temStatus: '',
   temCategory: '',
   creationMethod: 'new' as 'new' | 'upload',
   elements_items: [] as ElementItem[]
@@ -710,7 +714,7 @@ const handleAdd = () => {
     temCategory: '',
     temSubclass: '',
     description: '',
-    temStatus: '启用',
+    temStatus: '',
     creationMethod: 'new',
     elements_items: []
   })
@@ -989,7 +993,7 @@ const handleEditData = (row: TemplateApi.TemplateVO) => {
     templateName: row.templateName,
     temSubclass: row.temSubclass,
     description: row.description || '',
-    temStatus: row.temStatus || '启用',
+    temStatus: row.temStatus || '0',
     elements_items: row.elements_items || []
     // 编辑模式不设置 creationMethod
   })
@@ -1278,16 +1282,75 @@ onUnmounted(() => {
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .template-management {
   padding: 0;
+  height: calc(100vh - 110px); // 减去头部和标签栏高度
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.header-info {
-  padding: 10px 0;
+.table-container-wrap {
+  :deep(.el-card__body) {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
 }
 
 :deep(.el-table) {
   font-size: 14px;
+}
+</style>
+
+<style lang="scss">
+// 统一弹窗样式 - 全局样式
+.el-dialog.custom-dialog-header {
+  padding: 0;
+
+  .el-dialog__header {
+    background: linear-gradient(to bottom, #1f8a8f, #67d4ff);
+    padding: 20px 24px;
+    margin: 0;
+    border-bottom: 1px solid #67d4ff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .el-dialog__title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #303133;
+    line-height: 1;
+  }
+
+  .el-dialog__headerbtn {
+    position: static;
+    width: 24px;
+    height: 24px;
+    margin: 0;
+
+    .el-dialog__close {
+      color: #909399;
+      font-size: 20px;
+
+      &:hover {
+        color: #606266;
+      }
+    }
+  }
+
+  .el-dialog__body {
+    padding: 24px;
+  }
+
+  .el-dialog__footer {
+    padding: 16px 24px;
+    border-top: 1px solid #e4e7ed;
+    margin: 0;
+  }
 }
 </style>

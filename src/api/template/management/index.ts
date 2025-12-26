@@ -113,7 +113,7 @@ const javaApi = {
    */
   getFileStream: async (id: string): Promise<Blob | null> => {
     try {
-      const response = await javaRequest.download('/tbTemplate/getfileStream', { id })
+      const response = await javaRequest.download('/tbTemplate/getFileStream', { id })
       if (response instanceof Blob && response.size > 0) {
         if (response.type.includes('application/json')) {
           const text = await response.text()
@@ -141,16 +141,6 @@ const javaApi = {
   saveDocument: async (data: ImportTemplateData) => {
     const formData = new FormData()
     formData.append('file', data.file)
-    return await javaRequest.upload('/tbTemplate/saveFile', formData)
-  },
-
-  /**
-   * 保存模板文件（带 ID） - Java 后端
-   */
-  saveTemplateFile: async (id: string, file: File) => {
-    const formData = new FormData()
-    formData.append('id', id)
-    formData.append('file', file)
     return await javaRequest.upload('/tbTemplate/saveFile', formData)
   },
 
@@ -183,12 +173,12 @@ const javaApi = {
 
   /**
    * 获取自定义要素列表 - Java 后端
-   * GET /api/getPlan/getElement
+   * GET /api/tbTemplate/getElement
    * @param id 记录ID
    */
   getElementList: async (id: string): Promise<ElementItem[]> => {
     try {
-      const res = await javaRequest.get<GetElementListResponse>('/getPlan/getElement', { id })
+      const res = await javaRequest.get<GetElementListResponse>('/tbTemplate/getElement', { id })
       return (res as any)?.data || (res as any) || []
     } catch (error) {
       console.error('获取要素列表失败:', error)
@@ -255,12 +245,6 @@ const mockApi = {
   saveDocument: async (data: ImportTemplateData) => {
     const { saveDocument } = await import('@/mock/template/management')
     const res = await saveDocument(data)
-    return res
-  },
-
-  saveTemplateFile: async (id: string, file: File) => {
-    const { saveTemplateFile } = await import('@/mock/template/management')
-    const res = await saveTemplateFile(id, file)
     return res
   },
 
@@ -354,14 +338,6 @@ export const getFileStream = api.getFileStream
 export const saveDocument = api.saveDocument
 
 /**
- * 保存模板文件（带 ID）
- * @param id 模板ID
- * @param file 文件对象
- * @returns 保存结果
- */
-export const saveTemplateFile = api.saveTemplateFile
-
-/**
  * 获取审核记录列表
  * GET /examRecord/getOpinion
  * @param id 当前表格数据id
@@ -384,7 +360,7 @@ export const publishDocument = api.publishDocument
 
 /**
  * 获取自定义要素列表
- * GET /api/getPlan/getElement
+ * GET /api/tbTemplate/getElement
  * @param id 记录ID
  * @returns 要素列表
  */

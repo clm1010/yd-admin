@@ -1,299 +1,317 @@
 <template>
-  <el-row :gutter="20">
-    <!-- 左侧文档分类 -->
-    <el-col :span="4" :xs="24">
-      <ContentWrap class="h-full min-h-[800px]">
-        <div class="p-4">
-          <div class="font-bold mb-4 text-16px">文档分类</div>
-          <el-menu
-            :default-active="selectedCategory"
-            class="border-0"
-            @select="handleCategorySelect"
-          >
-            <el-menu-item v-for="category in categories" :key="category.id" :index="category.id">
-              <span>{{ category.fileType }}</span>
-            </el-menu-item>
-          </el-menu>
-        </div>
-      </ContentWrap>
-    </el-col>
-
-    <el-col :span="20" :xs="24">
-      <!-- 搜索栏 -->
-      <ContentWrap>
-        <el-form
-          class="-mb-15px"
-          :model="queryParams"
-          ref="queryFormRef"
-          :inline="true"
-          label-width="100px"
-        >
-          <el-row>
-            <el-col :span="24">
-              <el-form-item label="方案名称" prop="planName">
-                <el-input
-                  v-model="queryParams.planName"
-                  placeholder="请输入"
-                  clearable
-                  class="!w-200px"
-                />
-              </el-form-item>
-              <el-form-item label="演训主题" prop="exerciseTheme">
-                <el-select
-                  v-model="queryParams.exerciseTheme"
-                  placeholder="请选择"
-                  clearable
-                  class="!w-200px"
+  <div class="performance-container">
+    <el-row :gutter="20" class="h-full">
+      <!-- 左侧文档分类 -->
+      <el-col :span="4" :xs="24" class="h-full">
+        <ContentWrap class="category-wrap">
+          <div class="p-4 h-full flex flex-col">
+            <div class="font-bold mb-4 text-16px">文档分类</div>
+            <el-scrollbar class="flex-1">
+              <el-menu
+                :default-active="selectedCategory"
+                class="border-0 category-menu"
+                @select="handleCategorySelect"
+              >
+                <el-menu-item
+                  v-for="category in categories"
+                  :key="category.id"
+                  :index="category.id"
                 >
-                  <el-option
-                    v-for="item in exerciseThemeOptions"
-                    :key="item.value"
-                    :label="item.label"
-                    :value="item.value"
+                  <span>{{ category.fileType }}</span>
+                </el-menu-item>
+              </el-menu>
+            </el-scrollbar>
+          </div>
+        </ContentWrap>
+      </el-col>
+
+      <el-col :span="20" :xs="24" class="h-full">
+        <div class="h-full flex flex-col">
+          <!-- 搜索栏 -->
+          <ContentWrap class="flex-shrink-0">
+          <el-form
+            class="-mb-15px"
+            :model="queryParams"
+            ref="queryFormRef"
+            :inline="true"
+            label-width="100px"
+          >
+            <el-row>
+              <el-col :span="24">
+                <el-form-item label="方案名称" prop="planName">
+                  <el-input
+                    v-model="queryParams.planName"
+                    placeholder="请输入"
+                    clearable
+                    class="!w-200px"
                   />
-                </el-select>
-              </el-form-item>
+                </el-form-item>
+                <el-form-item label="演训主题" prop="exerciseTheme">
+                  <el-select
+                    v-model="queryParams.exerciseTheme"
+                    placeholder="请选择"
+                    clearable
+                    class="!w-200px"
+                  >
+                    <el-option
+                      v-for="item in exerciseThemeOptions"
+                      :key="item.value"
+                      :label="item.label"
+                      :value="item.value"
+                    />
+                  </el-select>
+                </el-form-item>
 
-              <el-form-item label="演训等级" prop="level">
-                <el-select
-                  v-model="queryParams.level"
-                  placeholder="请选择"
-                  clearable
-                  class="!w-200px"
-                >
-                  <el-option label="战略级" value="ZLJ" />
-                  <el-option label="战役级" value="ZYJ" />
-                  <el-option label="战术级" value="ZSJ" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :span="24">
-              <el-form-item label="所属学院" prop="">
-                <el-select
-                  v-model="queryParams.collegeCode"
-                  placeholder="请选择"
-                  clearable
-                  class="!w-200px"
-                >
-                  <el-option label="国防大学" value="GFDX" />
-                  <el-option label="联合作战学院" value="LHZZXY" />
-                  <el-option label="国家安全学院" value="GJAQXY" />
-                  <el-option label="联合勤务学院" value="LHQWXY" />
-                  <el-option label="国际防务学院" value="GJFWXY" />
-                  <el-option label="军事管理学院" value="SGLXY" />
-                  <el-option label="政治学院" value="ZZXY" />
-                  <el-option label="军事文华学院" value="JSWHXY" />
-                  <el-option label="研究生院" value="YJSY" />
-                </el-select>
-              </el-form-item>
-              <el-form-item label="审核状态" prop="applyNode">
-                <el-select
-                  v-model="queryParams.applyNode"
-                  placeholder="请选择"
-                  clearable
-                  class="!w-200px"
-                >
-                  <el-option label="编辑中" value="1" />
-                  <!-- <el-option label="待审核" value="2" /> -->
-                  <el-option label="审核中" value="2" />
-                  <el-option label="审核通过" value="3" />
-                  <el-option label="发布" value="4" />
-                  <el-option label="驳回" value="5" />
-                </el-select>
-              </el-form-item>
-              <el-form-item label="上传时间" prop="createTime">
-                <el-date-picker
-                  v-model="queryParams.createTime"
-                  type="daterange"
-                  start-placeholder="请选择"
-                  end-placeholder="请选择"
-                  value-format="YYYY-MM-DD"
-                  class="!w-240px"
-                />
-              </el-form-item>
-              <el-form-item label="" class="">
-                <el-button type="primary" @click="handleQuery">
-                  <Icon icon="ep:search" class="mr-1" />
-                  查询
-                </el-button>
-                <el-button @click="resetQuery">
-                  <Icon icon="ep:refresh" class="mr-1" />
-                  重置
-                </el-button>
-              </el-form-item>
-            </el-col>
-          </el-row>
-        </el-form>
-      </ContentWrap>
+                <el-form-item label="演训等级" prop="level">
+                  <el-select
+                    v-model="queryParams.level"
+                    placeholder="请选择"
+                    clearable
+                    class="!w-200px"
+                  >
+                    <el-option label="战略级" value="ZLJ" />
+                    <el-option label="战役级" value="ZYJ" />
+                    <el-option label="战术级" value="ZSJ" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="24">
+                <el-form-item label="所属学院" prop="">
+                  <el-select
+                    v-model="queryParams.collegeCode"
+                    placeholder="请选择"
+                    clearable
+                    class="!w-200px"
+                  >
+                    <el-option label="国防大学" value="GFDX" />
+                    <el-option label="联合作战学院" value="LHZZXY" />
+                    <el-option label="国家安全学院" value="GJAQXY" />
+                    <el-option label="联合勤务学院" value="LHQWXY" />
+                    <el-option label="国际防务学院" value="GJFWXY" />
+                    <el-option label="军事管理学院" value="SGLXY" />
+                    <el-option label="政治学院" value="ZZXY" />
+                    <el-option label="军事文华学院" value="JSWHXY" />
+                    <el-option label="研究生院" value="YJSY" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="审核状态" prop="applyNode">
+                  <el-select
+                    v-model="queryParams.applyNode"
+                    placeholder="请选择"
+                    clearable
+                    class="!w-200px"
+                  >
+                    <el-option label="编辑中" value="1" />
+                    <!-- <el-option label="待审核" value="2" /> -->
+                    <el-option label="审核中" value="2" />
+                    <el-option label="审核通过" value="3" />
+                    <el-option label="发布" value="4" />
+                    <el-option label="驳回" value="5" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="上传时间" prop="createTime">
+                  <el-date-picker
+                    v-model="queryParams.createTime"
+                    type="daterange"
+                    start-placeholder="请选择"
+                    end-placeholder="请选择"
+                    value-format="YYYY-MM-DD"
+                    class="!w-240px"
+                  />
+                </el-form-item>
+                <el-form-item label="" class="">
+                  <el-button type="primary" @click="handleQuery">
+                    <Icon icon="ep:search" class="mr-1" />
+                    查询
+                  </el-button>
+                  <el-button @click="resetQuery">
+                    <Icon icon="ep:refresh" class="mr-1" />
+                    重置
+                  </el-button>
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </el-form>
+          </ContentWrap>
 
-      <ContentWrap>
-        <!-- 工具栏 -->
-        <div class="mb-4">
-          <el-button type="primary" size="large" @click="handleAdd">
-            <Icon icon="ep:plus" class="mr-1" />
-            新建
-          </el-button>
-          <el-button plain size="large" @click="handleGenerate">
-            <Icon icon="ep:document-add" class="mr-1" />
-            文档生成
-          </el-button>
-          <el-button
-            type="danger"
-            plain
-            size="large"
-            :disabled="!canBatchDelete"
-            @click="handleBatchDelete"
-          >
-            <Icon icon="ep:delete" class="mr-1" />
-            批量删除
-          </el-button>
+          <ContentWrap class="flex-1 overflow-hidden mt-4 table-container-wrap">
+          <div class="h-full flex flex-col p-4">
+            <!-- 工具栏 -->
+            <div class="mb-4 flex-shrink-0">
+              <el-button type="primary" size="large" @click="handleAdd">
+                <Icon icon="ep:plus" class="mr-1" />
+                新建
+              </el-button>
+              <el-button
+                type="danger"
+                plain
+                size="large"
+                :disabled="!canBatchDelete"
+                @click="handleBatchDelete"
+              >
+                <Icon icon="ep:delete" class="mr-1" />
+                批量删除
+              </el-button>
+            </div>
+
+            <!-- 标签页 -->
+            <el-tabs v-model="activeTab" @tab-change="handleTabChange" class="flex-shrink-0">
+              <el-tab-pane label="最近文档" name="recent" />
+              <el-tab-pane label="审核列表" name="review" />
+              <el-tab-pane label="文档发布" name="publish" />
+            </el-tabs>
+
+            <!-- 表格 -->
+            <div class="flex-1 overflow-hidden">
+              <el-table
+                v-loading="loading"
+                :data="list"
+                @selection-change="handleSelectionChange"
+                stripe
+                height="100%"
+              >
+                <el-table-column type="selection" width="55" />
+                <el-table-column label="序号" type="index" width="60" align="center" />
+                <el-table-column label="方案名称" prop="planName" align="center" min-width="200" />
+                <el-table-column label="所属学院" prop="collegeCode" align="center" width="120">
+                  <template #default="scope">
+                    {{ getCollegeLabel(scope.row.collegeCode) }}
+                  </template>
+                </el-table-column>
+                <el-table-column label="文档分类" prop="fileType" align="center" width="120">
+                  <template #default="scope">
+                    {{ getFileTypeLabel(scope.row.fileType) }}
+                  </template>
+                </el-table-column>
+
+                <el-table-column label="演训主题" prop="exerciseTheme" align="center" width="120">
+                  <template #default="scope">
+                    {{ getExerciseThemeLabel(scope.row.exerciseTheme) }}
+                  </template>
+                </el-table-column>
+                <el-table-column label="演训类型" prop="exerciseType" align="center" width="120">
+                  <template #default="scope">
+                    {{ getExerciseTypeLabel(scope.row.exerciseType) }}
+                  </template>
+                </el-table-column>
+                <el-table-column label="演训等级" prop="level" align="center" width="100">
+                  <template #default="scope">
+                    {{ getLevelLabel(scope.row.level) }}
+                  </template>
+                </el-table-column>
+                <el-table-column label="审核状态" prop="applyNode" align="center" width="120">
+                  <template #default="scope">
+                    <div class="flex items-center justify-center">
+                      <div
+                        :class="getStatusClass(scope.row.applyNode)"
+                        class="w-2 h-2 rounded-full mr-2"
+                      ></div>
+                      {{ getApplyNodeLabel(scope.row.applyNode) }}
+                    </div>
+                  </template>
+                </el-table-column>
+                <el-table-column label="创建时间" prop="createTime" align="center" width="180" />
+                <el-table-column label="操作" align="center" width="320" fixed="right">
+                  <template #default="scope">
+                    <!-- 编辑中状态(1)显示：编辑、写作、审核、删除 -->
+                    <div v-if="scope.row.applyNode === '1'">
+                      <el-button link type="primary" @click="handleEditData(scope.row)">
+                        <Icon icon="ep:edit-pen" />
+                        编辑
+                      </el-button>
+                      <el-button link type="primary" @click="handleEdit(scope.row)">
+                        <Icon icon="ep:edit" />
+                        写作
+                      </el-button>
+                      <el-button link type="primary" @click="openAuditDialog(scope.row)">
+                        <Icon icon="ep:upload" />
+                        提交审核
+                      </el-button>
+                      <el-button link type="danger" @click="handleDelete(scope.row)">
+                        <Icon icon="ep:delete" />
+                        删除
+                      </el-button>
+                    </div>
+
+                    <!-- 审核中状态(2)显示：审核执行、审核记录 -->
+                    <div v-else-if="scope.row.applyNode === '2'">
+                      <el-button link type="primary" @click="handleReviewExecute(scope.row)">
+                        <Icon icon="ep:view" />
+                        审核执行
+                      </el-button>
+                      <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
+                        <Icon icon="ep:document" />
+                        审核记录
+                      </el-button>
+                    </div>
+
+                    <!-- 审核通过状态(3)显示：发布 + 审核记录 -->
+                    <div v-else-if="scope.row.applyNode === '3'">
+                      <el-button link type="primary" @click="openPublishDialog(scope.row)">
+                        <Icon icon="ep:promotion" />
+                        发布
+                      </el-button>
+                      <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
+                        <Icon icon="ep:document" />
+                        审核记录
+                      </el-button>
+                    </div>
+
+                    <!-- 发布状态(4)显示：已发布 + 审核记录 -->
+                    <div v-else-if="scope.row.applyNode === '4'">
+                      <el-button link type="success" disabled>
+                        <Icon icon="ep:check" />
+                        已发布
+                      </el-button>
+                      <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
+                        <Icon icon="ep:document" />
+                        审核记录
+                      </el-button>
+                    </div>
+
+                    <!-- 驳回状态(5)显示：编辑、写作、提交审核、删除、审核记录 -->
+                    <div v-else-if="scope.row.applyNode === '5'">
+                      <el-button link type="primary" @click="handleEditData(scope.row)">
+                        <Icon icon="ep:edit-pen" />
+                        编辑
+                      </el-button>
+                      <el-button link type="primary" @click="handleEdit(scope.row)">
+                        <Icon icon="ep:edit" />
+                        写作
+                      </el-button>
+                      <el-button link type="primary" @click="openAuditDialog(scope.row)">
+                        <Icon icon="ep:upload" />
+                        提交审核
+                      </el-button>
+                      <el-button link type="danger" @click="handleDelete(scope.row)">
+                        <Icon icon="ep:delete" />
+                        删除
+                      </el-button>
+                      <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
+                        <Icon icon="ep:document" />
+                        审核记录
+                      </el-button>
+                    </div>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+
+            <!-- 分页 -->
+            <div class="mt-4 flex-shrink-0">
+              <Pagination
+                :total="total"
+                v-model:page="queryParams.pageNo"
+                v-model:limit="queryParams.pageSize"
+                @pagination="getList"
+              />
+            </div>
+          </div>
+          </ContentWrap>
         </div>
-
-        <!-- 标签页 -->
-        <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-          <el-tab-pane label="最近文档" name="recent" />
-          <el-tab-pane label="审核列表" name="review" />
-          <el-tab-pane label="文档发布" name="publish" />
-        </el-tabs>
-
-        <!-- 表格 -->
-        <el-table v-loading="loading" :data="list" @selection-change="handleSelectionChange" stripe>
-          <el-table-column type="selection" width="55" />
-          <el-table-column label="序号" type="index" width="60" align="center" />
-          <el-table-column label="方案名称" prop="planName" align="center" min-width="200" />
-          <el-table-column label="所属学院" prop="collegeCode" align="center" width="120">
-            <template #default="scope">
-              {{ getCollegeLabel(scope.row.collegeCode) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="文档分类" prop="fileType" align="center" width="120">
-            <template #default="scope">
-              {{ getFileTypeLabel(scope.row.fileType) }}
-            </template>
-          </el-table-column>
-
-          <el-table-column label="演训主题" prop="exerciseTheme" align="center" width="120">
-            <template #default="scope">
-              {{ getExerciseThemeLabel(scope.row.exerciseTheme) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="演训类型" prop="exerciseType" align="center" width="120">
-            <template #default="scope">
-              {{ getExerciseTypeLabel(scope.row.exerciseType) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="演训等级" prop="level" align="center" width="100">
-            <template #default="scope">
-              {{ getLevelLabel(scope.row.level) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="审核状态" prop="applyNode" align="center" width="120">
-            <template #default="scope">
-              <div class="flex items-center justify-center">
-                <div
-                  :class="getStatusClass(scope.row.applyNode)"
-                  class="w-2 h-2 rounded-full mr-2"
-                ></div>
-                {{ getApplyNodeLabel(scope.row.applyNode) }}
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column label="创建时间" prop="createTime" align="center" width="180" />
-          <el-table-column label="操作" align="center" width="320" fixed="right">
-            <template #default="scope">
-              <!-- 编辑中状态(1)显示：编辑、写作、审核、删除 -->
-              <div v-if="scope.row.applyNode === '1'">
-                <el-button link type="primary" @click="handleEditData(scope.row)">
-                  <Icon icon="ep:edit-pen" />
-                  编辑
-                </el-button>
-                <el-button link type="primary" @click="handleEdit(scope.row)">
-                  <Icon icon="ep:edit" />
-                  写作
-                </el-button>
-                <el-button link type="primary" @click="openAuditDialog(scope.row)">
-                  <Icon icon="ep:upload" />
-                  提交审核
-                </el-button>
-                <el-button link type="danger" @click="handleDelete(scope.row)">
-                  <Icon icon="ep:delete" />
-                  删除
-                </el-button>
-              </div>
-
-              <!-- 审核中状态(2)显示：审核执行、审核记录 -->
-              <div v-else-if="scope.row.applyNode === '2'">
-                <el-button link type="primary" @click="handleReviewExecute(scope.row)">
-                  <Icon icon="ep:view" />
-                  审核执行
-                </el-button>
-                <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
-                  <Icon icon="ep:document" />
-                  审核记录
-                </el-button>
-              </div>
-
-              <!-- 审核通过状态(3)显示：发布 + 审核记录 -->
-              <div v-else-if="scope.row.applyNode === '3'">
-                <el-button link type="primary" @click="openPublishDialog(scope.row)">
-                  <Icon icon="ep:promotion" />
-                  发布
-                </el-button>
-                <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
-                  <Icon icon="ep:document" />
-                  审核记录
-                </el-button>
-              </div>
-
-              <!-- 发布状态(4)显示：已发布 + 审核记录 -->
-              <div v-else-if="scope.row.applyNode === '4'">
-                <el-button link type="success" disabled>
-                  <Icon icon="ep:check" />
-                  已发布
-                </el-button>
-                <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
-                  <Icon icon="ep:document" />
-                  审核记录
-                </el-button>
-              </div>
-
-              <!-- 驳回状态(5)显示：编辑、写作、提交审核、删除、审核记录 -->
-              <div v-else-if="scope.row.applyNode === '5'">
-                <el-button link type="primary" @click="handleEditData(scope.row)">
-                  <Icon icon="ep:edit-pen" />
-                  编辑
-                </el-button>
-                <el-button link type="primary" @click="handleEdit(scope.row)">
-                  <Icon icon="ep:edit" />
-                  写作
-                </el-button>
-                <el-button link type="primary" @click="openAuditDialog(scope.row)">
-                  <Icon icon="ep:upload" />
-                  提交审核
-                </el-button>
-                <el-button link type="danger" @click="handleDelete(scope.row)">
-                  <Icon icon="ep:delete" />
-                  删除
-                </el-button>
-                <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
-                  <Icon icon="ep:document" />
-                  审核记录
-                </el-button>
-              </div>
-            </template>
-          </el-table-column>
-        </el-table>
-
-        <!-- 分页 -->
-        <Pagination
-          :total="total"
-          v-model:page="queryParams.pageNo"
-          v-model:limit="queryParams.pageSize"
-          @pagination="getList"
-        />
-      </ContentWrap>
-    </el-col>
-  </el-row>
+      </el-col>
+    </el-row>
+  </div>
 
   <!-- 新建/编辑筹划方案弹窗 -->
   <el-dialog
@@ -301,6 +319,7 @@
     :title="dialogTitle"
     width="800px"
     :close-on-click-modal="false"
+    class="custom-dialog-header"
   >
     <el-form ref="formRef" :model="formData" :rules="formRules" label-width="120px">
       <el-form-item label="演训数据" prop="drillDataId">
@@ -374,9 +393,9 @@
         <el-input v-model="formData.description" type="textarea" :rows="3" placeholder="请输入" />
       </el-form-item>
 
-      <el-form-item label="可编辑用户" prop="editableUser">
+      <el-form-item label="可编辑用户" prop="activeUser">
         <el-select
-          v-model="formData.editableUser"
+          v-model="formData.activeUser"
           multiple
           placeholder="请选择"
           clearable
@@ -411,7 +430,7 @@
             :file-list="uploadFileList"
             :on-change="handleFileChange"
             :on-remove="handleFileRemove"
-            accept=".doc,.docx"
+            accept=".docx"
           >
             <Icon icon="ep:upload-filled" class="el-icon--upload text-50px text-gray-400" />
             <div class="el-upload__text"> 将文件拖到此处，或 <em>点击上传</em> </div>
@@ -430,7 +449,13 @@
   </el-dialog>
 
   <!-- 演训数据选择弹窗 -->
-  <el-dialog v-model="drillSelectorVisible" title="请选择" width="900px" append-to-body>
+  <el-dialog
+    v-model="drillSelectorVisible"
+    title="请选择"
+    width="900px"
+    append-to-body
+    class="custom-dialog-header"
+  >
     <!-- 筛选栏 -->
     <div class="mb-4 flex gap-4">
       <el-select v-model="drillFilter.unit" clearable placeholder="全部演训单位" class="w-40">
@@ -490,6 +515,7 @@
     title="发布配置"
     width="600px"
     :close-on-click-modal="false"
+    class="custom-dialog-header"
   >
     <el-form ref="publishFormRef" :model="publishFormData" label-width="100px">
       <el-form-item label="可见范围">
@@ -518,6 +544,7 @@
     width="500px"
     :close-on-click-modal="false"
     append-to-body
+    class="custom-dialog-header"
   >
     <el-form label-position="top">
       <el-form-item label="请输入驳回原因" required>
@@ -544,6 +571,7 @@
     title="审核记录"
     width="900px"
     :close-on-click-modal="false"
+    class="custom-dialog-header"
   >
     <el-table
       v-loading="examRecordLoading"
@@ -569,8 +597,8 @@
         show-overflow-tooltip
       />
       <el-table-column prop="examofficeName" label="审核部门" width="120" align="center" />
-      <el-table-column prop="examUserid" label="审批用户" width="100" align="center" />
-      <el-table-column prop="nextUserid" label="下一审批人" width="100" align="center" />
+      <el-table-column prop="examUserId" label="审批用户" width="100" align="center" />
+      <el-table-column prop="nextUserId" label="下一审批人" width="100" align="center" />
       <el-table-column prop="createTime" label="审核时间" width="160" align="center" />
     </el-table>
     <template #footer>
@@ -587,12 +615,13 @@ import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import { Search, ArrowDown } from '@element-plus/icons-vue'
 import { useCollaborationUserStore } from '@/store/modules/collaborationUser'
 import AuditFlowDialog from '@/components/AuditFlowDialog/index.vue'
-import { saveDocContent } from '@/utils/docStorage'
+import { saveDocContent } from '@/views/utils/docStorage'
 import {
   isEmpty,
   isArray,
   isNil,
   isObject,
+  isString,
   pickBy,
   find,
   every,
@@ -869,7 +898,7 @@ const formData = reactive({
   collegeCode: '', // 所属学院
   fileType: '', // 文档分类
   description: '', // 简介
-  editableUser: [], // 可编辑用户
+  activeUser: [], // 可编辑用户
   creationMethod: 'new' // 创建方式: new, upload
 })
 
@@ -887,7 +916,7 @@ const formRules = {
   level: [{ required: true, message: '请输入演训等级', trigger: 'blur' }],
   collegeCode: [{ required: true, message: '请选择所属学院', trigger: 'change' }],
   fileType: [{ required: true, message: '请选择文档分类', trigger: 'change' }],
-  editableUser: [{ required: true, message: '请选择可编辑用户', trigger: 'change' }],
+  activeUser: [{ required: true, message: '请选择可编辑用户', trigger: 'change' }],
   creationMethod: [{ required: true, message: '请选择创建方式', trigger: 'change' }]
 }
 
@@ -896,7 +925,7 @@ const fileTypeOptions = computed(() => {
   const filtered = filter(categories.value, (item) => item.id !== '0')
   return map(filtered, (item) => ({
     label: item.fileType,
-    value: item.fileType, // value 使用 fileType（分类名称）
+    value: item.id, // value 使用 fileType（分类名称）
     id: item.id // 保留 id 用于传递 fileType 参数
   }))
 })
@@ -1064,7 +1093,7 @@ const handleAdd = () => {
     fileType: '',
     collegeCode: '',
     description: '',
-    editableUser: [],
+    activeUser: [],
     creationMethod: 'new'
   })
   // 重置上传文件
@@ -1094,7 +1123,7 @@ const handleEditData = (row: PerformanceApi.TrainingPerformanceVO) => {
     fileType: row.fileType || '',
     collegeCode: row.collegeCode || '',
     description: row.description || '',
-    editableUser: row.activeUser ? row.activeUser.split(',') : []
+    activeUser: row.activeUser ? row.activeUser.split(',') : []
     // 编辑模式不设置 creationMethod
   })
 
@@ -1124,21 +1153,24 @@ const handleSave = async () => {
     // 根据选择的 fileTypeOptions 找到对应的分类 id 作为 fileType
     const selectedCat = find(fileTypeOptions.value, (item) => item.value === formData.fileType)
     const fileType = selectedCat?.id || ''
-
+    console.log(fileType, 'fileType（编辑）------')
     // 编辑模式
     if (isEditMode.value) {
       // 构建编辑数据（不传递 creationMethod），映射到标准字段名
       const editData: any = {
-        id: currentEditId.value,
-        drillDataId: formData.drillDataId,
-        drillDataName: formData.drillDataName,
-        planName: formData.planName, // 映射 name -> planName
-        fileType: fileType, // 使用分类 id
+        id: currentEditId.value, // 演训方案ID
+        drillDataId: formData.drillDataId, // 演训数据ID
+        drillDataName: formData.drillDataName, // 演训数据名称
+        planName: formData.planName, // 演训方案名称
+        exerciseTheme: formData.exerciseTheme, // 演训主题
+        exerciseType: formData.exerciseType, // 演训类型
+        level: formData.level, // 演训等级
+        fileType: fileType, // 文件类型
         collegeCode: formData.collegeCode, // 所属学院
-        description: formData.description, // 映射 brief -> description
-        activeUser: formData.editableUser.join(',') // 映射 editableUser -> activeUser
+        description: formData.description, // 描述
+        activeUser: formData.activeUser.join(',') // 可编辑用户
       }
-
+      console.log(editData, 'editData（编辑）------')
       await PerformanceApi.updatePerformanceData(editData)
       ElMessage.success('更新成功')
       dialogVisible.value = false
@@ -1149,22 +1181,62 @@ const handleSave = async () => {
     // 新建模式
     // 构建保存数据，映射到标准字段名
     const saveData: PerformanceApi.TrainingPerformanceVO = {
-      drillDataId: formData.drillDataId,
-      drillDataName: formData.drillDataName,
-      planName: formData.planName, // 映射 planName -> planName
-      exerciseTheme: formData.exerciseTheme, // 映射 exerciseTheme -> exerciseTheme
-      exerciseType: formData.exerciseType, // 映射 exerciseType -> exerciseType
-      level: formData.level, // 映射 level -> level
-      fileType: formData.fileType, // 映射 fileType -> fileType
+      drillDataId: formData.drillDataId, // 演训数据ID
+      drillDataName: formData.drillDataName, // 演训数据名称
+      planName: formData.planName, // 演训方案名称
+      exerciseTheme: formData.exerciseTheme, // 演训主题
+      exerciseType: formData.exerciseType, // 演训类型
+      level: formData.level, // 演训等级
+      fileType: fileType, // 文档分类
       collegeCode: formData.collegeCode, // 所属学院
-      description: formData.description, // 映射 description -> description
-      activeUser: formData.editableUser.join(',') // 映射 activeUser -> activeUser
+      description: formData.description, // 描述
+      activeUser: formData.activeUser.join(',') // 可编辑用户
     }
 
-    console.log(saveData, 'saveData------')
+    // 判断创建方式
+    if (formData.creationMethod === 'upload') {
+      // 上传文档模式
+      console.log('上传文档文件:', uploadFile.value!.name)
+      const uploadResult = await PerformanceApi.uploadDocument({
+        file: uploadFile.value!
+      })
+      console.log('上传结果:', uploadResult, typeof uploadResult)
 
-    await PerformanceApi.createNewData(saveData as PerformanceApi.TrainingPerformanceVO)
-    ElMessage.success('创建成功')
+      // 处理上传结果 - 兼容两种响应格式
+      let fileId: string | null = null
+
+      if (isString(uploadResult)) {
+        // axios 封装解包后直接返回了 data 值
+        fileId = uploadResult
+        console.log('上传成功(解包响应), 文件ID:', fileId)
+      } else if (isObject(uploadResult)) {
+        // 完整响应对象
+        const result = uploadResult as { code?: number; data?: string; msg?: string }
+        if (result.code === 200 || result.code === 0) {
+          fileId = result.data || null
+          console.log('上传成功(完整响应), 文件ID:', fileId)
+        } else {
+          ElMessage.error(result.msg || '上传文档失败')
+          return
+        }
+      }
+
+      if (isEmpty(fileId)) {
+        ElMessage.error('上传文档失败：未获取到文件ID')
+        return
+      }
+
+      // 将上传返回的 fileId 传递给 createNewData
+      saveData.fileId = fileId as string
+      console.log(saveData, 'saveData（上传文档）------')
+      await PerformanceApi.createNewData(saveData)
+      ElMessage.success('创建成功')
+    } else {
+      // 新建文档模式
+      console.log(saveData, 'saveData（新建文档）------')
+      await PerformanceApi.createNewData(saveData)
+      ElMessage.success('创建成功')
+    }
 
     dialogVisible.value = false
     getList()
@@ -1489,7 +1561,7 @@ const handleRejectSubmit = async () => {
       applyId: currentRejectRow.value.id,
       examResult: '2', // 驳回
       examOpinion: rejectReason.value,
-      examuserId: userId
+      examUserId: userId
     })
     ElMessage.success('驳回成功')
     rejectDialogVisible.value = false
@@ -1521,7 +1593,7 @@ const handleApprove = async (row: PerformanceApi.TrainingPerformanceVO) => {
       applyId: row.id,
       examResult: '1', // 通过
       examOpinion: '',
-      examuserId: userId
+      examUserId: userId
     })
     ElMessage.success('审核通过')
     getList()
@@ -1737,7 +1809,35 @@ onUnmounted(() => {
   categories.value = []
 })
 </script>
-<style scoped>
+<style scoped lang="scss">
+.performance-container {
+  height: calc(100vh - 110px); // 减去头部和标签栏高度
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.category-wrap {
+  height: 100%;
+  :deep(.el-card__body) {
+    height: 100%;
+    padding: 0;
+  }
+}
+
+.category-menu {
+  border-right: none !important;
+}
+
+.table-container-wrap {
+  :deep(.el-card__body) {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+}
+
 :deep(.el-menu-item) {
   height: 40px;
   line-height: 40px;
@@ -1748,5 +1848,55 @@ onUnmounted(() => {
 :deep(.el-menu-item.is-active) {
   background-color: var(--el-color-primary-light-9);
   color: var(--el-color-primary);
+}
+</style>
+
+<style lang="scss">
+// 统一弹窗样式 - 全局样式
+.el-dialog.custom-dialog-header {
+  padding: 0;
+
+  .el-dialog__header {
+    background: linear-gradient(to bottom, #1f8a8f, #67d4ff);
+    padding: 20px 24px;
+    margin: 0;
+    border-bottom: 1px solid #67d4ff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .el-dialog__title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #303133;
+    line-height: 1;
+  }
+
+  .el-dialog__headerbtn {
+    position: static;
+    width: 24px;
+    height: 24px;
+    margin: 0;
+
+    .el-dialog__close {
+      color: #909399;
+      font-size: 20px;
+
+      &:hover {
+        color: #606266;
+      }
+    }
+  }
+
+  .el-dialog__body {
+    padding: 24px;
+  }
+
+  .el-dialog__footer {
+    padding: 16px 24px;
+    border-top: 1px solid #e4e7ed;
+    margin: 0;
+  }
 }
 </style>

@@ -10,7 +10,7 @@ import {
   exportToJson,
   downloadBlob,
   DocumentExportInfo
-} from '@/utils/documentExport'
+} from '@/views/utils/documentExport'
 import type { ElementItem } from '@/api/template/management/types'
 
 // 提交审核请求参数接口
@@ -331,12 +331,14 @@ export const examApply = USE_MOCK ? examApplyMock : examApplyJava
 
 /**
  * 获取自定义要素列表 - Java 后端
- * GET /api/getPlan/getElement
+ * GET /tbTemplate/getElement
  * @param id 记录ID
  */
 const getElementListJava = async (id: string): Promise<ElementItem[]> => {
   try {
-    const res = await javaRequest.get<{ data?: ElementItem[] }>('/api/getPlan/getElement', { id })
+    const res = await javaRequest.get<{ data?: ElementItem[] }>('/tbTemplate/getElement', {
+      id
+    })
     return (res as any)?.data || (res as any) || []
   } catch (error) {
     console.error('获取要素列表失败:', error)
@@ -355,7 +357,7 @@ const getElementListMock = async (id: string): Promise<ElementItem[]> => {
 
 /**
  * 获取自定义要素列表（自动切换 Mock/Java）
- * GET /api/getPlan/getElement
+ * GET /getPlan/getElement
  * @param id 记录ID
  */
 export const getElementList = USE_MOCK ? getElementListMock : getElementListJava

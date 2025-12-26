@@ -10,6 +10,17 @@
         </el-button>
         <!-- 文档标题 -->
         <div class="text-lg font-bold text-gray-800">{{ documentTitle }}</div>
+        <!-- 文档时间信息 -->
+        <div class="flex items-center gap-4 text-xs text-gray-500">
+          <div class="flex items-center">
+            <span class="text-gray-400">创建时间:</span>
+            <span class="ml-1">{{ docProperties.createTime }}</span>
+          </div>
+          <div class="flex items-center">
+            <span class="text-gray-400">最后更新:</span>
+            <span class="ml-1">{{ docProperties.updateTime }}</span>
+          </div>
+        </div>
         <!-- <el-tag type="success" size="small" v-if="isCollaborationReady">
           <Icon icon="mdi:cursor-default-click" class="mr-1" />
           协同光标已启用
@@ -98,6 +109,7 @@
         title="驳回原因"
         width="500px"
         :close-on-click-modal="false"
+        class="custom-dialog-header"
         append-to-body
       >
         <el-form label-position="top">
@@ -129,7 +141,7 @@
         modal-class="material-drawer-overlay"
         :close-on-click-modal="false"
         direction="rtl"
-        class="material-drawer"
+        class="material-drawer custom-drawer-header"
         :show-close="true"
         :style="{
           position: 'absolute',
@@ -183,7 +195,8 @@ import {
   type SubmitAuditReqVO
 } from './api/documentApi'
 import { parseFileContent } from './utils/wordParser'
-import { getDocContent, removeDocContent } from '@/utils/docStorage'
+import { getDocContent, removeDocContent } from '@/views/utils/docStorage'
+import { htmlToDocx } from '@/views/utils/htmlToDocx'
 
 // Props
 interface Props {
@@ -461,62 +474,7 @@ const handleEditorReady = async (editor: any) => {
   }
 }
 
-/**
- * 将 HTML 内容转换为 Word 文档的 Blob（.docx 格式）
- * 注意：此方法生成的是 HTML 格式的文件，使用 Word 命名空间使其能被 MS Word 正确打开
- *
- * @param htmlContent HTML 内容
- * @param title 文档标题
- * @returns Blob 文件流（带 UTF-8 BOM）
- */
-const htmlToDocxBlob = (htmlContent: string, title: string): Blob => {
-  // 构建完整的 HTML 文档，包含 Word 兼容的样式
-  const fullHtml = `<!DOCTYPE html>
-<html xmlns:o="urn:schemas-microsoft-com:office:office" 
-      xmlns:w="urn:schemas-microsoft-com:office:word" 
-      xmlns="http://www.w3.org/TR/REC-html40">
-<head>
-  <meta charset="utf-8">
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta name="ProgId" content="Word.Document">
-  <meta name="Generator" content="Microsoft Word">
-  <meta name="Originator" content="Microsoft Word">
-  <title>${title}</title>
-  <style>
-    body { font-family: '宋体', SimSun, serif; font-size: 12pt; line-height: 1.5; }
-    h1 { font-size: 22pt; font-weight: bold; }
-    h2 { font-size: 16pt; font-weight: bold; }
-    h3 { font-size: 14pt; font-weight: bold; }
-    p { margin: 0.5em 0; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #000; padding: 5px; }
-    img { max-width: 100%; }
-  </style>
-</head>
-<body>
-${htmlContent}
-</body>
-</html>`
-
-  // 使用 TextEncoder 将字符串转换为 UTF-8 字节数组
-  const encoder = new TextEncoder()
-  const contentBytes = encoder.encode(fullHtml)
-
-  // UTF-8 BOM: 0xEF, 0xBB, 0xBF
-  const bom = new Uint8Array([0xef, 0xbb, 0xbf])
-
-  // 合并 BOM 和内容
-  const blobContent = new Uint8Array(bom.length + contentBytes.length)
-  blobContent.set(bom, 0)
-  blobContent.set(contentBytes, bom.length)
-
-  // 使用 .docx 的 MIME 类型
-  const mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-
-  return new Blob([blobContent], { type: mimeType })
-}
-
-// 保存文档
+// 保存文档 - 使用真实 DOCX 格式
 const handleSave = async () => {
   if (isNil(editorInstance.value)) {
     ElMessage.warning('编辑器未就绪')
@@ -528,8 +486,8 @@ const handleSave = async () => {
     // 获取编辑器的 HTML 内容
     const content = editorInstance.value.getHTML()
 
-    // 固定使用 .docx 格式
-    const blob = htmlToDocxBlob(content, documentTitle.value)
+    // 使用 htmlToDocx 生成真实的 DOCX 文件
+    const blob = await htmlToDocx(content, documentTitle.value)
     const filename = `${documentTitle.value}.docx`
     console.log(
       '保存文件，文档ID:',
@@ -538,7 +496,8 @@ const handleSave = async () => {
       filename,
       '文件大小:',
       blob.size,
-      'bytes'
+      'bytes',
+      '(真实 DOCX 格式)'
     )
 
     // 调用保存文档接口
@@ -902,6 +861,93 @@ onBeforeUnmount(() => {
 </style>
 
 <style lang="scss">
+// 统一弹窗样式 - 全局样式
+.el-dialog.custom-dialog-header {
+  padding: 0;
+
+  .el-dialog__header {
+    background: linear-gradient(to bottom, #1f8a8f, #67d4ff);
+    padding: 20px 24px;
+    margin: 0;
+    border-bottom: 1px solid #67d4ff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .el-dialog__title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #303133;
+    line-height: 1;
+  }
+
+  .el-dialog__headerbtn {
+    position: static;
+    width: 24px;
+    height: 24px;
+    margin: 0;
+
+    .el-dialog__close {
+      color: #909399;
+      font-size: 20px;
+
+      &:hover {
+        color: #606266;
+      }
+    }
+  }
+
+  .el-dialog__body {
+    padding: 24px;
+  }
+
+  .el-dialog__footer {
+    padding: 16px 24px;
+    border-top: 1px solid #e4e7ed;
+    margin: 0;
+  }
+}
+
+// 统一抽屉样式 - 全局样式
+.el-drawer.custom-drawer-header {
+  .el-drawer__header {
+    background-color: #f5f7fa !important;
+    padding: 20px 24px;
+    margin: 0;
+    border-bottom: 1px solid #e4e7ed;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .el-drawer__title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #303133;
+    line-height: 1;
+  }
+
+  .el-drawer__close-btn {
+    width: 24px;
+    height: 24px;
+    margin: 0;
+
+    .el-icon {
+      color: #909399;
+      font-size: 20px;
+
+      &:hover {
+        color: #606266;
+      }
+    }
+  }
+
+  .el-drawer__body {
+    padding: 24px;
+  }
+}
+
 // 全局样式：让无遮罩的 drawer 不阻挡编辑器操作
 // 由于 append-to-body，需要用全局样式
 .material-drawer-overlay {

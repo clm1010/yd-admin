@@ -129,7 +129,7 @@ const javaApi = {
       formData.append('id', data.id)
     }
     formData.append('file', data.file)
-    return await javaRequest.upload('/tbTemplate/saveFile', formData)
+    return await javaRequest.upload('/getPlan/saveFile', formData)
   },
 
   /**

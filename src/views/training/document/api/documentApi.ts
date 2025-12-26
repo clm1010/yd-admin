@@ -10,7 +10,7 @@ import {
   exportToJson,
   downloadBlob,
   DocumentExportInfo
-} from '@/utils/documentExport'
+} from '@/views/utils/documentExport'
 
 // 提交审核请求参数接口
 export interface SubmitAuditReqVO {
