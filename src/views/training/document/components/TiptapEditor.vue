@@ -276,8 +276,11 @@ const saveStatus = ref<'saved' | 'saving' | 'unsaved'>('saved')
 // 内容区域引用
 const contentWrapperRef = ref<HTMLElement | null>(null)
 
-// 气泡菜单引用
+// 泡泡菜单引用
 const bubbleMenuRef = ref<HTMLElement | null>(null)
+
+// BubbleMenu 插件引用（用于卸载时清理）
+let bubbleMenuPluginKey: string | null = null
 
 // 气泡菜单颜色选择
 const bubbleTextColor = ref('#000000')
@@ -523,13 +526,16 @@ const registerBubbleMenu = () => {
   )
   if (!isNil(existingPlugin)) return
 
+  // 保存插件 key 以便后续移除
+  bubbleMenuPluginKey = 'bubbleMenu'
+
   // 使用 BubbleMenuPlugin 创建插件
   const plugin = BubbleMenuPlugin({
-    pluginKey: 'bubbleMenu',
+    pluginKey: bubbleMenuPluginKey,
     editor: editor.value,
     element: bubbleMenuRef.value,
     shouldShow: ({ state }) => {
-      // 只读模式下不显示气泡菜单
+      // 只读模式下不显示泡泡菜单
       if (!props.editable) return false
 
       const { empty } = state.selection
@@ -804,7 +810,7 @@ onBeforeUnmount(() => {
   // 标记组件已销毁
   isComponentDestroyed = true
 
-  // 销毁编辑器实例
+  // 销毁编辑器实例（这会自动清理 BubbleMenuPlugin）
   if (!isNil(editor.value)) {
     try {
       editor.value.destroy()
@@ -813,16 +819,26 @@ onBeforeUnmount(() => {
     }
   }
 
-  // 清理预览相关的引用
+  // 清理插件引用
+  bubbleMenuPluginKey = null
+
+  // 清理 DOM 引用
+  contentWrapperRef.value = null
+  bubbleMenuRef.value = null
+
+  // 清理预览相关的引用和状态
   previewContent.value = ''
   pdfPreviewRef.value = null
-  contentWrapperRef.value = null
 
   // 重置状态
   saveStatus.value = 'saved'
   showBackToTop.value = false
   htmlPreviewVisible.value = false
   pdfExportVisible.value = false
+  exportingPdf.value = false
+  
+  // 清理 DragHandle 相关状态
+  currentDragNode.value = null
 })
 
 // 暴露编辑器实例和方法

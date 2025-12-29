@@ -270,21 +270,10 @@ let ydoc: Y.Doc | null = null
 let provider: WebsocketProvider | null = null
 let syncTimeoutId: ReturnType<typeof setTimeout> | null = null // 用于清理 setTimeout
 
-// 复制内容
-const copyContent = (html: string) => {
-  const tempDiv = document.createElement('div')
-  tempDiv.innerHTML = html
-  const text = tempDiv.innerText || tempDiv.textContent || ''
-
-  navigator.clipboard
-    .writeText(text)
-    .then(() => {
-      ElMessage.success('内容已复制到剪贴板')
-    })
-    .catch(() => {
-      ElMessage.error('复制失败')
-    })
-}
+// 事件处理函数引用（用于正确移除事件监听器）
+let handleProviderStatus: ((event: any) => void) | null = null
+let handleProviderSync: ((synced: boolean) => void) | null = null
+let handleAwarenessChange: (() => void) | null = null
 
 // 返回
 const goBack = () => {
@@ -575,8 +564,8 @@ const initCollaboration = () => {
       }
     })
 
-    // 监听连接状态
-    provider.on('status', (event: any) => {
+    // 定义事件处理函数（保存引用以便后续移除）
+    handleProviderStatus = (event: any) => {
       // 如果组件已销毁，不执行任何操作
       if (isComponentDestroyed) return
 
@@ -601,10 +590,9 @@ const initCollaboration = () => {
       }
 
       emit('connectionChange', connectionStatus.value)
-    })
+    }
 
-    // 监听同步状态
-    provider.on('sync', (synced: boolean) => {
+    handleProviderSync = (synced: boolean) => {
       // 如果组件已销毁，不执行任何操作
       if (isComponentDestroyed) return
 
@@ -615,14 +603,22 @@ const initCollaboration = () => {
         // 同步完成后更新协作者列表
         updateCollaborators()
       }
-    })
+    }
 
-    // 监听感知信息（在线用户）
-    provider.awareness.on('change', () => {
+    handleAwarenessChange = () => {
       // 如果组件已销毁，不执行任何操作
       if (isComponentDestroyed) return
       updateCollaborators()
-    })
+    }
+
+    // 监听连接状态
+    provider.on('status', handleProviderStatus)
+
+    // 监听同步状态
+    provider.on('sync', handleProviderSync)
+
+    // 监听感知信息（在线用户）
+    provider.awareness.on('change', handleAwarenessChange)
 
     // 设置当前用户状态到 awareness
     const userState = {
@@ -919,10 +915,16 @@ onBeforeUnmount(() => {
   // 销毁 WebSocket Provider
   if (provider) {
     try {
-      // 移除所有事件监听器
-      provider.awareness.off('change', updateCollaborators)
-      provider.off('status', () => {})
-      provider.off('sync', () => {})
+      // 移除所有事件监听器（使用保存的函数引用）
+      if (handleAwarenessChange) {
+        provider.awareness.off('change', handleAwarenessChange)
+      }
+      if (handleProviderStatus) {
+        provider.off('status', handleProviderStatus)
+      }
+      if (handleProviderSync) {
+        provider.off('sync', handleProviderSync)
+      }
       // 移除用户状态
       provider.awareness.setLocalStateField('user', null)
     } catch (e) {
@@ -932,6 +934,11 @@ onBeforeUnmount(() => {
     provider.destroy()
     provider = null
   }
+
+  // 清理事件处理函数引用
+  handleProviderStatus = null
+  handleProviderSync = null
+  handleAwarenessChange = null
 
   // 销毁 Y.Doc
   if (ydoc) {

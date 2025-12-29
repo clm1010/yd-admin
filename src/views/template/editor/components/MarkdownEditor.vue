@@ -590,8 +590,11 @@ let isComponentDestroyed = false
 // 内容区域引用
 const contentWrapperRef = ref<HTMLElement | null>(null)
 
-// 气泡菜单引用 - 参考 https://tiptap.dev/docs/editor/extensions/functionality/bubble-menu
+// 泡泡菜单引用 - 参考 https://tiptap.dev/docs/editor/extensions/functionality/bubble-menu
 const bubbleMenuRef = ref<HTMLElement | null>(null)
+
+// BubbleMenu 插件 key（用于卸载时清理）
+let bubbleMenuPluginKey: string | null = null
 
 // 文件输入引用
 const wordFileInputRef = ref<HTMLInputElement | null>(null)
@@ -817,13 +820,16 @@ const registerBubbleMenu = () => {
   )
   if (!isNil(existingPlugin)) return
 
+  // 保存插件 key 以便后续移除
+  bubbleMenuPluginKey = 'bubbleMenu'
+
   // 使用 BubbleMenuPlugin 创建插件
   const plugin = BubbleMenuPlugin({
-    pluginKey: 'bubbleMenu',
+    pluginKey: bubbleMenuPluginKey,
     editor: editor.value,
     element: bubbleMenuRef.value,
     shouldShow: ({ state }) => {
-      // 只读模式下不显示气泡菜单
+      // 只读模式下不显示泡泡菜单
       if (!props.editable) return false
 
       const { empty } = state.selection
@@ -1155,7 +1161,7 @@ onBeforeUnmount(() => {
   // 标记组件已销毁
   isComponentDestroyed = true
 
-  // 销毁编辑器实例
+  // 销毁编辑器实例（这会自动清理 BubbleMenuPlugin）
   if (!isNil(editor.value)) {
     try {
       editor.value.destroy()
@@ -1164,9 +1170,29 @@ onBeforeUnmount(() => {
     }
   }
 
+  // 清理插件引用
+  bubbleMenuPluginKey = null
+
   // 清理 DOM 引用
   contentWrapperRef.value = null
   bubbleMenuRef.value = null
+  wordFileInputRef.value = null
+  markdownFileInputRef.value = null
+
+  // 清理预览相关状态
+  previewDialogVisible.value = false
+  previewContent.value = ''
+  documentTitle.value = ''
+  previewZoom.value = 100
+  previewSidebarVisible.value = false
+
+  // 清理表格选择器状态
+  tablePopoverVisible.value = false
+  selectedRows.value = 0
+  selectedCols.value = 0
+
+  // 清理 DragHandle 相关状态
+  currentDragNode.value = null
 })
 
 // 获取 Markdown 内容
