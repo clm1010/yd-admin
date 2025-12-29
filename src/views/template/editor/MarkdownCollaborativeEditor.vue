@@ -10,6 +10,17 @@
         </el-button>
         <!-- 文档标题 -->
         <div class="text-lg font-bold text-gray-800">{{ documentTitle }}</div>
+        <!-- 文档时间信息 -->
+        <div class="flex items-center gap-4 text-xs text-gray-500">
+          <div class="flex items-center">
+            <span class="text-gray-400">创建时间:</span>
+            <span class="ml-1">{{ docProperties.createTime }}</span>
+          </div>
+          <div class="flex items-center">
+            <span class="text-gray-400">最后更新:</span>
+            <span class="ml-1">{{ docProperties.updateTime }}</span>
+          </div>
+        </div>
         <!-- <el-tag type="success" size="small" v-if="isCollaborationReady">
           <Icon icon="mdi:cursor-default-click" class="mr-1" />
           协同光标已启用
@@ -28,12 +39,26 @@
           ></span>
           {{ connectionStatus }}
         </div>
-        <el-button type="primary" plain size="default" @click="handleSubmitAudit"
-          >提交审核</el-button
-        >
-        <el-button type="primary" size="default" @click="handleSave" :loading="isSaving">
-          保存
-        </el-button>
+        <!-- 审核模式：显示审核和驳回按钮 -->
+        <template v-if="isReviewMode">
+          <el-button type="success" size="default" @click="handleReviewApprove">
+            <Icon icon="ep:check" class="mr-1" />
+            审核通过
+          </el-button>
+          <el-button type="danger" size="default" @click="openReviewRejectDialog">
+            <Icon icon="ep:close" class="mr-1" />
+            驳回
+          </el-button>
+        </template>
+        <!-- 非审核模式：显示提交审核和保存按钮 -->
+        <template v-else>
+          <el-button type="primary" plain size="default" @click="handleSubmitAudit"
+            >提交审核</el-button
+          >
+          <el-button type="primary" size="default" @click="handleSave" :loading="isSaving">
+            保存
+          </el-button>
+        </template>
       </div>
     </div>
 
@@ -51,6 +76,7 @@
             :title="documentTitle"
             :placeholder="'开始编写 ' + documentTitle + '...'"
             :loading="!isCollaborationReady"
+            :editable="!isReadonly"
             @update="handleContentUpdate"
             @ready="handleEditorReady"
           />
@@ -61,49 +87,38 @@
       <div class="w-[300px] flex-shrink-0 border-l border-gray-200 bg-white h-full z-10 shadow-sm">
         <MarkdownCollaborationPanel
           :collaborators="collaborators"
-          :materials="referenceMaterials"
+          :elements="customElements"
           :properties="docProperties"
-          @click-material="handleMaterialClick"
         />
       </div>
 
-      <!-- 参考素材抽屉 (无遮罩，从协同面板左侧滑出) -->
-      <el-drawer
-        v-model="drawerVisible"
-        :title="currentMaterial?.title || '参考素材'"
-        :modal="false"
-        :lock-scroll="false"
-        :append-to-body="true"
-        modal-class="material-drawer-overlay"
+      <!-- 驳回原因弹窗（审核模式） -->
+      <el-dialog
+        v-model="reviewRejectDialogVisible"
+        title="驳回原因"
+        width="500px"
         :close-on-click-modal="false"
-        direction="rtl"
-        class="material-drawer"
-        :show-close="true"
-        :style="{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          width: '500px',
-          height: '100%'
-        }"
+        class="custom-dialog-header"
+        append-to-body
       >
-        <div v-if="currentMaterial" class="h-full flex flex-col">
-          <div class="text-xs text-gray-400 mb-4 flex justify-between">
-            <span>发布时间: {{ currentMaterial.date }}</span>
-            <span>作者: {{ currentMaterial.author }}</span>
-          </div>
-          <div
-            class="prose prose-sm flex-1 overflow-y-auto border p-3 rounded bg-gray-50 mb-4"
-            v-html="currentMaterial.content"
-          ></div>
-          <div class="flex justify-end gap-2">
-            <el-button type="primary" @click="copyContent(currentMaterial.content)">
-              复制内容
-            </el-button>
-            <el-button @click="drawerVisible = false">关闭</el-button>
-          </div>
-        </div>
-      </el-drawer>
+        <el-form label-position="top">
+          <el-form-item label="请输入驳回原因" required>
+            <el-input
+              v-model="reviewRejectReason"
+              type="textarea"
+              :rows="6"
+              placeholder="请输入驳回原因"
+              resize="none"
+            />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="reviewRejectDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="handleReviewRejectSubmit" :loading="reviewRejectLoading"
+            >确认提交</el-button
+          >
+        </template>
+      </el-dialog>
     </div>
 
     <!-- 审核流配置弹窗 -->
@@ -121,7 +136,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { isNil, isEmpty } from 'lodash-es'
 import dayjs from 'dayjs'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
@@ -132,12 +148,14 @@ import MarkdownEditor from './components/MarkdownEditor.vue'
 import { useCollaborationUserStore } from '@/store/modules/collaborationUser'
 import { defaultMarkdownConfig } from './config/markdownConfig'
 import {
-  getReferenceMaterials,
   saveMarkdownFile,
   submitAudit,
+  examApply,
+  getElementList,
   type MarkdownDocumentInfo,
   type SubmitAuditReqVO
 } from './api/markdownApi'
+import type { ElementItem } from '@/api/template/management/types'
 
 // Props
 interface Props {
@@ -191,8 +209,8 @@ let isComponentDestroyed = false // 标记组件是否已销毁
 let hasShownConnectedMessage = false // 是否已显示连接成功消息
 let hasShownSyncedMessage = false // 是否已显示同步完成消息
 
-// 参考素材
-const referenceMaterials = ref<any[]>([])
+// 自定义要素
+const customElements = ref<ElementItem[]>([])
 
 // 文档属性 - 使用与 document 一致的格式
 const docProperties = computed(() => ({
@@ -206,13 +224,16 @@ const docProperties = computed(() => ({
   tags: documentInfo.value?.tags || []
 }))
 
-// 抽屉状态
-const drawerVisible = ref(false)
-const currentMaterial = ref<any>(null)
-
 // 审核弹窗
 const auditDialogVisible = ref(false)
 const auditLoading = ref(false)
+
+// 审核模式相关（从列表页点击"审核执行"进入）
+const isReviewMode = computed(() => route.query.reviewMode === 'true')
+const isReadonly = computed(() => route.query.readonly === 'true')
+const reviewRejectDialogVisible = ref(false)
+const reviewRejectLoading = ref(false)
+const reviewRejectReason = ref('')
 
 // 审核流程列表数据
 const auditFlowList = [
@@ -249,27 +270,10 @@ let ydoc: Y.Doc | null = null
 let provider: WebsocketProvider | null = null
 let syncTimeoutId: ReturnType<typeof setTimeout> | null = null // 用于清理 setTimeout
 
-// 处理素材点击
-const handleMaterialClick = (item: any) => {
-  currentMaterial.value = item
-  drawerVisible.value = true
-}
-
-// 复制内容
-const copyContent = (html: string) => {
-  const tempDiv = document.createElement('div')
-  tempDiv.innerHTML = html
-  const text = tempDiv.innerText || tempDiv.textContent || ''
-
-  navigator.clipboard
-    .writeText(text)
-    .then(() => {
-      ElMessage.success('内容已复制到剪贴板')
-    })
-    .catch(() => {
-      ElMessage.error('复制失败')
-    })
-}
+// 事件处理函数引用（用于正确移除事件监听器）
+let handleProviderStatus: ((event: any) => void) | null = null
+let handleProviderSync: ((synced: boolean) => void) | null = null
+let handleAwarenessChange: (() => void) | null = null
 
 // 返回
 const goBack = () => {
@@ -307,7 +311,7 @@ const handleEditorReady = async (editor: any) => {
  * @returns Markdown 文本
  */
 const htmlToMarkdown = (htmlContent: string): string => {
-  if (!htmlContent) return ''
+  if (isEmpty(htmlContent)) return ''
 
   let markdown = htmlContent
     // 处理标题
@@ -397,7 +401,7 @@ const htmlToMarkdownBlob = (htmlContent: string): Blob => {
 
 // 保存文档
 const handleSave = async () => {
-  if (!editorInstance.value) {
+  if (isNil(editorInstance.value)) {
     ElMessage.warning('编辑器未就绪')
     return
   }
@@ -461,6 +465,81 @@ const handleAuditSubmit = async (data: SubmitAuditReqVO) => {
   }
 }
 
+// 审核通过（审核模式下）
+const handleReviewApprove = async () => {
+  try {
+    await ElMessageBox.confirm('确认审核通过该模板吗？', '审核确认', {
+      confirmButtonText: '确认提交',
+      cancelButtonText: '取消',
+      type: 'info'
+    })
+
+    // 获取当前用户ID
+    const userId = currentUser.id || 'admin'
+
+    const result = await examApply({
+      applyId: documentId.value,
+      examResult: '1', // 通过
+      examOpinion: '',
+      examUserId: userId
+    })
+
+    if (result && (result.code === 200 || result.code === 0)) {
+      ElMessage.success(result.msg || '审核通过')
+      // 返回列表页
+      router.back()
+    } else {
+      ElMessage.error(result?.msg || '审核失败')
+    }
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('审核失败:', error)
+      ElMessage.error(error.message || '审核失败')
+    }
+  }
+}
+
+// 打开驳回弹窗（审核模式下）
+const openReviewRejectDialog = () => {
+  reviewRejectDialogVisible.value = true
+  reviewRejectReason.value = ''
+}
+
+// 提交驳回（审核模式下）
+const handleReviewRejectSubmit = async () => {
+  if (isEmpty(reviewRejectReason.value.trim())) {
+    ElMessage.warning('请输入驳回原因')
+    return
+  }
+
+  reviewRejectLoading.value = true
+  try {
+    // 获取当前用户ID
+    const userId = currentUser.id || 'admin'
+
+    const result = await examApply({
+      applyId: documentId.value,
+      examResult: '2', // 驳回
+      examOpinion: reviewRejectReason.value,
+      examUserId: userId
+    })
+
+    if (result && (result.code === 200 || result.code === 0)) {
+      ElMessage.success(result.msg || '驳回成功')
+      reviewRejectDialogVisible.value = false
+      // 返回列表页
+      router.back()
+    } else {
+      ElMessage.error(result?.msg || '驳回失败')
+    }
+  } catch (error: any) {
+    console.error('驳回失败:', error)
+    ElMessage.error(error.message || '驳回失败')
+  } finally {
+    reviewRejectLoading.value = false
+  }
+}
+
 // 初始化协同编辑
 const initCollaboration = () => {
   try {
@@ -485,8 +564,8 @@ const initCollaboration = () => {
       }
     })
 
-    // 监听连接状态
-    provider.on('status', (event: any) => {
+    // 定义事件处理函数（保存引用以便后续移除）
+    handleProviderStatus = (event: any) => {
       // 如果组件已销毁，不执行任何操作
       if (isComponentDestroyed) return
 
@@ -511,10 +590,9 @@ const initCollaboration = () => {
       }
 
       emit('connectionChange', connectionStatus.value)
-    })
+    }
 
-    // 监听同步状态
-    provider.on('sync', (synced: boolean) => {
+    handleProviderSync = (synced: boolean) => {
       // 如果组件已销毁，不执行任何操作
       if (isComponentDestroyed) return
 
@@ -525,14 +603,22 @@ const initCollaboration = () => {
         // 同步完成后更新协作者列表
         updateCollaborators()
       }
-    })
+    }
 
-    // 监听感知信息（在线用户）
-    provider.awareness.on('change', () => {
+    handleAwarenessChange = () => {
       // 如果组件已销毁，不执行任何操作
       if (isComponentDestroyed) return
       updateCollaborators()
-    })
+    }
+
+    // 监听连接状态
+    provider.on('status', handleProviderStatus)
+
+    // 监听同步状态
+    provider.on('sync', handleProviderSync)
+
+    // 监听感知信息（在线用户）
+    provider.awareness.on('change', handleAwarenessChange)
 
     // 设置当前用户状态到 awareness
     const userState = {
@@ -567,15 +653,15 @@ const initCollaboration = () => {
 let updateCollaboratorsTimer: ReturnType<typeof setTimeout> | null = null
 const updateCollaborators = () => {
   // 如果组件已销毁或 provider 不存在，不执行任何操作
-  if (isComponentDestroyed || !provider) return
+  if (isComponentDestroyed || isNil(provider)) return
 
   // 防抖：避免频繁更新
-  if (updateCollaboratorsTimer) {
+  if (!isNil(updateCollaboratorsTimer)) {
     clearTimeout(updateCollaboratorsTimer)
   }
 
   updateCollaboratorsTimer = setTimeout(() => {
-    if (isComponentDestroyed || !provider) return
+    if (isComponentDestroyed || isNil(provider)) return
 
     const states = provider.awareness.getStates()
     // 使用 Map 按用户 ID 去重，保留最新的连接
@@ -623,7 +709,7 @@ const base64ToText = async (base64: string): Promise<string> => {
   try {
     // 从 data URL 提取 base64 数据
     const base64Data = base64.split(',')[1]
-    if (!base64Data) {
+    if (isEmpty(base64Data)) {
       console.warn('无效的 base64 数据格式')
       return ''
     }
@@ -651,7 +737,7 @@ const base64ToText = async (base64: string): Promise<string> => {
  * @returns HTML 内容
  */
 const markdownToHtml = (markdown: string): string => {
-  if (!markdown) return ''
+  if (isEmpty(markdown)) return ''
 
   let html = markdown
     // 转义 HTML 特殊字符（但保留 Markdown 需要的字符）
@@ -762,8 +848,8 @@ const loadDocument = async () => {
       }
     }
 
-    // 加载参考素材
-    referenceMaterials.value = await getReferenceMaterials(documentId.value)
+    // 加载自定义要素
+    customElements.value = await getElementList(documentId.value)
   } catch (error) {
     console.error('加载文档失败:', error)
     // 确保即使出错也有默认值
@@ -829,10 +915,16 @@ onBeforeUnmount(() => {
   // 销毁 WebSocket Provider
   if (provider) {
     try {
-      // 移除所有事件监听器
-      provider.awareness.off('change', updateCollaborators)
-      provider.off('status', () => {})
-      provider.off('sync', () => {})
+      // 移除所有事件监听器（使用保存的函数引用）
+      if (handleAwarenessChange) {
+        provider.awareness.off('change', handleAwarenessChange)
+      }
+      if (handleProviderStatus) {
+        provider.off('status', handleProviderStatus)
+      }
+      if (handleProviderSync) {
+        provider.off('sync', handleProviderSync)
+      }
       // 移除用户状态
       provider.awareness.setLocalStateField('user', null)
     } catch (e) {
@@ -842,6 +934,11 @@ onBeforeUnmount(() => {
     provider.destroy()
     provider = null
   }
+
+  // 清理事件处理函数引用
+  handleProviderStatus = null
+  handleProviderSync = null
+  handleAwarenessChange = null
 
   // 销毁 Y.Doc
   if (ydoc) {
@@ -855,9 +952,8 @@ onBeforeUnmount(() => {
 
   // 清理其他响应式引用
   collaborators.value = []
-  referenceMaterials.value = []
+  customElements.value = []
   documentInfo.value = null
-  currentMaterial.value = null
   initialMarkdownContent.value = ''
 
   console.log('Markdown 协同编辑组件已清理')
@@ -872,6 +968,54 @@ onBeforeUnmount(() => {
 </style>
 
 <style lang="scss">
+// 统一弹窗样式 - 全局样式
+.el-dialog.custom-dialog-header {
+  padding: 0;
+
+  .el-dialog__header {
+    background: linear-gradient(to bottom, #1f8a8f, #67d4ff);
+    padding: 20px 24px;
+    margin: 0;
+    border-bottom: 1px solid #67d4ff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .el-dialog__title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #303133;
+    line-height: 1;
+  }
+
+  .el-dialog__headerbtn {
+    position: static;
+    width: 24px;
+    height: 24px;
+    margin: 0;
+
+    .el-dialog__close {
+      color: #909399;
+      font-size: 20px;
+
+      &:hover {
+        color: #606266;
+      }
+    }
+  }
+
+  .el-dialog__body {
+    padding: 24px;
+  }
+
+  .el-dialog__footer {
+    padding: 16px 24px;
+    border-top: 1px solid #e4e7ed;
+    margin: 0;
+  }
+}
+
 // 全局样式：让无遮罩的 drawer 不阻挡编辑器操作
 // 由于 append-to-body，需要用全局样式
 .material-drawer-overlay {

@@ -327,9 +327,9 @@ const fixTable = () => {
 }
 
 const setTableAlign = (align: string) => {
-  // 表格对齐需要自定义实现
   if (!editor.value) return
-  // editor.value.chain().focus().setCellAttribute('textAlign', align).run()
+  // 使用自定义 TableCell 扩展的 textAlign 属性
+  editor.value.chain().focus().setCellAttribute('textAlign', align).run()
 }
 
 const setCellBackground = (color: string) => {

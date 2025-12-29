@@ -10,7 +10,9 @@ import type {
   PermissionCheckReqVO,
   PermissionCheckResponse,
   ExamRecordVO,
-  ExamApplyReqVO
+  ExamApplyReqVO,
+  PublishDocReqVO,
+  ElementItem
 } from '@/api/template/management/types'
 import {
   templateCategories,
@@ -22,7 +24,7 @@ import {
 /**
  * 审核状态枚举（编辑中:1、审核中:2、审核通过:3、发布:4、驳回:5）
  */
-const AuditStatus = {
+const ApplyNode = {
   EDITING: '1', // 编辑中
   REVIEWING: '2', // 审核中
   APPROVED: '3', // 审核通过
@@ -55,7 +57,12 @@ const mockDataList: TemplateVO[] = [
     description: '用于生成标准作战命令文档',
     createTime: '2024-12-10 09:30:00',
     createBy: 'admin',
-    applyNode: AuditStatus.APPROVED // 审核通过
+    applyNode: ApplyNode.APPROVED, // 审核通过
+    elements_items: [
+      { item_type: 'text', item_label: '任命' },
+      { item_type: 'radio', item_label: '报告类型', item_options: ['日报', '周报', '月报'] },
+      { item_type: 'time', item_label: '发文日期' }
+    ]
   },
   {
     id: '2',
@@ -67,7 +74,11 @@ const mockDataList: TemplateVO[] = [
     description: '标准演训方案编写模板',
     createTime: '2024-12-08 10:00:00',
     createBy: 'staff_a',
-    applyNode: AuditStatus.REVIEWING // 审核中
+    applyNode: ApplyNode.REVIEWING, // 审核中
+    elements_items: [
+      { item_type: 'text', item_label: '人名' },
+      { item_type: 'text', item_label: '主送单位' }
+    ]
   },
   {
     id: '3',
@@ -79,7 +90,15 @@ const mockDataList: TemplateVO[] = [
     description: '作战计划编制标准模板',
     createTime: '2024-12-05 08:30:00',
     createBy: 'staff_b',
-    applyNode: AuditStatus.EDITING // 编辑中
+    applyNode: ApplyNode.EDITING, // 编辑中
+    elements_items: [
+      {
+        item_type: 'multiple',
+        item_label: '参与部门',
+        item_options: ['作战部', '后勤部', '指挥部']
+      },
+      { item_type: 'number', item_label: '预计人数' }
+    ]
   },
   {
     id: '4',
@@ -91,7 +110,8 @@ const mockDataList: TemplateVO[] = [
     description: '联合作战编组标准模板',
     createTime: '2024-12-01 14:00:00',
     createBy: 'admin',
-    applyNode: AuditStatus.PUBLISHED // 发布
+    applyNode: ApplyNode.PUBLISHED, // 发布
+    elements_items: []
   },
   {
     id: '5',
@@ -103,7 +123,11 @@ const mockDataList: TemplateVO[] = [
     description: '演训总结报告编写模板',
     createTime: '2024-11-28 11:30:00',
     createBy: 'staff_a',
-    applyNode: AuditStatus.REJECTED // 驳回
+    applyNode: ApplyNode.REJECTED, // 驳回
+    elements_items: [
+      { item_type: 'text', item_label: '总结标题' },
+      { item_type: 'time', item_label: '演训时间' }
+    ]
   },
   {
     id: '6',
@@ -115,7 +139,11 @@ const mockDataList: TemplateVO[] = [
     description: '标准导调计划编制模板',
     createTime: '2024-11-25 09:00:00',
     createBy: 'admin',
-    applyNode: AuditStatus.APPROVED // 审核通过
+    applyNode: ApplyNode.APPROVED, // 审核通过
+    elements_items: [
+      { item_type: 'text', item_label: '导调主题' },
+      { item_type: 'radio', item_label: '导调方式', item_options: ['现场', '远程', '混合'] }
+    ]
   }
 ]
 
@@ -246,10 +274,10 @@ export const getPageList = async (params: TemplatePageReqVO) => {
   // tabType=publish: 只显示发布(4)
   if (params.tabType === 'review') {
     filteredList = filteredList.filter((item) =>
-      [AuditStatus.REVIEWING, AuditStatus.APPROVED].includes(item.applyNode || '')
+      [ApplyNode.REVIEWING, ApplyNode.APPROVED].includes(item.applyNode || '')
     )
   } else if (params.tabType === 'publish') {
-    filteredList = filteredList.filter((item) => item.applyNode === AuditStatus.PUBLISHED)
+    filteredList = filteredList.filter((item) => item.applyNode === ApplyNode.PUBLISHED)
   }
 
   // 分页
@@ -287,7 +315,7 @@ export const savaTemplate = async (data: TemplateVO) => {
     ...data,
     id: String(generateMockId()),
     temStatus: data.temStatus === '启用' ? '启用' : '禁用',
-    applyNode: AuditStatus.EDITING, // 编辑中
+    applyNode: ApplyNode.EDITING, // 编辑中
     createTime: new Date().toLocaleString('zh-CN'),
     createBy: 'admin'
   }
@@ -381,7 +409,7 @@ export const submitAudit = async (data: SubmitAuditReqVO) => {
 
   const index = mockDataList.findIndex((item) => String(item.id) === String(data.id))
   if (index !== -1) {
-    mockDataList[index].applyNode = AuditStatus.REVIEWING // 审核中
+    mockDataList[index].applyNode = ApplyNode.REVIEWING // 审核中
     mockDataList[index].flowId = data.flowId
 
     return {
@@ -444,21 +472,6 @@ export const saveDocument = async (data: ImportTemplateData) => {
 }
 
 /**
- * 保存模板文件（带 ID）
- */
-export const saveTemplateFile = async (_id: string, _file: File) => {
-  await mockDelay(500)
-
-  return {
-    code: 200,
-    data: {
-      fileId: `mock-file-${Date.now()}`
-    },
-    msg: '保存成功'
-  }
-}
-
-/**
  * 获取审核记录列表
  * GET /examRecord/examApply
  * @param id 当前表格数据id
@@ -482,10 +495,10 @@ export const examApply = async (data: ExamApplyReqVO) => {
     // 更新审核状态
     if (data.examResult === '1') {
       // 审核通过
-      mockDataList[index].applyNode = AuditStatus.APPROVED
+      mockDataList[index].applyNode = ApplyNode.APPROVED
     } else if (data.examResult === '2') {
       // 驳回
-      mockDataList[index].applyNode = AuditStatus.REJECTED
+      mockDataList[index].applyNode = ApplyNode.REJECTED
     }
 
     return {
@@ -502,6 +515,44 @@ export const examApply = async (data: ExamApplyReqVO) => {
   }
 }
 
+/**
+ * 发布模板
+ * POST /tbTemplate/publishData
+ * @param data { id, visibleScope }
+ */
+export const publishDocument = async (data: PublishDocReqVO) => {
+  await mockDelay()
+
+  const index = mockDataList.findIndex((item) => String(item.id) === String(data.id))
+  if (index !== -1) {
+    mockDataList[index].applyNode = ApplyNode.PUBLISHED // 发布
+
+    return {
+      code: 200,
+      data: mockDataList[index],
+      msg: '发布成功'
+    }
+  }
+
+  return {
+    code: 500,
+    data: null,
+    msg: '数据不存在'
+  }
+}
+
+/**
+ * 获取自定义要素列表
+ * GET /api/getPlan/getElement
+ * @param id 记录ID
+ */
+export const getElementList = async (id: string): Promise<ElementItem[]> => {
+  await mockDelay(200)
+
+  const item = mockDataList.find((item) => String(item.id) === String(id))
+  return item?.elements_items || []
+}
+
 // 导出所有 Mock API
 export default {
   getPageList,
@@ -514,7 +565,8 @@ export default {
   checkWritePermission,
   getFileStream,
   saveDocument,
-  saveTemplateFile,
   getExamRecordList,
-  examApply
+  examApply,
+  publishDocument,
+  getElementList
 }

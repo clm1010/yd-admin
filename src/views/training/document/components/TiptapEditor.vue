@@ -1,7 +1,11 @@
 <template>
   <div class="tiptap-editor-wrapper">
-    <!-- 工具栏仅在编辑器就绪时展示 -->
-    <EditorToolbar v-if="editor && !loading" :editor="editor" :save-status="saveStatus" />
+    <!-- 工具栏仅在编辑器就绪且可编辑时展示 -->
+    <EditorToolbar
+      v-if="editor && !loading && editable"
+      :editor="editor"
+      :save-status="saveStatus"
+    />
 
     <!-- 编辑器内容区域 -->
     <div class="tiptap-content-wrapper" ref="contentWrapperRef" @scroll="handleScroll">
@@ -20,9 +24,9 @@
               background: pageBackground
             }"
           >
-            <!-- 官方 DragHandle 组件 -->
+            <!-- 官方 DragHandle 组件 - 只读模式下隐藏 -->
             <DragHandle
-              v-if="editor"
+              v-if="editor && editable"
               :editor="editor"
               :compute-position-config="{ placement: 'left-start', strategy: 'absolute' }"
               @node-change="handleDragNodeChange"
@@ -39,7 +43,8 @@
             <editor-content :editor="editor" class="tiptap-content" />
 
             <!-- 气泡菜单 - 参考 https://tiptap.dev/docs/editor/extensions/functionality/bubble-menu -->
-            <div ref="bubbleMenuRef" class="bubble-menu" v-show="editor">
+            <!-- 只读模式下隐藏气泡菜单 -->
+            <div ref="bubbleMenuRef" class="bubble-menu" v-show="editor && editable">
               <div class="bubble-menu-container">
                 <button
                   class="bubble-menu-btn"
@@ -74,14 +79,18 @@
                   <Icon icon="mdi:format-strikethrough" />
                 </button>
                 <div class="bubble-menu-divider"></div>
-                <button
-                  class="bubble-menu-btn"
-                  :class="{ 'is-active': editor?.isActive('highlight') }"
-                  @click="editor?.chain().focus().toggleHighlight().run()"
-                  title="高亮"
-                >
-                  <Icon icon="mdi:format-color-highlight" />
-                </button>
+                <ColorPicker
+                  v-model="bubbleTextColor"
+                  icon="mdi:format-color-text"
+                  title="字体颜色"
+                  @change="handleBubbleTextColor"
+                />
+                <ColorPicker
+                  v-model="bubbleHighlightColor"
+                  icon="mdi:format-color-highlight"
+                  title="字体背景颜色"
+                  @change="handleBubbleHighlightColor"
+                />
                 <button
                   class="bubble-menu-btn"
                   :class="{ 'is-active': editor?.isActive('link') }"
@@ -196,9 +205,9 @@
 
 <script setup lang="ts">
 // @ts-nocheck - 忽略 Tiptap 版本不兼容导致的类型问题
-import { ref, onBeforeUnmount, watch, computed, provide, reactive, onMounted } from 'vue'
+import { ref, onBeforeUnmount, watch, computed, provide, reactive, onMounted, toRefs } from 'vue'
+import { isNil, isEmpty } from 'lodash-es'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
-// Tiptap v3: 所有扩展使用命名导出
 import { StarterKit } from '@tiptap/starter-kit'
 import { Collaboration } from '@tiptap/extension-collaboration'
 import { CollaborationCaret } from '@tiptap/extension-collaboration-caret'
@@ -206,18 +215,17 @@ import { Placeholder } from '@tiptap/extensions'
 import { TextAlign } from '@tiptap/extension-text-align'
 import { Highlight } from '@tiptap/extension-highlight'
 import { Link } from '@tiptap/extension-link'
-import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
+import { Table, TableRow } from '@tiptap/extension-table'
+import { CustomTableCell } from './toolbar/extensions/CustomTableCell'
+import { CustomTableHeader } from './toolbar/extensions/CustomTableHeader'
 import { ResizableImage } from './toolbar/extensions/ResizableImage'
 import { TaskList, TaskItem } from '@tiptap/extension-list'
-// Tiptap v3: TextStyle, FontSize, FontFamily 从 @tiptap/extension-text-style 导入
 import { TextStyle, FontSize } from '@tiptap/extension-text-style'
 import { FontFamily } from '@tiptap/extension-font-family'
 import { Color } from '@tiptap/extension-color'
-// Tiptap v3: BubbleMenu 扩展 - 参考 https://tiptap.dev/docs/editor/extensions/functionality/bubble-menu
 import { BubbleMenuPlugin } from '@tiptap/extension-bubble-menu'
 import { Subscript } from '@tiptap/extension-subscript'
 import { Superscript } from '@tiptap/extension-superscript'
-// Tiptap v3: 使用官方 DragHandle Vue 组件
 import { DragHandle } from '@tiptap/extension-drag-handle-vue-3'
 import { PageBreak } from './toolbar/extensions/PageBreak'
 import * as Y from 'yjs'
@@ -226,6 +234,7 @@ import { Icon } from '@/components/Icon'
 import { ElMessage } from 'element-plus'
 import { EditorToolbar } from './toolbar'
 import { EditorKey } from './toolbar/types'
+import ColorPicker from './toolbar/ColorPicker.vue'
 
 // Props
 interface Props {
@@ -239,13 +248,18 @@ interface Props {
   placeholder?: string
   title?: string
   loading?: boolean
+  editable?: boolean // 是否可编辑（只读模式为 false）
 }
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: '开始编写文档内容...',
   title: '文档',
-  loading: false
+  loading: false,
+  editable: true
 })
+
+// 解构 props 以便在模板中使用
+const { editable } = toRefs(props)
 
 // Emits
 const emit = defineEmits<{
@@ -262,8 +276,15 @@ const saveStatus = ref<'saved' | 'saving' | 'unsaved'>('saved')
 // 内容区域引用
 const contentWrapperRef = ref<HTMLElement | null>(null)
 
-// 气泡菜单引用 - 参考 https://tiptap.dev/docs/editor/extensions/functionality/bubble-menu
+// 泡泡菜单引用
 const bubbleMenuRef = ref<HTMLElement | null>(null)
+
+// BubbleMenu 插件引用（用于卸载时清理）
+let bubbleMenuPluginKey: string | null = null
+
+// 气泡菜单颜色选择
+const bubbleTextColor = ref('#000000')
+const bubbleHighlightColor = ref('#FFFF00')
 
 // 回到顶部按钮显示状态
 const showBackToTop = ref(false)
@@ -343,7 +364,7 @@ const pdfPreviewRef = ref<HTMLElement | null>(null)
 
 // 格式化 HTML 用于显示
 const formattedHtml = computed(() => {
-  if (!previewContent.value) return ''
+  if (isEmpty(previewContent.value)) return ''
   // 简单格式化 HTML
   return previewContent.value
     .replace(/></g, '>\n<')
@@ -355,6 +376,7 @@ const formattedHtml = computed(() => {
 
 // 编辑器实例
 const editor = useEditor({
+  editable: props.editable, // 根据 props 控制是否可编辑
   extensions: [
     StarterKit.configure({
       // Tiptap v3: history 重命名为 undoRedo
@@ -402,25 +424,25 @@ const editor = useEditor({
         class: 'editor-image'
       }
     }),
-    // 表格
+    // 表格 - 使用自定义扩展支持对齐和背景色
     Table.configure({
       resizable: true
     }),
     TableRow,
-    TableCell,
-    TableHeader,
+    CustomTableCell,
+    CustomTableHeader,
     // 任务列表
     TaskList,
     TaskItem.configure({
       nested: true
     }),
-    // 文本样式 - 参考 https://tiptap.dev/docs/editor/extensions/marks/text-style
+    // 文本样式
     TextStyle,
-    // 字号 - 参考 https://tiptap.dev/docs/editor/extensions/functionality/fontsize
+    // 字号
     FontSize.configure({
       types: ['textStyle']
     }),
-    // 字体 - 参考 https://tiptap.dev/docs/editor/extensions/functionality/fontfamily
+    // 字体
     FontFamily.configure({
       types: ['textStyle']
     }),
@@ -466,7 +488,7 @@ const handleDragNodeChange = (data: { node: any; editor: any; pos: number } | nu
 
 // 在当前节点后添加新段落
 const addParagraphAfter = () => {
-  if (!editor.value || !currentDragNode.value) return
+  if (isNil(editor.value) || isNil(currentDragNode.value)) return
 
   const { pos, node } = currentDragNode.value
   const endPos = pos + node.nodeSize
@@ -477,8 +499,8 @@ const addParagraphAfter = () => {
 // ==================== BubbleMenu 相关 ====================
 // 在 onMounted 中注册 BubbleMenu 插件
 onMounted(() => {
-  // 等待 DOM 就绪后注册 BubbleMenu
-  if (editor.value && bubbleMenuRef.value) {
+  // 等待 DOM 就绪后注册 BubbleMenu（只读模式也需要注册，shouldShow 会控制显示）
+  if (!isNil(editor.value) && !isNil(bubbleMenuRef.value)) {
     registerBubbleMenu()
   }
 })
@@ -487,29 +509,35 @@ onMounted(() => {
 watch(
   [() => editor.value, () => bubbleMenuRef.value],
   ([newEditor, newMenuRef]) => {
-    if (newEditor && newMenuRef) {
+    if (!isNil(newEditor) && !isNil(newMenuRef)) {
       registerBubbleMenu()
     }
   },
   { immediate: true }
 )
 
-// 注册 BubbleMenu 插件 - 参考 https://github.com/ueberdosis/tiptap/tree/main/packages/extension-bubble-menu
+// 注册 BubbleMenu 插件
 const registerBubbleMenu = () => {
-  if (!editor.value || !bubbleMenuRef.value) return
+  if (isNil(editor.value) || isNil(bubbleMenuRef.value)) return
 
   // 检查是否已经注册过
   const existingPlugin = editor.value.view.state.plugins.find(
     (plugin: any) => plugin.key === 'bubbleMenu$'
   )
-  if (existingPlugin) return
+  if (!isNil(existingPlugin)) return
+
+  // 保存插件 key 以便后续移除
+  bubbleMenuPluginKey = 'bubbleMenu'
 
   // 使用 BubbleMenuPlugin 创建插件
   const plugin = BubbleMenuPlugin({
-    pluginKey: 'bubbleMenu',
+    pluginKey: bubbleMenuPluginKey,
     editor: editor.value,
     element: bubbleMenuRef.value,
     shouldShow: ({ state }) => {
+      // 只读模式下不显示泡泡菜单
+      if (!props.editable) return false
+
       const { empty } = state.selection
       if (empty) return false
       // 检查是否在文本块中
@@ -528,17 +556,37 @@ const registerBubbleMenu = () => {
 
 // 气泡菜单中切换链接
 const toggleBubbleLink = () => {
-  if (!editor.value) return
+  if (isNil(editor.value)) return
 
   const previousUrl = editor.value.getAttributes('link').href
 
-  if (previousUrl) {
+  if (!isEmpty(previousUrl)) {
     editor.value.chain().focus().unsetLink().run()
   } else {
     const url = window.prompt('输入链接地址:', 'https://')
-    if (url) {
+    if (!isEmpty(url)) {
       editor.value.chain().focus().setLink({ href: url }).run()
     }
+  }
+}
+
+// 气泡菜单中处理字体颜色
+const handleBubbleTextColor = (color: string) => {
+  if (isNil(editor.value)) return
+  if (color) {
+    editor.value.chain().focus().setColor(color).run()
+  } else {
+    editor.value.chain().focus().unsetColor().run()
+  }
+}
+
+// 气泡菜单中处理字体背景颜色
+const handleBubbleHighlightColor = (color: string) => {
+  if (isNil(editor.value)) return
+  if (color) {
+    editor.value.chain().focus().setHighlight({ color }).run()
+  } else {
+    editor.value.chain().focus().unsetHighlight().run()
   }
 }
 
@@ -546,7 +594,7 @@ const toggleBubbleLink = () => {
 
 // 生成完整的 HTML 文档
 const generateFullHtml = () => {
-  if (!editor.value) return ''
+  if (isNil(editor.value)) return ''
 
   const content = editor.value.getHTML()
   const title = props.title || '文档'
@@ -648,7 +696,7 @@ ${content}
 
 // HTML 预览
 const previewHtml = () => {
-  if (!editor.value) {
+  if (isNil(editor.value)) {
     ElMessage.warning('编辑器未就绪')
     return
   }
@@ -685,7 +733,7 @@ const downloadHtml = () => {
 
 // PDF 预览
 const previewPdf = () => {
-  if (!editor.value) {
+  if (isNil(editor.value)) {
     ElMessage.warning('编辑器未就绪')
     return
   }
@@ -742,7 +790,7 @@ watch(
   () => props.user,
   (newUser) => {
     if (isComponentDestroyed) return
-    if (editor.value && props.provider) {
+    if (!isNil(editor.value) && !isNil(props.provider)) {
       try {
         editor.value.commands.updateUser({
           name: newUser.name,
@@ -762,8 +810,8 @@ onBeforeUnmount(() => {
   // 标记组件已销毁
   isComponentDestroyed = true
 
-  // 销毁编辑器实例
-  if (editor.value) {
+  // 销毁编辑器实例（这会自动清理 BubbleMenuPlugin）
+  if (!isNil(editor.value)) {
     try {
       editor.value.destroy()
     } catch (e) {
@@ -771,16 +819,26 @@ onBeforeUnmount(() => {
     }
   }
 
-  // 清理预览相关的引用
+  // 清理插件引用
+  bubbleMenuPluginKey = null
+
+  // 清理 DOM 引用
+  contentWrapperRef.value = null
+  bubbleMenuRef.value = null
+
+  // 清理预览相关的引用和状态
   previewContent.value = ''
   pdfPreviewRef.value = null
-  contentWrapperRef.value = null
 
   // 重置状态
   saveStatus.value = 'saved'
   showBackToTop.value = false
   htmlPreviewVisible.value = false
   pdfExportVisible.value = false
+  exportingPdf.value = false
+  
+  // 清理 DragHandle 相关状态
+  currentDragNode.value = null
 })
 
 // 暴露编辑器实例和方法
@@ -946,6 +1004,18 @@ defineExpose({
     p {
       line-height: 1.75;
       color: #374151;
+      position: relative;
+
+      // 段落末尾换行符标记 - 参考 hhf-style1.jpg 样式
+      &::after {
+        content: '↵';
+        color: #1a73e8;
+        margin-left: 2px;
+        font-size: 0.85em;
+        opacity: 0.6;
+        user-select: none;
+        pointer-events: none;
+      }
     }
 
     h1 {
@@ -1238,15 +1308,24 @@ defineExpose({
   :deep(table) {
     border-collapse: collapse;
     width: 100%;
+    max-width: 100%;
+    table-layout: auto;
     margin: 1em 0;
   }
   :deep(th),
   :deep(td) {
     border: 1px solid #e5e7eb;
     padding: 8px 12px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
   :deep(th) {
     background: #f9fafb;
+  }
+  :deep(img) {
+    max-width: 100%;
+    height: auto;
+    display: block;
   }
   :deep(mark) {
     background: #fef08a;
@@ -1317,11 +1396,19 @@ defineExpose({
   :deep(table) {
     border-collapse: collapse;
     width: 100%;
+    max-width: 100%;
+    table-layout: auto;
   }
   :deep(th),
   :deep(td) {
     border: 1px solid #e5e7eb;
     padding: 8px 12px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  :deep(img) {
+    max-width: 100%;
+    height: auto;
   }
 }
 

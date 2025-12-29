@@ -24,7 +24,10 @@ import type {
   PermissionCheckReqVO,
   PermissionCheckResponse,
   ExamRecordVO,
-  ExamApplyReqVO
+  ExamApplyReqVO,
+  PublishDocReqVO,
+  ElementItem,
+  GetElementListResponse
 } from './types'
 
 // ==================== Java 后端 API 实现 ====================
@@ -52,7 +55,8 @@ const javaApi = {
       templateName: data.templateName,
       temSubclass: data.temSubclass,
       temStatus: data.temStatus === '启用' ? '0' : '1',
-      description: data.description || ''
+      description: data.description || '',
+      elements_items: data.elements_items || []
     }
     if (data.fileId) {
       requestData.fileId = data.fileId
@@ -69,7 +73,8 @@ const javaApi = {
       templateName: data.templateName,
       temSubclass: data.temSubclass,
       temStatus: data.temStatus === '启用' ? '0' : '1',
-      description: data.description || ''
+      description: data.description || '',
+      elements_items: data.elements_items || []
     }
     return await javaRequest.post('/tbTemplate/editData', requestData)
   },
@@ -108,7 +113,7 @@ const javaApi = {
    */
   getFileStream: async (id: string): Promise<Blob | null> => {
     try {
-      const response = await javaRequest.download('/tbTemplate/getfileStream', { id })
+      const response = await javaRequest.download('/tbTemplate/getFileStream', { id })
       if (response instanceof Blob && response.size > 0) {
         if (response.type.includes('application/json')) {
           const text = await response.text()
@@ -140,16 +145,6 @@ const javaApi = {
   },
 
   /**
-   * 保存模板文件（带 ID） - Java 后端
-   */
-  saveTemplateFile: async (id: string, file: File) => {
-    const formData = new FormData()
-    formData.append('id', id)
-    formData.append('file', file)
-    return await javaRequest.upload('/tbTemplate/saveFile', formData)
-  },
-
-  /**
    * 获取审核记录列表 - Java 后端
    * GET /examRecord/getOpinion
    * @param id 当前表格数据id
@@ -165,6 +160,30 @@ const javaApi = {
    */
   examApply: async (data: ExamApplyReqVO) => {
     return await javaRequest.postOriginal('/examRecord/examTem', data)
+  },
+
+  /**
+   * 发布模板 - Java 后端
+   * POST /tbTemplate/publishData
+   * @param data 发布参数 { id, visibleScope }
+   */
+  publishDocument: async (data: PublishDocReqVO) => {
+    return await javaRequest.postOriginal('/tbTemplate/publishData', data)
+  },
+
+  /**
+   * 获取自定义要素列表 - Java 后端
+   * GET /api/tbTemplate/getElement
+   * @param id 记录ID
+   */
+  getElementList: async (id: string): Promise<ElementItem[]> => {
+    try {
+      const res = await javaRequest.get<GetElementListResponse>('/tbTemplate/getElement', { id })
+      return (res as any)?.data || (res as any) || []
+    } catch (error) {
+      console.error('获取要素列表失败:', error)
+      return []
+    }
   }
 }
 
@@ -229,12 +248,6 @@ const mockApi = {
     return res
   },
 
-  saveTemplateFile: async (id: string, file: File) => {
-    const { saveTemplateFile } = await import('@/mock/template/management')
-    const res = await saveTemplateFile(id, file)
-    return res
-  },
-
   getExamRecordList: async (id: string): Promise<{ data: ExamRecordVO[] }> => {
     const { getExamRecordList } = await import('@/mock/template/management')
     return getExamRecordList(id)
@@ -243,6 +256,16 @@ const mockApi = {
   examApply: async (data: ExamApplyReqVO) => {
     const { examApply } = await import('@/mock/template/management')
     return examApply(data)
+  },
+
+  publishDocument: async (data: PublishDocReqVO) => {
+    const { publishDocument } = await import('@/mock/template/management')
+    return publishDocument(data)
+  },
+
+  getElementList: async (id: string): Promise<ElementItem[]> => {
+    const { getElementList } = await import('@/mock/template/management')
+    return getElementList(id)
   }
 }
 
@@ -315,14 +338,6 @@ export const getFileStream = api.getFileStream
 export const saveDocument = api.saveDocument
 
 /**
- * 保存模板文件（带 ID）
- * @param id 模板ID
- * @param file 文件对象
- * @returns 保存结果
- */
-export const saveTemplateFile = api.saveTemplateFile
-
-/**
  * 获取审核记录列表
  * GET /examRecord/getOpinion
  * @param id 当前表格数据id
@@ -335,6 +350,21 @@ export const getExamRecordList = api.getExamRecordList
  * @param data 审核/驳回参数 { apply, examResult, examOpinion, examuserId }
  */
 export const examApply = api.examApply
+
+/**
+ * 发布模板
+ * POST /tbTemplate/publishData
+ * @param data 发布参数 { id, visibleScope }
+ */
+export const publishDocument = api.publishDocument
+
+/**
+ * 获取自定义要素列表
+ * GET /api/tbTemplate/getElement
+ * @param id 记录ID
+ * @returns 要素列表
+ */
+export const getElementList = api.getElementList
 
 // 重新导出分类配置
 export { templateCategories } from '@/views/template/management/config/categories'
