@@ -14,7 +14,7 @@ import type {
   UploadDocumentData,
   ExamRecordVO,
   ExamApplyReqVO
-} from '@/api/training/performance/types'
+} from '@/types/performance'
 import {
   performanceCategories,
   type DocCategoryVO

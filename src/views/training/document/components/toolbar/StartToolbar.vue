@@ -1689,13 +1689,13 @@ const printDocument = () => {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 8px;
+    padding: 4px;
     background: #fff;
     border: 1px solid #e0e0e0;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     transition: all 0.2s ease;
-    max-height: 66px;
+    max-height: 60px;
     overflow: hidden;
 
     &.expanded {
@@ -1711,20 +1711,18 @@ const printDocument = () => {
     align-items: stretch;
   }
 
-  .heading-btn {
+  .heading-row .heading-btn {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     width: 60px;
-    height: 48px;
-    padding: 4px 8px;
+    height: 50px;
     border: 1px solid #e8e8e8;
     border-radius: 6px;
     background: #fff;
     cursor: pointer;
     transition: all 0.15s ease;
-
     &:hover {
       border-color: #1a73e8;
       background: #f0f7ff;
@@ -1736,33 +1734,34 @@ const printDocument = () => {
     }
 
     .heading-title {
-      font-size: 13px;
-      font-weight: 500;
+      font-size: 14px;
+      font-weight: 600;
       color: #333;
-      line-height: 1.2;
+      line-height: 1.4;
+      height: 50%;
 
       &.h1 {
-        font-size: 15px;
+        font-size: 20px;
         font-weight: 700;
       }
 
       &.h2 {
-        font-size: 14px;
+        font-size: 18px;
         font-weight: 600;
       }
 
       &.h3 {
-        font-size: 13px;
+        font-size: 16px;
         font-weight: 600;
       }
 
       &.h4 {
-        font-size: 12px;
+        font-size: 14px;
         font-weight: 600;
       }
 
       &.h5 {
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 600;
       }
 
@@ -1775,7 +1774,6 @@ const printDocument = () => {
     .heading-label {
       font-size: 10px;
       color: #999;
-      margin-top: 2px;
     }
   }
 

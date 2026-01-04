@@ -12,8 +12,8 @@ import {
   type DocCategoryVO
 } from '@/views/training/performance/config/categories'
 
-// 导出类型定义
-export * from './types'
+// 导出类型定义（从统一的 types 文件夹导出）
+export * from '@/types/performance'
 export type { DocCategoryVO }
 
 // 导入类型
@@ -29,7 +29,7 @@ import type {
   UploadDocumentData,
   ExamRecordVO,
   ExamApplyReqVO
-} from './types'
+} from '@/types/performance'
 
 // ==================== Java 后端 API 实现 ====================
 

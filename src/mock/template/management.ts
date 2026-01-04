@@ -12,12 +12,27 @@ import type {
   ExamRecordVO,
   ExamApplyReqVO,
   PublishDocReqVO,
-  ElementItem
-} from '@/api/template/management/types'
-import {
-  templateCategories,
-  type TemplateCategoryVO
-} from '@/views/template/management/config/categories'
+  ElementItem,
+  TemplateSubclassVO
+} from '@/types/management'
+
+// 模板子类Mock数据（与 TemplateSubClass.json 保持一致）
+const mockTemplateSubclassList: TemplateSubclassVO[] = [
+  { template_id: 'QTLA', template_name: '企图立案' },
+  { template_id: 'ZZJH', template_name: '作战计划' },
+  { template_id: 'YXFA', template_name: '演训方案' },
+  { template_id: 'ZZWS', template_name: '作战文书' },
+  { template_id: 'DTJH', template_name: '导调计划' },
+  { template_id: 'ZZXD', template_name: '作战想定' },
+  { template_id: 'ZJZG', template_name: '战绩战报' },
+  { template_id: 'ZJBG', template_name: '总结报告' },
+  { template_id: 'TZ', template_name: '通知' },
+  { template_id: 'TG', template_name: '通告' },
+  { template_id: 'PGJG', template_name: '评估结果' }
+]
+
+// 模板分类Mock数据
+const mockTemplateCategoryList = [{ id: 'CHWD', name: '筹划文档' }]
 
 // ==================== Mock 数据 ====================
 
@@ -52,7 +67,8 @@ const mockDataList: TemplateVO[] = [
     fileId: 'file-001',
     templateName: '作战命令模板',
     temCategory: '筹划文档',
-    temSubclass: '文档模板',
+    temSubclass: 'ZZWS',
+    temSubName: '作战文书',
     temStatus: '启用',
     description: '用于生成标准作战命令文档',
     createTime: '2024-12-10 09:30:00',
@@ -69,7 +85,8 @@ const mockDataList: TemplateVO[] = [
     fileId: 'file-002',
     templateName: '演训方案模板',
     temCategory: '筹划文档',
-    temSubclass: '演训方案',
+    temSubclass: 'YXFA',
+    temSubName: '演训方案',
     temStatus: '启用',
     description: '标准演训方案编写模板',
     createTime: '2024-12-08 10:00:00',
@@ -85,7 +102,8 @@ const mockDataList: TemplateVO[] = [
     fileId: 'file-003',
     templateName: '作战计划模板',
     temCategory: '筹划文档',
-    temSubclass: '作战计划',
+    temSubclass: 'ZZJH',
+    temSubName: '作战计划',
     temStatus: '禁用',
     description: '作战计划编制标准模板',
     createTime: '2024-12-05 08:30:00',
@@ -103,11 +121,12 @@ const mockDataList: TemplateVO[] = [
   {
     id: '4',
     fileId: 'file-004',
-    templateName: '编组模板-联合作战',
+    templateName: '企图立案模板',
     temCategory: '筹划文档',
-    temSubclass: '编组模板',
+    temSubclass: 'QTLA',
+    temSubName: '企图立案',
     temStatus: '启用',
-    description: '联合作战编组标准模板',
+    description: '企图立案标准模板',
     createTime: '2024-12-01 14:00:00',
     createBy: 'admin',
     applyNode: ApplyNode.PUBLISHED, // 发布
@@ -118,7 +137,8 @@ const mockDataList: TemplateVO[] = [
     fileId: 'file-005',
     templateName: '总结报告模板',
     temCategory: '筹划文档',
-    temSubclass: '总结报告',
+    temSubclass: 'ZJBG',
+    temSubName: '总结报告',
     temStatus: '启用',
     description: '演训总结报告编写模板',
     createTime: '2024-11-28 11:30:00',
@@ -134,7 +154,8 @@ const mockDataList: TemplateVO[] = [
     fileId: 'file-006',
     templateName: '导调计划模板',
     temCategory: '筹划文档',
-    temSubclass: '导调计划',
+    temSubclass: 'DTJH',
+    temSubName: '导调计划',
     temStatus: '启用',
     description: '标准导调计划编制模板',
     createTime: '2024-11-25 09:00:00',
@@ -300,9 +321,18 @@ export const getPageList = async (params: TemplatePageReqVO) => {
 /**
  * 获取模板分类列表
  */
-export const getCategories = async (): Promise<{ data: TemplateCategoryVO[] }> => {
+export const getCategories = async (): Promise<{ data: { id: string; name: string }[] }> => {
   await mockDelay(100)
-  return { data: templateCategories }
+  return { data: mockTemplateCategoryList }
+}
+
+/**
+ * 获取模板子类列表
+ * GET /tbTemplate/getTemTypeData
+ */
+export const getTemplateSubclass = async (): Promise<{ data: TemplateSubclassVO[] }> => {
+  await mockDelay(100)
+  return { data: mockTemplateSubclassList }
 }
 
 /**
@@ -459,7 +489,7 @@ export const getFileStream = async (_id: string): Promise<Blob | null> => {
 /**
  * 上传文档文件
  */
-export const saveDocument = async (data: ImportTemplateData) => {
+export const saveDocument = async (_data: ImportTemplateData) => {
   await mockDelay(500)
 
   return {
@@ -557,6 +587,7 @@ export const getElementList = async (id: string): Promise<ElementItem[]> => {
 export default {
   getPageList,
   getCategories,
+  getTemplateSubclass,
   savaTemplate,
   updateTemplate,
   deleteTemplate,

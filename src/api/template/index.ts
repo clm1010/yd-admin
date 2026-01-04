@@ -6,16 +6,10 @@
  */
 import { USE_MOCK } from '@/config/apiConfig'
 import { javaRequest } from '@/config/axios/javaService'
-import {
-  templateCategories,
-  type TemplateCategoryVO
-} from '@/views/template/management/config/categories'
 
-// 导出类型定义
-export * from './types'
-export type { TemplateCategoryVO }
+// 导出类型定义（从统一的 types 文件夹导出）
+export * from '@/types/management'
 
-// 导入类型
 import type {
   TemplateVO,
   TemplatePageReqVO,
@@ -27,8 +21,12 @@ import type {
   ExamApplyReqVO,
   PublishDocReqVO,
   ElementItem,
-  GetElementListResponse
-} from './types'
+  GetElementListResponse,
+  TemplateSubclassVO
+} from '@/types/management'
+
+// 模板分类本地数据（用于兼容旧代码）
+const templateCategories = [{ id: 'CHWD', name: '筹划文档' }]
 
 // ==================== Java 后端 API 实现 ====================
 
@@ -43,8 +41,17 @@ const javaApi = {
   /**
    * 获取模板分类列表
    */
-  getCategories: async (): Promise<{ data: TemplateCategoryVO[] }> => {
+  getCategories: async (): Promise<{ data: { id: string; name: string }[] }> => {
     return Promise.resolve({ data: templateCategories })
+  },
+
+  /**
+   * 获取模板子类列表 - Java 后端
+   * GET /tbTemplate/getTemTypeData
+   */
+  getTemplateSubclass: async (): Promise<{ data: TemplateSubclassVO[] }> => {
+    const res = await javaRequest.get<{ data: TemplateSubclassVO[] }>('/tbTemplate/getTemTypeData')
+    return { data: (res as any)?.data || (res as any) || [] }
   },
 
   /**
@@ -53,7 +60,9 @@ const javaApi = {
   savaTemplate: async (data: TemplateVO) => {
     const requestData: any = {
       templateName: data.templateName,
+      temCategory: data.temCategory || '',
       temSubclass: data.temSubclass,
+      temSubName: data.temSubName || '',
       temStatus: data.temStatus === '启用' ? '0' : '1',
       description: data.description || '',
       elements_items: data.elements_items || []
@@ -71,7 +80,9 @@ const javaApi = {
     const requestData = {
       id: data.id,
       templateName: data.templateName,
+      temCategory: data.temCategory || '',
       temSubclass: data.temSubclass,
+      temSubName: data.temSubName || '',
       temStatus: data.temStatus === '启用' ? '0' : '1',
       description: data.description || '',
       elements_items: data.elements_items || []
@@ -198,9 +209,14 @@ const mockApi = {
     return res.data
   },
 
-  getCategories: async (): Promise<{ data: TemplateCategoryVO[] }> => {
+  getCategories: async (): Promise<{ data: { id: string; name: string }[] }> => {
     const { getCategories } = await import('@/mock/template/management')
     return getCategories()
+  },
+
+  getTemplateSubclass: async (): Promise<{ data: TemplateSubclassVO[] }> => {
+    const { getTemplateSubclass } = await import('@/mock/template/management')
+    return getTemplateSubclass()
   },
 
   savaTemplate: async (data: TemplateVO) => {
@@ -286,6 +302,12 @@ export const getPageList = api.getPageList
 export const getCategories = api.getCategories
 
 /**
+ * 获取模板子类列表
+ * GET /tbTemplate/getTemTypeData
+ */
+export const getTemplateSubclass = api.getTemplateSubclass
+
+/**
  * 创建模板
  * @param data 模板数据 { templateName, temSubclass, temStatus, description, fileId? }
  */
@@ -365,6 +387,3 @@ export const publishDocument = api.publishDocument
  * @returns 要素列表
  */
 export const getElementList = api.getElementList
-
-// 重新导出分类配置
-export { templateCategories } from '@/views/template/management/config/categories'

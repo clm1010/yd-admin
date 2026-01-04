@@ -52,10 +52,10 @@
             @change="handleQuery"
           >
             <el-option
-              v-for="item in subCategoryOptions"
-              :key="item.id"
-              :label="item.name"
-              :value="item.id"
+              v-for="item in subClassOptions"
+              :key="item.template_id"
+              :label="item.template_name"
+              :value="item.template_id"
             />
           </el-select>
         </el-form-item>
@@ -267,10 +267,10 @@
         <el-form-item label="模板子类" prop="temSubclass">
           <el-select v-model="formData.temSubclass" placeholder="请选择" clearable class="w-full">
             <el-option
-              v-for="item in subCategoryOptions"
-              :key="item.id"
-              :label="item.name"
-              :value="item.id"
+              v-for="item in subClassOptions"
+              :key="item.template_id"
+              :label="item.template_name"
+              :value="item.template_id"
             />
           </el-select>
         </el-form-item>
@@ -456,18 +456,14 @@
 <script lang="ts" setup>
 import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import * as TemplateApi from '@/api/template/management'
+import * as TemplateApi from '@/api/template'
+import type { TemplateSubclassVO } from '@/types/management'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import { useCollaborationUserStore } from '@/store/modules/collaborationUser'
 import { isEmpty, isNil, isString, isObject, pickBy, filter, map, every } from 'lodash-es'
 import AuditFlowDialog from '@/components/AuditFlowDialog/index.vue'
 import ElementsEditor from './components/ElementsEditor.vue'
-import type { ElementItem } from '@/api/template/management/types'
-import {
-  templateCategories,
-  templateSubCategories,
-  getSubCategoryNameById
-} from './config/categories'
+import type { ElementItem } from '@/types/management'
 
 defineOptions({ name: 'TemplateManagement' })
 
@@ -516,9 +512,11 @@ const queryParams = reactive<TemplateApi.TemplatePageReqVO>({
 
 const queryFormRef = ref()
 
-// 分类选项（使用本地配置）
-const categoryOptions = ref(templateCategories)
-const subCategoryOptions = ref(templateSubCategories)
+// 分类选项（模板分类本地数据）
+const templateCategories = ref([{ id: 'CHWD', name: '筹划文档' }])
+const categoryOptions = ref(templateCategories.value)
+// 模板子类选项（从接口获取）
+const subClassOptions = ref<TemplateSubclassVO[]>([])
 
 // 新建/编辑弹窗
 const dialogVisible = ref(false)
@@ -662,10 +660,28 @@ const getList = async () => {
   }
 }
 
-// 初始化分类数据（使用本地配置）
-const initCategories = () => {
-  categoryOptions.value = templateCategories
-  subCategoryOptions.value = templateSubCategories
+// 初始化分类数据（从接口获取模板子类）
+const initCategories = async () => {
+  categoryOptions.value = templateCategories.value
+  try {
+    const res = await TemplateApi.getTemplateSubclass()
+    subClassOptions.value = res.data || []
+  } catch (error) {
+    console.error('获取模板子类失败:', error)
+    subClassOptions.value = []
+  }
+}
+
+// 根据子类 ID 获取子类名称
+const getSubCategoryNameById = (id: string): string => {
+  const subClass = subClassOptions.value.find((c) => c.template_id === id)
+  return subClass?.template_name || ''
+}
+
+// 获取当前选中的模板子类名称（用于保存时传递 temSubName）
+const getSelectedSubClassName = (): string => {
+  if (!formData.temSubclass) return ''
+  return getSubCategoryNameById(formData.temSubclass)
 }
 
 // 查询
@@ -844,6 +860,7 @@ const handleSave = async () => {
         templateName: formData.templateName,
         temCategory: formData.temCategory,
         temSubclass: formData.temSubclass,
+        temSubName: getSelectedSubClassName(),
         temStatus: formData.temStatus,
         description: formData.description,
         elements_items: formData.elements_items
@@ -858,6 +875,7 @@ const handleSave = async () => {
         templateName: formData.templateName,
         temCategory: formData.temCategory,
         temSubclass: formData.temSubclass,
+        temSubName: getSelectedSubClassName(),
         description: formData.description,
         temStatus: formData.temStatus,
         elements_items: formData.elements_items
@@ -991,7 +1009,9 @@ const handleEditData = (row: TemplateApi.TemplateVO) => {
   Object.assign(formData, {
     id: row.id,
     templateName: row.templateName,
+    temCategory: row.temCategory,
     temSubclass: row.temSubclass,
+    temSubName: row.temSubName,
     description: row.description || '',
     temStatus: row.temStatus || '0',
     elements_items: row.elements_items || []
@@ -1268,8 +1288,8 @@ const openExamRecordDialog = async (row: TemplateApi.TemplateVO) => {
 }
 
 // 页面初始化
-onMounted(() => {
-  initCategories()
+onMounted(async () => {
+  await initCategories()
   getList()
 })
 
@@ -1311,10 +1331,10 @@ onUnmounted(() => {
   padding: 0;
 
   .el-dialog__header {
-    background: linear-gradient(to bottom, #1f8a8f, #67d4ff);
+    background: linear-gradient(180deg, #1677ff1a, #1677ff1a);
     padding: 20px 24px;
     margin: 0;
-    border-bottom: 1px solid #67d4ff;
+    border-bottom: 1px solid #1677ff1a;
     display: flex;
     justify-content: space-between;
     align-items: center;

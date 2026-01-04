@@ -4,7 +4,7 @@
     class="collaboration-panel w-full h-full bg-white flex flex-col text-sm"
   >
     <!-- 在线协作者 -->
-    <el-splitter-panel class="section p-4 border-b border-gray-100">
+    <el-splitter-panel size="40%" collapsible class="section p-4 border-b border-gray-100">
       <div class="flex items-center justify-between mb-3">
         <h3 class="font-bold text-gray-800">在线协作者</h3>
         <el-tag type="info" size="small" round>{{ collaborators.length }}</el-tag>
@@ -59,7 +59,11 @@
     </el-splitter-panel>
 
     <!-- 参考素材 -->
-    <el-splitter-panel class="section p-4 flex-1 overflow-hidden flex flex-col">
+    <el-splitter-panel
+      size="60%"
+      collapsible
+      class="section p-4 flex-1 overflow-hidden flex flex-col"
+    >
       <h3 class="font-bold text-gray-800 mb-3">参考素材</h3>
       <div class="overflow-y-auto flex-1 custom-scrollbar -mx-2 px-2">
         <div v-if="materials && materials.length > 0" class="space-y-2">

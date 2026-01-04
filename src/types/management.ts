@@ -2,6 +2,22 @@
  * 模板管理 API 类型定义
  */
 
+import type {
+  ElementItemType as _ElementItemType,
+  ElementTypeOption as _ElementTypeOption
+} from '@/utils/tmmConstants'
+
+export type ElementItemType = _ElementItemType
+export type ElementTypeOption = _ElementTypeOption
+
+export { ELEMENT_TYPE_OPTIONS, ELEMENT_TYPE_LABELS, needOptions } from '@/utils/tmmConstants'
+
+// 模板子类数据接口（与 TemplateSubClass.json 结构一致）
+export interface TemplateSubclassVO {
+  template_id: string // 分类id
+  template_name: string // 分类名称
+}
+
 // 审核状态枚举（编辑中:1、审核中:2、审核通过:3、发布:4、驳回:5）
 export enum ApplyNodeEnum {
   EDITING = '1', // 编辑中
@@ -27,6 +43,7 @@ export interface TemplateVO {
   templateName: string // 模板名称
   temCategory: string // 模板分类
   temSubclass: string // 模板子类
+  temSubName?: string // 模板子类名称
   temStatus: string // 模板状态：启用/禁用
   description?: string // 描述
   createTime?: string // 创建时间
@@ -126,27 +143,6 @@ export interface PublishDocReqVO {
   id: string // 模板ID
   visibleScope?: string[] // 可见范围（用户ID列表）
 }
-
-// ==================== 自定义要素相关类型 ====================
-
-// 要素类型枚举
-export type ElementItemType = 'text' | 'radio' | 'multiple' | 'number' | 'time'
-
-// 要素类型选项配置
-export interface ElementTypeOption {
-  value: ElementItemType
-  label: string
-  hasOptions: boolean // 是否需要配置选项（单选/多选）
-}
-
-// 要素类型选项列表 - 用于要素编辑器
-export const ELEMENT_TYPE_OPTIONS: ElementTypeOption[] = [
-  { value: 'text', label: '文本', hasOptions: false },
-  { value: 'radio', label: '单选', hasOptions: true },
-  { value: 'multiple', label: '多选', hasOptions: true },
-  { value: 'number', label: '数字', hasOptions: false },
-  { value: 'time', label: '日期', hasOptions: false }
-]
 
 // 单个要素项接口（与后端 Java 数据结构一致）
 export interface ElementItem {

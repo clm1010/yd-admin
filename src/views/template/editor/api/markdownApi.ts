@@ -11,7 +11,7 @@ import {
   downloadBlob,
   DocumentExportInfo
 } from '@/views/utils/documentExport'
-import type { ElementItem } from '@/api/template/management/types'
+import type { ElementItem } from '@/types/management'
 
 // 提交审核请求参数接口
 export interface SubmitAuditReqVO {

@@ -889,10 +889,10 @@ onBeforeUnmount(() => {
   padding: 0;
 
   .el-dialog__header {
-    background: linear-gradient(to bottom, #1f8a8f, #67d4ff);
+    background: linear-gradient(180deg, #1677ff1a, #1677ff1a);
     padding: 20px 24px;
     margin: 0;
-    border-bottom: 1px solid #67d4ff;
+    border-bottom: 1px solid #1677ff1a;
     display: flex;
     justify-content: space-between;
     align-items: center;

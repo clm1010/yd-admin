@@ -1,10 +1,11 @@
 <template>
   <el-splitter
+    lazy
     layout="vertical"
     class="collaboration-panel w-full h-full bg-white flex flex-col text-sm"
   >
     <!-- 在线协作者 -->
-    <el-splitter-panel class="section p-4 border-b border-gray-100">
+    <el-splitter-panel size="40%" collapsible class="section p-4 border-b border-gray-100">
       <div class="flex items-center justify-between mb-3">
         <h3 class="font-bold text-gray-800">在线协作者</h3>
         <el-tag type="info" size="small" round>{{ collaborators.length }}</el-tag>
@@ -60,6 +61,8 @@
 
     <!-- 自定义要素（只读展示） -->
     <el-splitter-panel
+      size="60%"
+      collapsible
       class="section p-4 flex-1 overflow-hidden flex flex-col"
     >
       <h3 class="font-bold text-gray-800 mb-3">自定义要素</h3>
@@ -92,7 +95,9 @@
 </template>
 
 <script setup lang="ts">
-import type { ElementItem, ElementItemType } from '@/api/template/management/types'
+// 使用统一的 utils 常量文件
+import { ELEMENT_TYPE_LABELS, type ElementItemType } from '@/utils/tmmConstants'
+import type { ElementItem } from '@/types/management'
 
 defineProps<{
   collaborators: any[]
@@ -100,18 +105,9 @@ defineProps<{
   properties?: any
 }>()
 
-// 要素类型标签映射
-const typeLabels: Record<ElementItemType, string> = {
-  text: '文本',
-  radio: '单选',
-  multiple: '多选',
-  number: '数字',
-  time: '日期'
-}
-
-// 获取类型标签
+// 获取类型标签（直接使用导入的 ELEMENT_TYPE_LABELS）
 const getTypeLabel = (type: ElementItemType): string => {
-  return typeLabels[type] || type
+  return ELEMENT_TYPE_LABELS[type] || type
 }
 </script>
 

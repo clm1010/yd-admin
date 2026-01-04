@@ -83,11 +83,10 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { Icon } from '@/components/Icon'
-import {
-  ELEMENT_TYPE_OPTIONS,
-  type ElementItem,
-  type ElementItemType
-} from '@/api/template/management/types'
+// 使用统一的 utils 常量文件
+import { ELEMENT_TYPE_OPTIONS, needOptions } from '@/utils/tmmConstants'
+// 业务类型从统一的 types 文件夹导入
+import type { ElementItem } from '@/types/management'
 
 // Props
 interface Props {
@@ -134,11 +133,6 @@ watch(
   },
   { immediate: true, deep: true }
 )
-
-// 判断类型是否需要配置选项
-const needOptions = (type: ElementItemType): boolean => {
-  return type === 'radio' || type === 'multiple'
-}
 
 // 添加要素
 const handleAddElement = () => {
@@ -262,10 +256,10 @@ const handleConfirm = () => {
   padding: 0;
 
   .el-dialog__header {
-    background: linear-gradient(to bottom, #1f8a8f, #67d4ff);
+    background: linear-gradient(180deg, #1677ff1a, #1677ff1a);
     padding: 20px 24px;
     margin: 0;
-    border-bottom: 1px solid #67d4ff;
+    border-bottom: 1px solid #1677ff1a;
     display: flex;
     justify-content: space-between;
     align-items: center;
