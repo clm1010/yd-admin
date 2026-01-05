@@ -25,18 +25,19 @@ import {
 /**
  * 模拟延迟（模拟网络请求）
  */
-const mockDelay = (ms: number = 300) => new Promise((resolve) => setTimeout(resolve, ms))
+const mockDelay = (ms: number = 300): Promise<unknown> =>
+  new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
  * 生成模拟 ID
  */
-let mockIdCounter = 100
-const generateMockId = () => ++mockIdCounter
+let mockIdCounter: number = 100
+const generateMockId = (): number => ++mockIdCounter
 
 /**
  * 审核状态枚举（编辑中:1、审核中:2、审核通过:3、发布:4、驳回:5）
  */
-const ApplyNode = {
+const ApplyNode: Record<string, string> = {
   EDITING: '1', // 编辑中
   REVIEWING: '2', // 审核中
   APPROVED: '3', // 审核通过

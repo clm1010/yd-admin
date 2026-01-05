@@ -368,11 +368,6 @@
               <Icon icon="mdi:close" />
             </el-button>
           </div>
-          <div class="options-row">
-            <el-checkbox v-model="wordImportOptions.preserveStyles">保留文档样式</el-checkbox>
-            <el-checkbox v-model="wordImportOptions.convertImages">转换图片</el-checkbox>
-            <el-checkbox v-model="wordImportOptions.keepLineBreaks">保留换行</el-checkbox>
-          </div>
         </div>
 
         <!-- 预览区域 -->
@@ -1062,6 +1057,25 @@ const cleanWordHtml = (html: string): string => {
     '<p>$1</p><div class="page-break" data-type="page-break"></div>'
   )
 
+  // 处理红色横线（红头文件特有）
+  // 1. 处理带有红色边框的空段落/div - 转换为红色 hr
+  html = html.replace(
+    /<(p|div)[^>]*style="[^"]*border[^"]*(?:red|#[fF]{2}0{4}|#[fF]00|rgb\s*\(\s*255\s*,\s*0\s*,\s*0\s*\))[^"]*"[^>]*>\s*(?:&nbsp;)*\s*<\/(p|div)>/gi,
+    '<hr class="red-line" data-line-color="red">'
+  )
+
+  // 2. 处理只有 border-bottom 的红色横线
+  html = html.replace(
+    /<(p|div)[^>]*style="[^"]*border-bottom[^;]*(?:red|#[fF]{2}0{4}|#[fF]00)[^"]*"[^>]*>(\s*(?:&nbsp;)*\s*)<\/(p|div)>/gi,
+    '<hr class="red-line" data-line-color="red">'
+  )
+
+  // 3. 保留已有的 hr 标签，但如果有红色样式则添加 class
+  html = html.replace(
+    /<hr([^>]*)style="[^"]*(?:border[^;]*)?(?:red|#[fF]{2}0{4}|#[fF]00)[^"]*"([^>]*)>/gi,
+    '<hr$1 class="red-line" data-line-color="red"$2>'
+  )
+
   // 处理图片宽度 - 限制最大宽度为编辑器可用宽度
   const MAX_IMAGE_WIDTH = 540 // 编辑器可用宽度（A4 页面 794px - 边距 240px - 一些余量）
 
@@ -1221,7 +1235,7 @@ const cleanWordHtml = (html: string): string => {
 }
 
 /**
- * 将块级元素上的文本样式（color, font-size, font-family）转换为内联 span
+ * 将块级元素上的文本样式（color, font-size, font-family, font-weight）转换为内联 span
  * Tiptap 只能识别 mark 级别（span）的 TextStyle，不能识别 block 级别的
  */
 const convertBlockStylesToInline = (html: string): string => {
@@ -1249,10 +1263,12 @@ const convertBlockStylesToInline = (html: string): string => {
         const trimmed = s.trim()
         if (!trimmed) return
 
+        // 文本样式（需要转移到 span）
         if (
           trimmed.match(/^color:/i) ||
           trimmed.match(/^font-size:/i) ||
-          trimmed.match(/^font-family:/i)
+          trimmed.match(/^font-family:/i) ||
+          trimmed.match(/^font-weight:/i)
         ) {
           textStyles.push(trimmed)
         } else {
@@ -1272,14 +1288,22 @@ const convertBlockStylesToInline = (html: string): string => {
         // 如果内容不为空，用 span 包装
         const innerHTML = element.innerHTML.trim()
         if (innerHTML && innerHTML !== '<br>') {
-          // 检查是否已经有带样式的 span
-          const hasStyledSpan = innerHTML.match(/<span[^>]*style="[^"]*"/i)
-          if (hasStyledSpan) {
-            // 将样式添加到现有的 span
-            element.innerHTML = innerHTML.replace(
-              /(<span[^>]*style=")([^"]*")([^>]*>)/gi,
-              `$1${textStyles.join('; ')}; $2$3`
-            )
+          // 检查内容是否已经被 span 完全包装
+          const wrappedMatch = innerHTML.match(/^<span([^>]*)>([\s\S]*)<\/span>$/i)
+          if (wrappedMatch) {
+            // 已有 span 包装，将样式合并到现有 span
+            const existingAttrs = wrappedMatch[1]
+            const innerContent = wrappedMatch[2]
+            const styleMatch = existingAttrs.match(/style="([^"]*)"/i)
+            if (styleMatch) {
+              // 合并样式
+              const existingStyle = styleMatch[1]
+              const newStyle = textStyles.join('; ') + '; ' + existingStyle
+              element.innerHTML = `<span style="${newStyle}">${innerContent}</span>`
+            } else {
+              // 添加样式
+              element.innerHTML = `<span style="${textStyles.join('; ')}"${existingAttrs}>${innerContent}</span>`
+            }
           } else {
             // 用新的 span 包装内容
             element.innerHTML = `<span style="${textStyles.join('; ')}">${innerHTML}</span>`
@@ -1292,6 +1316,58 @@ const convertBlockStylesToInline = (html: string): string => {
   } catch (e) {
     console.warn('convertBlockStylesToInline 处理失败:', e)
     return html // 出错时返回原始内容
+  }
+}
+
+/**
+ * 为 Tiptap 预处理 HTML，确保样式格式正确
+ * 将 pt 单位转换为 px，确保颜色格式正确
+ * 注意：此函数不再调用 convertBlockStylesToInline，因为 cleanWordHtml 已经处理过
+ */
+const preprocessHtmlForTiptap = (html: string): string => {
+  try {
+    // 1. 将 pt 单位转换为 px (1pt ≈ 1.33px)
+    html = html.replace(/font-size:\s*(\d+(?:\.\d+)?)\s*pt/gi, (_, size) => {
+      const pxSize = Math.round(parseFloat(size) * 1.33)
+      return `font-size: ${pxSize}px`
+    })
+
+    // 2. 确保颜色格式正确（添加 # 前缀如果缺失）
+    html = html.replace(/color:\s*([A-Fa-f0-9]{6})([^A-Fa-f0-9])/gi, 'color: #$1$2')
+    html = html.replace(/color:\s*([A-Fa-f0-9]{3})([^A-Fa-f0-9])/gi, 'color: #$1$2')
+
+    // 3. 转换 RGB 颜色为十六进制
+    html = html.replace(/color:\s*rgb\((\d+),\s*(\d+),\s*(\d+)\)/gi, (_, r, g, b) => {
+      const hex =
+        '#' +
+        [r, g, b]
+          .map((x) => {
+            const h = parseInt(x).toString(16)
+            return h.length === 1 ? '0' + h : h
+          })
+          .join('')
+      return `color: ${hex}`
+    })
+
+    // 4. 处理红色横线（红头文件特有）- 作为补充处理
+    // 将带有红色边框的元素转换为带有 data-line-color 属性的 hr
+    html = html.replace(
+      /<(p|div)[^>]*style="[^"]*border[^"]*(?:red|#[fF]{2}0{4}|#[fF]00|rgb\s*\(\s*255\s*,\s*0\s*,\s*0\s*\))[^"]*"[^>]*>\s*<\/(p|div)>/gi,
+      '<hr class="red-line" data-line-color="red">'
+    )
+
+    // 处理只有 border-bottom 或 border-top 的红色横线
+    html = html.replace(
+      /<(p|div)[^>]*style="[^"]*(border-(?:bottom|top)[^;]*(?:red|#[fF]{2}0{4}|#[fF]00))[^"]*"[^>]*>(\s*|&nbsp;)*<\/(p|div)>/gi,
+      '<hr class="red-line" data-line-color="red">'
+    )
+
+    // 注意：不再重复调用 convertBlockStylesToInline，因为 cleanWordHtml 已经处理过
+
+    return html
+  } catch (e) {
+    console.warn('preprocessHtmlForTiptap 处理失败:', e)
+    return html
   }
 }
 
@@ -1333,6 +1409,9 @@ const confirmWordImport = async () => {
     if (!content.match(/<p[^>]*>\s*(<br\s*\/?>)?\s*<\/p>\s*$/i)) {
       content += '<p></p>'
     }
+
+    // 预处理 HTML，确保样式格式正确且能被 Tiptap 识别
+    content = preprocessHtmlForTiptap(content)
 
     console.log('处理后内容长度:', content.length)
     console.log('内容前100字符:', content.substring(0, 100))
@@ -1953,7 +2032,7 @@ const printDocument = () => {
     }
 
     .preview-content {
-      max-height: 300px;
+      max-height: 500px;
       overflow-y: auto;
       padding: 16px;
       font-size: 14px;

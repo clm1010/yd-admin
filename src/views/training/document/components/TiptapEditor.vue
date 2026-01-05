@@ -228,6 +228,7 @@ import { Subscript } from '@tiptap/extension-subscript'
 import { Superscript } from '@tiptap/extension-superscript'
 import { DragHandle } from '@tiptap/extension-drag-handle-vue-3'
 import { PageBreak } from './toolbar/extensions/PageBreak'
+import { ColoredHorizontalRule } from './toolbar/extensions/ColoredHorizontalRule'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 import { Icon } from '@/components/Icon'
@@ -382,8 +383,12 @@ const editor = useEditor({
       // Tiptap v3: history 重命名为 undoRedo
       undoRedo: false, // 禁用 undoRedo，Collaboration 会处理
       // 禁用 StarterKit 自带的 Link，使用自定义配置
-      link: false
+      link: false,
+      // 禁用默认的 horizontalRule，使用自定义的 ColoredHorizontalRule
+      horizontalRule: false
     }),
+    // 自定义水平线扩展（支持红色横线）
+    ColoredHorizontalRule,
     // 协同编辑
     Collaboration.configure({
       document: props.ydoc
@@ -1109,6 +1114,12 @@ defineExpose({
       border: none;
       border-top: 2px solid #e5e7eb;
       margin: 2em 0;
+
+      // 红头文件红色横线
+      &.red-line,
+      &[data-line-color='red'] {
+        border-top-color: #ff0000;
+      }
     }
 
     img {

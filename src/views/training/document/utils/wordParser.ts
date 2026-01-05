@@ -171,20 +171,50 @@ export const cleanWordHtml = (html: string): string => {
 
 /**
  * mammoth 样式映射配置
+ * 支持多种标题命名约定（英文、中文、WPS 等）
  */
 export const mammothStyleMap = [
-  // 标题映射
+  // 标准英文标题映射
   "p[style-name='Heading 1'] => h1:fresh",
   "p[style-name='Heading 2'] => h2:fresh",
   "p[style-name='Heading 3'] => h3:fresh",
   "p[style-name='Heading 4'] => h4:fresh",
+  "p[style-name='Heading 5'] => h5:fresh",
+  "p[style-name='Heading 6'] => h6:fresh",
+  // 中文标题映射（空格分隔）
   "p[style-name='标题 1'] => h1:fresh",
   "p[style-name='标题 2'] => h2:fresh",
   "p[style-name='标题 3'] => h3:fresh",
   "p[style-name='标题 4'] => h4:fresh",
+  "p[style-name='标题 5'] => h5:fresh",
+  "p[style-name='标题 6'] => h6:fresh",
+  // 中文标题映射（无空格）
+  "p[style-name='标题1'] => h1:fresh",
+  "p[style-name='标题2'] => h2:fresh",
+  "p[style-name='标题3'] => h3:fresh",
+  "p[style-name='标题4'] => h4:fresh",
+  "p[style-name='标题5'] => h5:fresh",
+  "p[style-name='标题6'] => h6:fresh",
+  // 单独的"标题"样式（通常是一级标题）
+  "p[style-name='标题'] => h1:fresh",
+  "p[style-name='Title'] => h1:fresh",
+  // TOC 标题样式
+  "p[style-name='TOC Heading'] => h1:fresh",
+  "p[style-name='目录标题'] => h1:fresh",
+  // WPS 常用样式
+  "p[style-name='一级标题'] => h1:fresh",
+  "p[style-name='二级标题'] => h2:fresh",
+  "p[style-name='三级标题'] => h3:fresh",
+  "p[style-name='四级标题'] => h4:fresh",
+  // 其他可能的命名
+  "p[style-name='heading 1'] => h1:fresh",
+  "p[style-name='heading 2'] => h2:fresh",
+  "p[style-name='heading 3'] => h3:fresh",
+  "p[style-name='heading 4'] => h4:fresh",
   // 引用映射
   "p[style-name='Quote'] => blockquote:fresh",
   "p[style-name='Block Text'] => blockquote:fresh",
+  "p[style-name='引用'] => blockquote:fresh",
   // 代码块映射
   "p[style-name='Code'] => pre:fresh",
   "r[style-name='Code Char'] => code",
@@ -317,6 +347,16 @@ export const parseWordDocument = async (
 
     // 清理和优化 HTML
     html = cleanWordHtml(html)
+
+    // 检查是否有标题元素，如果没有，尝试从大字体段落转换
+    const headingPattern = /<h[1-6][^>]*>/i
+    if (!headingPattern.test(html)) {
+      console.log('mammoth 未检测到标题，尝试从大字体段落转换')
+      html = convertLargeFontParagraphsToHeadings(html)
+    }
+
+    // 应用内联样式转换（pt -> px 等）
+    html = convertInlineStylesToTiptap(html)
 
     console.log('Word 文档解析成功，警告信息:', result.messages)
 
@@ -1574,8 +1614,17 @@ export async function parseWithDocxPreview(
     const largeFontParagraphs: string[] = []
     paragraphs.forEach((p) => {
       const style = p.getAttribute('style') || ''
-      const fontSizeMatch = style.match(/font-size:\s*(\d+)pt/i)
-      if (fontSizeMatch && parseInt(fontSizeMatch[1]) >= 14) {
+      // 支持 pt 和 px 单位
+      const fontSizeMatchPt = style.match(/font-size:\s*(\d+(?:\.\d+)?)\s*pt/i)
+      const fontSizeMatchPx = style.match(/font-size:\s*(\d+(?:\.\d+)?)\s*px/i)
+      let fontSize = 0
+      if (fontSizeMatchPt) {
+        fontSize = parseFloat(fontSizeMatchPt[1]) * 1.33 // pt 转 px
+      } else if (fontSizeMatchPx) {
+        fontSize = parseFloat(fontSizeMatchPx[1])
+      }
+      if (fontSize >= 19) {
+        // 约14pt+
         largeFontParagraphs.push(p.textContent?.substring(0, 50) || '')
       }
     })
@@ -1675,8 +1724,43 @@ function postProcessDocxPreviewHtml(html: string): string {
     return match
   })
 
-  // 5. 转换 span 内联样式为 Tiptap 支持的格式
+  // 5. 转换 span 内联样式为 Tiptap 支持的格式（包括标题元素上的样式）
   html = convertInlineStylesToTiptap(html)
+
+  // 5.3. 清理标题元素上的 font-size 样式（标题应该使用编辑器默认样式，而不是内联 font-size）
+  // 同时确保标题元素有正确的加粗样式
+  html = html.replace(/<h([1-6])([^>]*)style="([^"]*)"/gi, (_match, level, attrs, style) => {
+    // 移除 font-size 相关的样式，但保留其他样式（如 color, text-align, font-family）
+    const cleanedStyle = style
+      .split(';')
+      .filter((s: string) => {
+        const trimmed = s.trim()
+        return trimmed && !trimmed.match(/^font-size:/i)
+      })
+      .join(';')
+      .trim()
+
+    // 确保标题有加粗样式（如果没有的话）
+    let finalStyle = cleanedStyle
+    if (!finalStyle.includes('font-weight')) {
+      const fontWeight = level <= 2 ? 'font-weight: 700' : 'font-weight: 600'
+      finalStyle = finalStyle ? `${finalStyle}; ${fontWeight}` : fontWeight
+    }
+
+    if (finalStyle) {
+      return `<h${level}${attrs}style="${finalStyle}">`
+    }
+    return `<h${level}${attrs}>`
+  })
+
+  // 对于没有 style 属性的标题，也确保有加粗样式
+  html = html.replace(/<h([1-6])([^>]*)(?<!style=)>/gi, (match, level, attrs) => {
+    if (!attrs.includes('style=')) {
+      const fontWeight = level <= 2 ? 'font-weight: 700' : 'font-weight: 600'
+      return `<h${level}${attrs} style="${fontWeight}">`
+    }
+    return match
+  })
 
   // 5.5. 将大字体段落转换为标题（处理 WPS 等编辑器不使用标准标题样式的情况）
   html = convertLargeFontParagraphsToHeadings(html)
@@ -1694,10 +1778,131 @@ function postProcessDocxPreviewHtml(html: string): string {
   // 8. 清理空的 span 元素
   html = html.replace(/<span[^>]*>\s*<\/span>/g, '')
 
-  // 9. 将空段落转换为带 br 的段落（Tiptap 需要）
+  // 9. 处理红色横线（红头文件特有）
+  // 将带有红色边框的空段落/div 转换为红色 hr
+  html = html.replace(
+    /<(p|div)[^>]*style="[^"]*border[^"]*(?:red|#[fF]{2}0{4}|#[fF]00|rgb\s*\(\s*255\s*,\s*0\s*,\s*0\s*\))[^"]*"[^>]*>\s*(?:&nbsp;)*\s*<\/(p|div)>/gi,
+    '<hr class="red-line" data-line-color="red">'
+  )
+
+  // 处理只有 border-bottom 的红色横线
+  html = html.replace(
+    /<(p|div)[^>]*style="[^"]*border-bottom[^;]*(?:red|#[fF]{2}0{4}|#[fF]00)[^"]*"[^>]*>(\s*(?:&nbsp;)*\s*)<\/(p|div)>/gi,
+    '<hr class="red-line" data-line-color="red">'
+  )
+
+  // 保留已有的 hr 标签，但如果有红色样式则添加 class
+  html = html.replace(
+    /<hr([^>]*)style="[^"]*(?:border[^;]*)?(?:red|#[fF]{2}0{4}|#[fF]00)[^"]*"([^>]*)>/gi,
+    '<hr$1 class="red-line" data-line-color="red"$2>'
+  )
+
+  // 10. 将空段落转换为带 br 的段落（Tiptap 需要）
   html = html.replace(/<p>\s*<\/p>/g, '<p><br></p>')
 
   return html
+}
+
+/**
+ * 从元素或其子元素中提取最大字体大小（px）
+ */
+function extractMaxFontSize(element: Element): number {
+  let maxFontSize = 0
+
+  // 检查元素自身的样式
+  const style = element.getAttribute('style') || ''
+
+  // 支持多种字体大小格式
+  // pt 单位
+  const ptMatch = style.match(/font-size:\s*(\d+(?:\.\d+)?)\s*pt/i)
+  if (ptMatch) {
+    maxFontSize = Math.max(maxFontSize, parseFloat(ptMatch[1]) * 1.33)
+  }
+  // px 单位
+  const pxMatch = style.match(/font-size:\s*(\d+(?:\.\d+)?)\s*px/i)
+  if (pxMatch) {
+    maxFontSize = Math.max(maxFontSize, parseFloat(pxMatch[1]))
+  }
+  // em 单位（假设基准 16px）
+  const emMatch = style.match(/font-size:\s*(\d+(?:\.\d+)?)\s*em/i)
+  if (emMatch) {
+    maxFontSize = Math.max(maxFontSize, parseFloat(emMatch[1]) * 16)
+  }
+  // rem 单位（假设基准 16px）
+  const remMatch = style.match(/font-size:\s*(\d+(?:\.\d+)?)\s*rem/i)
+  if (remMatch) {
+    maxFontSize = Math.max(maxFontSize, parseFloat(remMatch[1]) * 16)
+  }
+
+  // 递归检查所有子元素
+  const children = element.querySelectorAll('*')
+  children.forEach((child) => {
+    const childStyle = child.getAttribute('style') || ''
+
+    const childPtMatch = childStyle.match(/font-size:\s*(\d+(?:\.\d+)?)\s*pt/i)
+    if (childPtMatch) {
+      maxFontSize = Math.max(maxFontSize, parseFloat(childPtMatch[1]) * 1.33)
+    }
+
+    const childPxMatch = childStyle.match(/font-size:\s*(\d+(?:\.\d+)?)\s*px/i)
+    if (childPxMatch) {
+      maxFontSize = Math.max(maxFontSize, parseFloat(childPxMatch[1]))
+    }
+
+    const childEmMatch = childStyle.match(/font-size:\s*(\d+(?:\.\d+)?)\s*em/i)
+    if (childEmMatch) {
+      maxFontSize = Math.max(maxFontSize, parseFloat(childEmMatch[1]) * 16)
+    }
+
+    const childRemMatch = childStyle.match(/font-size:\s*(\d+(?:\.\d+)?)\s*rem/i)
+    if (childRemMatch) {
+      maxFontSize = Math.max(maxFontSize, parseFloat(childRemMatch[1]) * 16)
+    }
+  })
+
+  return maxFontSize
+}
+
+/**
+ * 检查元素或其子元素是否加粗
+ */
+function checkIsBold(element: Element): boolean {
+  const style = element.getAttribute('style') || ''
+
+  // 检查元素自身
+  if (
+    style.includes('font-weight: bold') ||
+    style.includes('font-weight:bold') ||
+    style.includes('font-weight: 700') ||
+    style.includes('font-weight:700') ||
+    style.includes('font-weight:600') ||
+    style.includes('font-weight: 600')
+  ) {
+    return true
+  }
+
+  // 检查是否有 b 或 strong 标签
+  if (element.querySelector('b, strong')) {
+    return true
+  }
+
+  // 检查所有子元素
+  const children = Array.from(element.querySelectorAll('*'))
+  for (const child of children) {
+    const childStyle = child.getAttribute('style') || ''
+    if (
+      childStyle.includes('font-weight: bold') ||
+      childStyle.includes('font-weight:bold') ||
+      childStyle.includes('font-weight: 700') ||
+      childStyle.includes('font-weight:700') ||
+      childStyle.includes('font-weight:600') ||
+      childStyle.includes('font-weight: 600')
+    ) {
+      return true
+    }
+  }
+
+  return false
 }
 
 /**
@@ -1713,13 +1918,13 @@ function convertLargeFontParagraphsToHeadings(html: string): string {
 
     // 检查是否已经有标题元素
     const existingHeadings = root.querySelectorAll('h1, h2, h3, h4, h5, h6')
-    if (existingHeadings.length > 0) {
-      // 已经有标题，不需要转换
-      return html
-    }
+    console.log(`convertLargeFontParagraphsToHeadings: 已有 ${existingHeadings.length} 个标题元素`)
 
     const paragraphs = root.querySelectorAll('p')
     let modified = false
+    let convertedCount = 0
+
+    console.log(`convertLargeFontParagraphsToHeadings: 检查 ${paragraphs.length} 个段落`)
 
     paragraphs.forEach((p) => {
       // 获取段落的文本内容
@@ -1730,59 +1935,67 @@ function convertLargeFontParagraphsToHeadings(html: string): string {
       const style = p.getAttribute('style') || ''
 
       // 检查是否居中
-      const isCenter = style.includes('text-align: center') || style.includes('text-align:center')
+      const isCenter =
+        style.includes('text-align: center') ||
+        style.includes('text-align:center') ||
+        style.includes('text-align: justify') // 有些文档用 justify 作为标题
 
-      // 检查字体大小
-      let fontSize = 0
-      const fontSizeMatch = style.match(/font-size:\s*(\d+(?:\.\d+)?)\s*pt/i)
-      if (fontSizeMatch) {
-        fontSize = parseFloat(fontSizeMatch[1])
-      } else {
-        // 检查内部 span 的字体大小
-        const spans = p.querySelectorAll('span')
-        spans.forEach((span) => {
-          const spanStyle = span.getAttribute('style') || ''
-          const spanFontSizeMatch = spanStyle.match(/font-size:\s*(\d+(?:\.\d+)?)\s*pt/i)
-          if (spanFontSizeMatch) {
-            const spanFontSize = parseFloat(spanFontSizeMatch[1])
-            if (spanFontSize > fontSize) {
-              fontSize = spanFontSize
-            }
-          }
-        })
+      // 使用改进的字体大小提取函数
+      const fontSize = extractMaxFontSize(p)
+
+      // 使用改进的加粗检测函数
+      const isBold = checkIsBold(p)
+
+      // 调试输出（帮助诊断问题）
+      if (fontSize > 0 || isBold) {
+        console.log(
+          `段落检测: "${text.substring(0, 30)}..." fontSize=${fontSize.toFixed(1)}px, isBold=${isBold}, isCenter=${isCenter}`
+        )
       }
 
-      // 检查是否加粗
-      const isBold =
-        style.includes('font-weight: bold') ||
-        style.includes('font-weight:bold') ||
-        style.includes('font-weight: 700') ||
-        p.querySelector('b, strong') !== null
-
-      // 根据字体大小和其他特征判断标题级别
+      // 根据字体大小和其他特征判断标题级别（使用 px 单位）
+      // 放宽条件：大字体本身就可能是标题，不一定需要同时居中或加粗
+      // 参考标准：H1≈32px(24pt), H2≈24px(18pt), H3≈20px(15pt), H4≈18px(14pt)
       let headingLevel = 0
-      if (fontSize >= 22 && (isCenter || isBold)) {
-        headingLevel = 1 // 22pt+ 居中或加粗 = 一级标题
-      } else if (fontSize >= 18 && (isCenter || isBold)) {
-        headingLevel = 2 // 18-22pt = 二级标题
-      } else if (fontSize >= 16 && isBold) {
-        headingLevel = 3 // 16-18pt 加粗 = 三级标题
-      } else if (fontSize >= 14 && isBold) {
-        headingLevel = 4 // 14-16pt 加粗 = 四级标题
+
+      // 一级标题：字体 >= 29px (约22pt)
+      if (fontSize >= 29) {
+        headingLevel = 1
+      }
+      // 二级标题：字体 >= 24px (约18pt)
+      else if (fontSize >= 24) {
+        headingLevel = 2
+      }
+      // 三级标题：字体 >= 20px (约15pt) 或 加粗的 >= 18px
+      else if (fontSize >= 20 || (fontSize >= 18 && isBold)) {
+        headingLevel = 3
+      }
+      // 四级标题：字体 >= 17px 且加粗，或居中的 >= 16px
+      else if ((fontSize >= 17 && isBold) || (fontSize >= 16 && isCenter)) {
+        headingLevel = 4
+      }
+      // 五级标题：加粗的 >= 15px
+      else if (fontSize >= 15 && isBold) {
+        headingLevel = 5
+      }
+      // 六级标题：加粗的 >= 14px
+      else if (fontSize >= 14 && isBold) {
+        headingLevel = 6
       }
 
       if (headingLevel > 0) {
         // 创建标题元素
         const heading = doc.createElement(`h${headingLevel}`)
         heading.innerHTML = p.innerHTML
-        // 复制部分样式（排除 font-size，因为标题有自己的样式）
+        // 复制部分样式（排除 font-size，因为标题有自己的样式，但保留其他样式）
         const keepStyles: string[] = []
         style.split(';').forEach((s) => {
           const trimmed = s.trim()
           if (
             trimmed.startsWith('text-align:') ||
             trimmed.startsWith('color:') ||
-            trimmed.startsWith('font-family:')
+            trimmed.startsWith('font-family:') ||
+            trimmed.startsWith('font-weight:')
           ) {
             keepStyles.push(trimmed)
           }
@@ -1792,9 +2005,14 @@ function convertLargeFontParagraphsToHeadings(html: string): string {
         }
         p.parentNode?.replaceChild(heading, p)
         modified = true
-        console.log(`转换段落为 h${headingLevel}:`, text.substring(0, 50))
+        convertedCount++
+        console.log(
+          `✓ 转换段落为 h${headingLevel}: "${text.substring(0, 50)}..." (fontSize=${fontSize.toFixed(1)}px)`
+        )
       }
     })
+
+    console.log(`convertLargeFontParagraphsToHeadings: 共转换 ${convertedCount} 个段落为标题`)
 
     if (modified) {
       return root.innerHTML
@@ -1810,9 +2028,16 @@ function convertLargeFontParagraphsToHeadings(html: string): string {
  * 转换内联样式为 Tiptap 支持的格式
  */
 function convertInlineStylesToTiptap(html: string): string {
-  // 处理字体大小：pt -> 保留 pt
+  // 处理字体大小：pt -> px (1pt ≈ 1.33px，96 DPI)
   html = html.replace(/font-size:\s*(\d+(?:\.\d+)?)\s*pt/gi, (_, size) => {
-    return `font-size: ${size}pt`
+    const ptSize = parseFloat(size)
+    const pxSize = Math.round(ptSize * 1.33)
+    return `font-size: ${pxSize}px`
+  })
+
+  // 处理已经是 px 单位的字体大小，确保格式正确
+  html = html.replace(/font-size:\s*(\d+(?:\.\d+)?)\s*px/gi, (_, size) => {
+    return `font-size: ${Math.round(parseFloat(size))}px`
   })
 
   // 处理字体颜色
@@ -2629,6 +2854,21 @@ function convertTableCellEnhanced(
  * @param arrayBuffer 文件内容
  * @param onProgress 进度回调
  */
+/**
+ * 检查 HTML 是否包含标题元素
+ */
+function hasHeadingElements(html: string): boolean {
+  const headingPattern = /<h[1-6][^>]*>/i
+  return headingPattern.test(html)
+}
+
+/**
+ * 智能解析文档
+ * 策略：优先使用 mammoth（能正确识别标题），必要时结合 docx-preview 增强效果
+ * @param file 文件对象
+ * @param arrayBuffer 文件内容
+ * @param onProgress 进度回调
+ */
 export async function smartParseDocument(
   file: File,
   arrayBuffer: ArrayBuffer,
@@ -2645,29 +2885,43 @@ export async function smartParseDocument(
     return await parseRedHeadDocument(arrayBuffer, onProgress)
   }
 
-  // 策略 1: 小文件（< 2MB）使用 docx-preview
-  if (fileSize < 2 * 1024 * 1024) {
-    console.log('使用 docx-preview 高保真解析（小文件）')
-    try {
-      const result = await parseWithDocxPreview(arrayBuffer, onProgress)
-      // 检查结果是否有效
-      if (result && result.trim().length > 50) {
-        return result
+  // 新策略：优先使用 mammoth 解析（能正确识别标题）
+  console.log('优先使用 mammoth 解析文档（能正确识别标题）')
+  try {
+    onProgress?.(20, '正在使用 mammoth 解析...')
+    const mammothResult = await parseWordDocument(arrayBuffer, onProgress)
+
+    // 检查 mammoth 结果
+    if (mammothResult && mammothResult.trim().length > 50) {
+      // 检查是否有标题元素
+      if (hasHeadingElements(mammothResult)) {
+        console.log('mammoth 解析成功，检测到标题元素')
+        return mammothResult
+      } else {
+        console.log('mammoth 解析成功但未检测到标题，尝试大字体段落转换')
+        // 尝试从大字体段落转换标题
+        const processedHtml = postProcessDocxPreviewHtml(mammothResult)
+        if (hasHeadingElements(processedHtml)) {
+          console.log('大字体段落转换成功，检测到标题元素')
+          return processedHtml
+        }
+        // 即使没有标题，mammoth 的结果通常也是可用的
+        console.log('使用 mammoth 结果（无标题）')
+        return processedHtml
       }
-      console.warn('docx-preview 解析结果过短，回退到增强 OOXML 解析')
-      return await parseOoxmlDocumentEnhanced(arrayBuffer, onProgress)
-    } catch (e) {
-      console.warn('docx-preview 解析失败，回退到增强 OOXML 解析:', e)
-      return await parseOoxmlDocumentEnhanced(arrayBuffer, onProgress)
     }
+  } catch (e) {
+    console.warn('mammoth 解析失败:', e)
   }
 
-  // 策略 2: 中等文件（2-5MB）使用 docx-preview
+  // 如果 mammoth 失败，回退到 docx-preview
+  console.log('回退到 docx-preview 解析')
+
+  // 小文件和中等文件：使用 docx-preview
   if (fileSize < 5 * 1024 * 1024) {
-    console.log('使用 docx-preview 高保真解析（中等文件）')
+    console.log('使用 docx-preview 高保真解析')
     try {
       const result = await parseWithDocxPreview(arrayBuffer, onProgress)
-      // 检查结果是否有效
       if (result && result.trim().length > 50) {
         return result
       }
@@ -2679,7 +2933,7 @@ export async function smartParseDocument(
     }
   }
 
-  // 策略 3: 大文件（> 5MB）使用 Web Worker + docx-preview
+  // 大文件（> 5MB）使用 Web Worker + docx-preview
   console.log('使用 Web Worker 非阻塞解析（大文件）')
   try {
     return await parseWithWorker(arrayBuffer, onProgress)
