@@ -60,7 +60,7 @@ export const getRandomUserColor = (): string => {
 // 生成随机用户名
 export const generateRandomUsername = (): string => {
   const adjectives = ['张', '王', '李', '赵', '陈', '诸葛', '司马', '杨', '刘', '曹', '孙']
-  const nouns = ['懿', '亮', '修', '穆', '宫', '云', '典', '越', '备', '羲之', '孟德', '仲谋']
+  const nouns = ['懿', '亮', '修', '穆', '宫', '云', '典', '越', '备', '羲之', '阳明', '子轩']
   const adj = adjectives[Math.floor(Math.random() * adjectives.length)]
   const noun = nouns[Math.floor(Math.random() * nouns.length)]
   return `${adj}${noun}${Math.floor(Math.random() * 100)}`

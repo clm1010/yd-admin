@@ -1816,7 +1816,7 @@ onUnmounted(() => {
 </script>
 <style scoped lang="scss">
 .performance-container {
-  height: calc(100vh - 110px); // 减去头部和标签栏高度
+  height: calc(100vh - 90px); // 减去头部和标签栏高度
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1862,7 +1862,7 @@ onUnmounted(() => {
   padding: 0;
 
   .el-dialog__header {
-    background: linear-gradient(180deg, #1677ff1a, #1677ff1a);
+    background: linear-gradient(102.53deg, #1677ff1a 0.03%, #1677ff26 102.41%);
     padding: 20px 24px;
     margin: 0;
     border-bottom: 1px solid #1677ff1a;

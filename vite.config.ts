@@ -83,6 +83,9 @@ export default ({ command, mode }: ConfigEnv): UserConfig => {
       'import.meta.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL || '/api'),
       'import.meta.env.VITE_WS_URL': JSON.stringify(env.VITE_WS_URL || 'ws://localhost:3001')
     },
+    worker: {
+      format: 'es' // 使用 ES 模块格式，避免与代码分割冲突
+    },
     build: {
       minify: 'terser',
       outDir: env.VITE_OUT_DIR || 'dist',

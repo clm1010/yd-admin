@@ -2032,7 +2032,7 @@ const printDocument = () => {
     }
 
     .preview-content {
-      max-height: 500px;
+      max-height: 460px;
       overflow-y: auto;
       padding: 16px;
       font-size: 14px;
