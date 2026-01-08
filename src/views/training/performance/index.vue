@@ -238,11 +238,11 @@
                         </el-button>
                       </div>
 
-                      <!-- 审核中状态(2)显示：审核执行、审核记录 -->
+                      <!-- 审核中状态(2)显示：审核、审核记录 -->
                       <div v-else-if="scope.row.applyNode === '2'">
                         <el-button link type="primary" @click="handleReviewExecute(scope.row)">
                           <Icon icon="ep:view" />
-                          审核执行
+                          审核
                         </el-button>
                         <el-button link type="primary" @click="openExamRecordDialog(scope.row)">
                           <Icon icon="ep:document" />
@@ -327,21 +327,26 @@
     class="custom-dialog-header"
   >
     <el-form ref="formRef" :model="formData" :rules="formRules" label-width="120px">
-      <el-form-item label="演训数据" prop="drillDataId">
-        <div class="w-full" @click="openDrillSelector">
+      <el-form-item label="演训数据">
+        <div class="w-full flex gap-2">
           <el-input
-            v-model="formData.drillDataName"
+            v-model="formData.exerciseName"
             placeholder="请选择"
             readonly
             :suffix-icon="ArrowDown"
-            class="cursor-pointer"
+            class="cursor-pointer flex-1"
+            @click="openDrillSelector"
           />
+          <el-button v-if="formData.planId" type="danger" plain @click="handleClearExerciseData"
+            >清空</el-button
+          >
         </div>
       </el-form-item>
 
       <el-form-item label="筹划方案名称" prop="planName">
         <el-input v-model="formData.planName" placeholder="请输入" clearable />
       </el-form-item>
+      <!-- :disabled="isExerciseFieldDisabled" -->
       <el-form-item label="演训主题" prop="exerciseTheme">
         <el-select v-model="formData.exerciseTheme" placeholder="请选择" clearable class="w-full">
           <el-option
@@ -353,7 +358,13 @@
         </el-select>
       </el-form-item>
       <el-form-item label="演训类型" prop="exerciseType">
-        <el-select v-model="formData.exerciseType" placeholder="请选择" clearable class="w-full">
+        <el-select
+          v-model="formData.exerciseType"
+          placeholder="请选择"
+          clearable
+          :disabled="isExerciseFieldDisabled"
+          class="w-full"
+        >
           <el-option
             v-for="item in exerciseTypeOptions"
             :key="item.value"
@@ -363,7 +374,13 @@
         </el-select>
       </el-form-item>
       <el-form-item label="演训等级" prop="level">
-        <el-select v-model="formData.level" placeholder="请选择" clearable class="w-full">
+        <el-select
+          v-model="formData.level"
+          placeholder="请选择"
+          clearable
+          :disabled="isExerciseFieldDisabled"
+          class="w-full"
+        >
           <el-option
             v-for="item in levelOptions"
             :key="item.value"
@@ -373,7 +390,13 @@
         </el-select>
       </el-form-item>
       <el-form-item label="所属学院" prop="collegeCode">
-        <el-select v-model="formData.collegeCode" placeholder="请选择" clearable class="w-full">
+        <el-select
+          v-model="formData.collegeCode"
+          placeholder="请选择"
+          clearable
+          :disabled="isExerciseFieldDisabled"
+          class="w-full"
+        >
           <el-option
             v-for="item in collegeOptions"
             :key="item.value"
@@ -457,40 +480,117 @@
   <el-dialog
     v-model="drillSelectorVisible"
     title="请选择"
-    width="900px"
+    width="1200px"
     append-to-body
     class="custom-dialog-header"
+    :close-on-click-modal="false"
   >
     <!-- 筛选栏 -->
-    <div class="mb-4 flex gap-4">
-      <el-select v-model="drillFilter.unit" clearable placeholder="全部演训单位" class="w-40">
-        <el-option label="第一军团" value="第一军团" />
-        <el-option label="装甲旅" value="装甲旅" />
-      </el-select>
-      <el-select v-model="drillFilter.level" clearable placeholder="全部演训等级" class="w-40">
-        <el-option label="战略级" value="战略级" />
-        <el-option label="战术级" value="战术级" />
-      </el-select>
-      <el-input v-model="drillFilter.name" clearable placeholder="请输入演训名称" class="w-60">
-        <template #append>
-          <el-button :icon="Search" />
-        </template>
-      </el-input>
-    </div>
+    <el-form ref="drillFilterFormRef" :model="drillFilter" :inline="true" class="mb-4">
+      <el-row :gutter="24" justify="center">
+        <el-col :span="8">
+          <el-form-item label="演训名称" prop="exerciseName">
+            <el-input
+              v-model="drillFilter.exerciseName"
+              clearable
+              placeholder="请输入演训名称"
+              class="!w-240px"
+            />
+          </el-form-item>
+        </el-col>
+        <el-col :span="8">
+          <el-form-item label="演训类型" prop="exerciseType">
+            <el-select
+              v-model="drillFilter.exerciseType"
+              clearable
+              placeholder="请选择"
+              class="!w-240px"
+            >
+              <el-option
+                v-for="item in exerciseTypeOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :span="8">
+          <el-form-item label="演训等级" prop="level">
+            <el-select v-model="drillFilter.level" clearable placeholder="请选择" class="!w-240px">
+              <el-option label="战略级" value="ZLJ" />
+              <el-option label="战役级" value="ZYJ" />
+              <el-option label="战术级" value="ZSJ" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :span="8">
+          <el-form-item label="演训学院" prop="academy">
+            <el-select
+              v-model="drillFilter.academy"
+              clearable
+              placeholder="请选择"
+              class="!w-240px"
+            >
+              <el-option
+                v-for="item in collegeOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :span="8">
+          <el-form-item label="演训城市" prop="city">
+            <el-input v-model="drillFilter.city" clearable placeholder="请输入" class="!w-240px" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="8">
+          <el-form-item label="" class="">
+            <el-button type="primary" @click="getExerciseDataList">
+              <Icon icon="ep:search" class="mr-1" />
+              查询
+            </el-button>
+            <el-button @click="handleResetDrillFilter">
+              <Icon icon="ep:refresh" class="mr-1" />
+              重置
+            </el-button>
+          </el-form-item>
+        </el-col>
+      </el-row>
+    </el-form>
 
     <!-- 列表 -->
     <el-table
-      :data="filteredDrillData"
+      v-loading="drillDataLoading"
+      :data="drillDataList"
       border
       stripe
       highlight-current-row
       @current-change="handleDrillSelect"
       class="w-full"
+      height="400px"
     >
-      <el-table-column label="演训名称" prop="name" min-width="150" align="center" />
-      <el-table-column label="演训单位" prop="unit" width="120" align="center" />
-      <el-table-column label="组织单位" prop="org" width="120" align="center" />
+      <el-table-column label="序号" type="index" width="60" align="center" />
+      <el-table-column label="演训名称" prop="exerciseName" min-width="160" align="center" />
+      <!-- <el-table-column label="演训单位" prop="unit" width="120" align="center" /> -->
+      <el-table-column label="演训支持单位" prop="supportUnit" width="160" align="center" />
+      <el-table-column label="演训组织单位" prop="organizer" width="140" align="center" />
+      <el-table-column label="演训类型" prop="exerciseType" width="120" align="center" />
       <el-table-column label="演训等级" prop="level" width="100" align="center" />
+      <el-table-column label="演训参演单位" prop="participatingUnits" width="160" align="center" />
+      <el-table-column label="演训城市" prop="city" width="100" align="center" />
+      <el-table-column label="演训学院" prop="academy" width="100" align="center" />
+      <el-table-column label="演训科目" prop="subject" width="120" align="center" />
+      <el-table-column label="演训课题" prop="course" width="120" align="center" />
+      <el-table-column label="演训内容" prop="content" width="200" align="center" />
+      <el-table-column label="演训相关集成系统" prop="relatedSystems" width="140" align="center" />
+      <el-table-column label="实施计划" prop="implPlan" width="200" align="center" />
+      <el-table-column label="编组信息" prop="groupingInfo" width="160" align="center" />
+      <el-table-column label="重点班次" prop="keyClasses" width="100" align="center" />
+      <el-table-column label="参与人数" prop="participantCount" width="100" align="center" />
+      <el-table-column label="创建人" prop="updater" width="100" align="center" />
       <el-table-column label="开始时间" prop="startTime" width="120" align="center" />
       <el-table-column label="结束时间" prop="endTime" width="120" align="center" />
     </el-table>
@@ -499,7 +599,9 @@
       <Pagination
         v-model:page="drillPage.pageNo"
         v-model:limit="drillPage.pageSize"
-        :total="filteredDrillData.length"
+        :total="drillDataTotal"
+        :page-sizes="[5, 10, 20, 30, 50, 100]"
+        @pagination="getExerciseDataList"
       />
     </div>
   </el-dialog>
@@ -617,7 +719,7 @@ import { ref, reactive, onMounted, nextTick, computed, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import * as PerformanceApi from '@/api/training'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
-import { Search, ArrowDown } from '@element-plus/icons-vue'
+import { Search, ArrowDown, RefreshLeft } from '@element-plus/icons-vue'
 import { useCollaborationUserStore } from '@/store/modules/collaborationUser'
 import AuditFlowDialog from '@/components/AuditFlowDialog/index.vue'
 import { saveDocContent } from '@/views/utils/docStorage'
@@ -631,8 +733,7 @@ import {
   find,
   every,
   filter,
-  map,
-  includes
+  map
 } from 'lodash-es'
 
 defineOptions({ name: 'TrainingPerformance' })
@@ -695,8 +796,8 @@ const getList = async () => {
     // list.value = [
     //   {
     //     id: '1',
-    //     drillDataId: 'drill-001',
-    //     drillDataName: '2024年度联合作战演练',
+    //     planId: 'drill-001',
+    //     exerciseName: '2024年度联合作战演练',
     //     planName: '联合作战演练筹划方案',
     //     collegeCode: 'LHZZXY',
     //     fileType: '演训方案',
@@ -714,8 +815,8 @@ const getList = async () => {
     //   },
     //   {
     //     id: '2',
-    //     drillDataId: 'drill-002',
-    //     drillDataName: '战略级演训项目',
+    //     planId: 'drill-002',
+    //     exerciseName: '战略级演训项目',
     //     planName: '战略级综合演练方案',
     //     collegeCode: 'GFDX',
     //     fileType: '作战计划',
@@ -733,8 +834,8 @@ const getList = async () => {
     //   },
     //   {
     //     id: '3',
-    //     drillDataId: 'drill-003',
-    //     drillDataName: '网络安全演练',
+    //     planId: 'drill-003',
+    //     exerciseName: '网络安全演练',
     //     planName: '网络攻防演练实施方案',
     //     collegeCode: 'GJAQXY',
     //     fileType: '导调计划',
@@ -752,8 +853,8 @@ const getList = async () => {
     //   },
     //   {
     //     id: '4',
-    //     drillDataId: 'drill-004',
-    //     drillDataName: '后勤保障演练',
+    //     planId: 'drill-004',
+    //     exerciseName: '后勤保障演练',
     //     planName: '联合勤务保障方案',
     //     collegeCode: 'LHQWXY',
     //     fileType: '作战文书',
@@ -771,8 +872,8 @@ const getList = async () => {
     //   },
     //   {
     //     id: '5',
-    //     drillDataId: 'drill-005',
-    //     drillDataName: '电磁频谱管控演练',
+    //     planId: 'drill-005',
+    //     exerciseName: '电磁频谱管控演练',
     //     planName: '电磁环境管控方案',
     //     collegeCode: 'SGLXY',
     //     fileType: '企图立案',
@@ -790,8 +891,8 @@ const getList = async () => {
     //   },
     //   {
     //     id: '6',
-    //     drillDataId: 'drill-006',
-    //     drillDataName: '后勤保障演练',
+    //     planId: 'drill-006',
+    //     exerciseName: '后勤保障演练',
     //     planName: '联合勤务保障方案',
     //     collegeCode: 'SGLXY',
     //     fileType: '作战文书',
@@ -809,8 +910,8 @@ const getList = async () => {
     //   },
     //   {
     //     id: '7',
-    //     drillDataId: 'drill-007',
-    //     drillDataName: '太空作战演练',
+    //     planId: 'drill-007',
+    //     exerciseName: '太空作战演练',
     //     planName: '太空作战演练方案',
     //     collegeCode: 'SGLXY',
     //     fileType: '企图立案',
@@ -894,8 +995,8 @@ const formRef = ref()
 // 表单数据
 const formData = reactive({
   id: '', // 筹划方案ID
-  drillDataId: '', // 演训数据ID
-  drillDataName: '', // 演训数据名称（回显用）
+  planId: '', // 演训数据ID
+  exerciseName: '', // 演训数据名称（回显用）
   planName: '', // 筹划方案名称
   exerciseTheme: '', // 演训主题
   exerciseType: '', // 演训类型
@@ -913,13 +1014,12 @@ const uploadFile = ref<File | null>(null)
 
 // 表单验证规则
 const formRules = {
-  drillDataId: [{ required: true, message: '请选择演训数据', trigger: 'change' }],
-  drillDataName: [{ required: true, message: '请输入演训数据名称', trigger: 'blur' }],
+  // planId 和 exerciseName 不需要验证
   planName: [{ required: true, message: '请输入筹划方案名称', trigger: 'blur' }],
   exerciseTheme: [{ required: true, message: '请输入演训主题', trigger: 'blur' }],
-  exerciseType: [{ required: true, message: '请输入演训类型', trigger: 'blur' }],
-  level: [{ required: true, message: '请输入演训等级', trigger: 'blur' }],
-  collegeCode: [{ required: true, message: '请选择所属学院', trigger: 'change' }],
+  // exerciseType: [{ required: true, message: '请输入演训类型', trigger: 'blur' }],
+  // level: [{ required: true, message: '请输入演训等级', trigger: 'blur' }],
+  // collegeCode: [{ required: true, message: '请选择所属学院', trigger: 'change' }],
   fileType: [{ required: true, message: '请选择文档分类', trigger: 'change' }],
   activeUser: [{ required: true, message: '请选择可编辑用户', trigger: 'change' }],
   creationMethod: [{ required: true, message: '请选择创建方式', trigger: 'change' }]
@@ -935,6 +1035,17 @@ const fileTypeOptions = computed(() => {
   }))
 })
 
+// 演训主题
+const exerciseThemeOptions = [
+  { label: '联合作战训练', value: 'LHZZYX' },
+  { label: '作战训练', value: 'ZUOZL' },
+  { label: '政治训练', value: 'ZZL' },
+  { label: '经济训练', value: 'JJL' },
+  { label: '认知训练', value: 'RZL' },
+  { label: '文化训练', value: 'WHL' },
+  { label: '后装训练', value: 'HZL' }
+]
+
 // 演训类型
 const exerciseTypeOptions = [
   { label: '大学年度演训', value: 'DXNDYX' },
@@ -949,17 +1060,6 @@ const exerciseTypeOptions = [
   { label: '网络类', value: 'WLL' },
   { label: '电磁类', value: 'DCL' },
   { label: '太空类', value: 'TKL' }
-]
-
-// 演训主题
-const exerciseThemeOptions = [
-  { label: '联合作战训练', value: 'LHZZYX' },
-  { label: '作战训练', value: 'ZUOZL' },
-  { label: '政治训练', value: 'ZZL' },
-  { label: '经济训练', value: 'JJL' },
-  { label: '认知训练', value: 'RZL' },
-  { label: '文化训练', value: 'WHL' },
-  { label: '后装训练', value: 'HZL' }
 ]
 
 // 演训等级
@@ -1000,74 +1100,88 @@ const userOptions = [
 
 // 演训数据选择器逻辑
 const drillSelectorVisible = ref(false)
+const drillFilterFormRef = ref()
 const drillFilter = reactive({
-  unit: '',
+  exerciseName: '',
+  exerciseType: '',
   level: '',
-  name: ''
+  academy: '',
+  city: ''
 })
 const drillPage = reactive({ pageNo: 1, pageSize: 10 })
+const drillDataList = ref<any[]>([])
+const drillDataTotal = ref(0)
+const drillDataLoading = ref(false)
 
-// 模拟演训数据
-const drillDataList = [
-  {
-    id: '1',
-    name: '2024联合演习',
-    unit: '第一军团',
-    org: '参谋部',
-    level: '战略级',
-    startTime: '2024-01-01',
-    endTime: '2024-01-15'
-  },
-  {
-    id: '2',
-    name: '跨区机动演练',
-    unit: '装甲旅',
-    org: '训练处',
-    level: '战术级',
-    startTime: '2024-03-10',
-    endTime: '2024-03-20'
-  },
-  {
-    id: '3',
-    name: '山地攻防演练',
-    unit: '合成营',
-    org: '作训科',
-    level: '战术级',
-    startTime: '2024-04-05',
-    endTime: '2024-04-12'
-  },
-  {
-    id: '4',
-    name: '网络安全演习',
-    unit: '信息中心',
-    org: '网络部',
-    level: '战略级',
-    startTime: '2024-05-20',
-    endTime: '2024-05-25'
+// 获取演训数据列表
+const getExerciseDataList = async () => {
+  try {
+    drillDataLoading.value = true
+    // 使用 lodash pickBy 过滤空值
+    const filterParams = pickBy(drillFilter, (value) => {
+      if (isArray(value)) return !isEmpty(value)
+      return !isNil(value) && value !== ''
+    })
+    const res = await PerformanceApi.getExerciseData({
+      pageNo: drillPage.pageNo,
+      pageSize: drillPage.pageSize,
+      ...filterParams // 传递筛选条件
+    })
+    drillDataList.value = res.records || []
+    drillDataTotal.value = res.total || 0
+  } catch (error) {
+    console.error('获取演训数据列表失败:', error)
+    ElMessage.error('获取演训数据列表失败')
+  } finally {
+    drillDataLoading.value = false
   }
-]
-
-const filteredDrillData = computed(() => {
-  return filter(drillDataList, (item) => {
-    const matchUnit = isEmpty(drillFilter.unit) || item.unit === drillFilter.unit
-    const matchLevel = isEmpty(drillFilter.level) || item.level === drillFilter.level
-    const matchName = isEmpty(drillFilter.name) || includes(item.name, drillFilter.name)
-    return matchUnit && matchLevel && matchName
-  })
-})
+}
 
 const openDrillSelector = () => {
   drillSelectorVisible.value = true
+  // 打开弹窗时加载数据
+  getExerciseDataList()
+}
+
+// 重置筛选条件
+const handleResetDrillFilter = () => {
+  drillFilterFormRef.value?.resetFields()
+  drillPage.pageNo = 1 // 重置页码
+  getExerciseDataList()
+}
+
+// 控制演训相关字段是否禁用：如果选择了演训数据则禁用
+const isExerciseFieldDisabled = computed(() => {
+  return !isEmpty(formData.planId) && !isEmpty(formData.exerciseName)
+})
+
+// 清空演训数据选择
+const handleClearExerciseData = () => {
+  formData.planId = ''
+  formData.exerciseName = ''
+  // 可选：是否同时清空关联字段（根据需求决定）
+  // formData.exerciseTheme = ''
+  // formData.exerciseType = ''
+  // formData.level = ''
+  // formData.collegeCode = ''
 }
 
 //
 const handleDrillSelect = (row: any) => {
   if (!row) return
-  formData.drillDataId = row.id
-  formData.drillDataName = row.name
+  // 回显演训数据基本信息
+  formData.planId = row.id
+  formData.exerciseName = row.exerciseName
+
+  // 回显其他字段（如果演训数据有这些字段）
+  if (row.exerciseTheme) formData.exerciseTheme = row.exerciseTheme
+  if (row.exerciseType) formData.exerciseType = row.exerciseType
+  if (row.level) formData.level = row.level
+  if (row.academy) formData.collegeCode = row.academy
+
   drillSelectorVisible.value = false
-  // 清除校验
-  formRef.value?.validateField('drillDataId')
+  // 清空校验
+  formRef.value?.validateField('planId')
 }
 
 // 文件选择变化
@@ -1089,8 +1203,8 @@ const handleAdd = () => {
   dialogVisible.value = true
   // 重置表单
   Object.assign(formData, {
-    drillDataId: '',
-    drillDataName: '',
+    planId: '',
+    exerciseName: '',
     planName: '',
     exerciseTheme: '',
     exerciseType: '',
@@ -1104,7 +1218,7 @@ const handleAdd = () => {
   // 重置上传文件
   uploadFileList.value = []
   uploadFile.value = null
-  // 清除验证
+  // 清空验证
   nextTick(() => {
     formRef.value?.clearValidate()
   })
@@ -1119,8 +1233,8 @@ const handleEditData = (row: PerformanceApi.TrainingPerformanceVO) => {
 
   // 填充表单数据
   Object.assign(formData, {
-    drillDataId: row.drillDataId || '',
-    drillDataName: row.drillDataName || '',
+    planId: row.planId || '',
+    exerciseName: row.exerciseName || '',
     planName: row.planName || '',
     exerciseTheme: row.exerciseTheme || '',
     exerciseType: row.exerciseType || '',
@@ -1136,7 +1250,7 @@ const handleEditData = (row: PerformanceApi.TrainingPerformanceVO) => {
   uploadFileList.value = []
   uploadFile.value = null
 
-  // 清除验证
+  // 清空验证
   nextTick(() => {
     formRef.value?.clearValidate()
   })
@@ -1164,8 +1278,8 @@ const handleSave = async () => {
       // 构建编辑数据（不传递 creationMethod），映射到标准字段名
       const editData: any = {
         id: currentEditId.value, // 演训方案ID
-        drillDataId: formData.drillDataId, // 演训数据ID
-        drillDataName: formData.drillDataName, // 演训数据名称
+        planId: formData.planId, // 演训数据ID
+        exerciseName: formData.exerciseName, // 演训数据名称
         planName: formData.planName, // 演训方案名称
         exerciseTheme: formData.exerciseTheme, // 演训主题
         exerciseType: formData.exerciseType, // 演训类型
@@ -1186,8 +1300,8 @@ const handleSave = async () => {
     // 新建模式
     // 构建保存数据，映射到标准字段名
     const saveData: PerformanceApi.TrainingPerformanceVO = {
-      drillDataId: formData.drillDataId, // 演训数据ID
-      drillDataName: formData.drillDataName, // 演训数据名称
+      planId: formData.planId, // 演训数据ID
+      exerciseName: formData.exerciseName, // 演训数据名称
       planName: formData.planName, // 演训方案名称
       exerciseTheme: formData.exerciseTheme, // 演训主题
       exerciseType: formData.exerciseType, // 演训类型
@@ -1610,9 +1724,9 @@ const handleRejectSubmit = async () => {
 //   }
 // }
 
-// 审核执行 - 跳转到编辑器（只读模式）
+// 审核 - 跳转到编辑器（只读模式）
 const handleReviewExecute = async (row: PerformanceApi.TrainingPerformanceVO) => {
-  console.log('审核执行:', row)
+  console.log('审核:', row)
 
   // 创建 loading 实例
   const loadingInstance = ElLoading.service({

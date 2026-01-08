@@ -154,10 +154,11 @@ const javaApi = {
   },
 
   /**
-   * 获取演训数据列表
+   * 获取演训数据列表（带分页）- Java 后端
+   * POST /getPlan/getExerciseData
    */
-  getDrillDataList: async (_params?: any) => {
-    return Promise.resolve([])
+  getExerciseData: async (params: { pageNo?: number; pageSize?: number }) => {
+    return await javaRequest.post('/getPlan/getExerciseData', params)
   },
 
   /**
@@ -258,9 +259,10 @@ const mockApi = {
     return res.data
   },
 
-  getDrillDataList: async (params?: any) => {
-    const { getDrillDataList } = await import('@/mock/training/performance')
-    return getDrillDataList(params)
+  getExerciseData: async (params: { pageNo?: number; pageSize?: number }) => {
+    const { getExerciseData } = await import('@/mock/training/performance')
+    const res = await getExerciseData(params)
+    return res.data
   },
 
   getExamRecordList: async (id: string): Promise<{ data: ExamRecordVO[] }> => {
@@ -347,9 +349,11 @@ export const rejectTrainingPerformance = api.rejectTrainingPerformance
 export const exportTrainingPerformance = api.exportTrainingPerformance
 
 /**
- * 获取演训数据列表
+ * 获取演训数据列表（带分页）- 用于演训数据选择弹窗
+ * POST /getPlan/getExerciseData
+ * @param params { pageNo: 1, pageSize: 10 }
  */
-export const getDrillDataList = api.getDrillDataList
+export const getExerciseData = api.getExerciseData
 
 /**
  * 获取审核记录列表
@@ -364,26 +368,6 @@ export const getExamRecordList = api.getExamRecordList
  * @param data 审核/驳回参数 { apply, examResult, examOpinion, examuserId }
  */
 export const examApply = api.examApply
-
-// ==================== 兼容旧接口 ====================
-
-/**
- * 获取演训方案分页数据 (旧接口，保留兼容)
- * @deprecated 请使用 getPageList
- */
-export const getTrainingPerformancePage = getPageList
-
-/**
- * 创建演训方案 (旧接口，保留兼容)
- * @deprecated 请使用 createNewData
- */
-export const createTrainingPerformance = createNewData
-
-/**
- * 更新演训方案 (旧接口，保留兼容)
- * @deprecated 请使用 updatePerformanceData
- */
-export const updateTrainingPerformance = updatePerformanceData
 
 // 重新导出分类配置
 export { performanceCategories } from '@/views/training/performance/config/categories'

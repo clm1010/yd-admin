@@ -935,10 +935,10 @@ onBeforeUnmount(() => {
 // 统一抽屉样式 - 全局样式
 .el-drawer.custom-drawer-header {
   .el-drawer__header {
-    background-color: #f5f7fa !important;
+    background: linear-gradient(102.53deg, #1677ff1a 0.03%, #1677ff26 102.41%);
     padding: 20px 24px;
     margin: 0;
-    border-bottom: 1px solid #e4e7ed;
+    border-bottom: 1px solid #1677ff1a;
     display: flex;
     justify-content: space-between;
     align-items: center;

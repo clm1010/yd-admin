@@ -12,12 +12,28 @@
 
     <!-- 媒体 -->
     <div class="toolbar-group">
-      <el-tooltip content="图片" placement="bottom" :show-after="500">
-        <button class="toolbar-btn-large" @click="insertImage">
-          <Icon icon="mdi:image-outline" class="btn-icon-large" />
-          <span class="btn-text">图片</span>
-        </button>
-      </el-tooltip>
+      <el-popover placement="bottom" :width="180" trigger="click" :show-arrow="false">
+        <template #reference>
+          <span>
+            <el-tooltip content="图片" placement="bottom" :show-after="500">
+              <button class="toolbar-btn-large">
+                <Icon icon="mdi:image-outline" class="btn-icon-large" />
+                <span class="btn-text">图片</span>
+              </button>
+            </el-tooltip>
+          </span>
+        </template>
+        <div class="image-menu">
+          <div class="image-menu-item" @click="insertBlockImage">
+            <div class="menu-item-title">图片</div>
+            <div class="menu-item-hint">在节点上插入图片</div>
+          </div>
+          <div class="image-menu-item" @click="insertInlineImage">
+            <div class="menu-item-title">行内图片</div>
+            <div class="menu-item-hint">在段落内插入图片</div>
+          </div>
+        </div>
+      </el-popover>
       <el-tooltip content="视频" placement="bottom" :show-after="500">
         <button class="toolbar-btn-large" @click="insertVideo">
           <Icon icon="mdi:video-outline" class="btn-icon-large" />
@@ -370,35 +386,14 @@
       </template>
     </el-dialog>
 
-    <!-- 图片对话框 -->
-    <el-dialog v-model="imageDialogVisible" title="插入图片" width="480px">
-      <el-tabs v-model="imageSourceTab">
-        <el-tab-pane label="上传图片" name="upload">
-          <el-upload
-            class="image-uploader"
-            drag
-            :auto-upload="false"
-            :on-change="handleImageChange"
-            accept="image/*"
-          >
-            <Icon icon="mdi:upload" class="upload-icon" />
-            <div class="upload-text">将图片拖到此处，或<em>点击上传</em></div>
-          </el-upload>
-        </el-tab-pane>
-        <el-tab-pane label="网络图片" name="url">
-          <el-input v-model="imageForm.url" placeholder="请输入图片 URL" />
-        </el-tab-pane>
-      </el-tabs>
-      <el-form :model="imageForm" label-width="80px" class="mt-4">
-        <el-form-item label="图片描述">
-          <el-input v-model="imageForm.alt" placeholder="图片的替代文本" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="imageDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="confirmInsertImage">确定</el-button>
-      </template>
-    </el-dialog>
+    <!-- 图片文件选择 -->
+    <input
+      ref="imageInput"
+      type="file"
+      accept="image/*"
+      style="display: none"
+      @change="handleImageSelect"
+    />
 
     <!-- 视频对话框 -->
     <el-dialog v-model="videoDialogVisible" title="插入视频" width="480px">
@@ -540,14 +535,9 @@ const linkForm = reactive({
   target: '_blank'
 })
 
-// 图片对话框
-const imageDialogVisible = ref(false)
-const imageSourceTab = ref('upload')
-const imageForm = reactive({
-  url: '',
-  alt: '',
-  file: null as File | null
-})
+// 图片选择
+const imageInput = ref<HTMLInputElement | null>(null)
+const isInlineImage = ref(false)
 
 // 视频对话框
 const videoDialogVisible = ref(false)
@@ -608,36 +598,37 @@ const confirmInsertLink = () => {
   linkForm.url = ''
 }
 
-// 插入图片
-const insertImage = () => {
-  imageDialogVisible.value = true
+// 插入块级图片
+const insertBlockImage = () => {
+  isInlineImage.value = false
+  imageInput.value?.click()
 }
 
-const handleImageChange = (file: any) => {
-  imageForm.file = file.raw
+// 插入行内图片
+const insertInlineImage = () => {
+  isInlineImage.value = true
+  imageInput.value?.click()
 }
 
-const confirmInsertImage = () => {
-  if (!editor.value) return
+// 处理图片选择
+const handleImageSelect = (event: Event) => {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file || !editor.value) return
 
-  if (imageSourceTab.value === 'url' && imageForm.url) {
-    editor.value.chain().focus().setImage({ src: imageForm.url, alt: imageForm.alt }).run()
-    imageDialogVisible.value = false
-    imageForm.url = ''
-    imageForm.alt = ''
-  } else if (imageSourceTab.value === 'upload' && imageForm.file) {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const src = e.target?.result as string
-      editor.value?.chain().focus().setImage({ src, alt: imageForm.alt }).run()
-      imageDialogVisible.value = false
-      imageForm.file = null
-      imageForm.alt = ''
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    const src = e.target?.result as string
+    if (isInlineImage.value) {
+      // 插入行内图片
+      editor.value?.chain().focus().setImage({ src }).run()
+    } else {
+      // 插入块级图片
+      editor.value?.chain().focus().setImage({ src }).run()
     }
-    reader.readAsDataURL(imageForm.file)
-  } else {
-    ElMessage.warning('请选择或输入图片')
   }
+  reader.readAsDataURL(file)
+  // 清空 input 以便可以重复选择同一文件
+  ;(event.target as HTMLInputElement).value = ''
 }
 
 // 插入视频
@@ -1128,23 +1119,27 @@ const confirmInsertWebpage = () => {
   }
 }
 
-.image-uploader {
-  :deep(.el-upload-dragger) {
-    padding: 40px 20px;
-  }
+.image-menu {
+  .image-menu-item {
+    padding: 10px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
 
-  .upload-icon {
-    font-size: 48px;
-    color: #c0c4cc;
-    margin-bottom: 16px;
-  }
+    &:hover {
+      background: #f0f7ff;
+    }
 
-  .upload-text {
-    color: #666;
+    .menu-item-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 2px;
+    }
 
-    em {
-      color: #1a73e8;
-      font-style: normal;
+    .menu-item-hint {
+      font-size: 12px;
+      color: #999;
     }
   }
 }

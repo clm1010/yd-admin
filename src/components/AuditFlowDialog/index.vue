@@ -237,10 +237,10 @@ defineExpose({
   padding: 0;
 
   .el-dialog__header {
-    background: linear-gradient(to bottom, #1f8a8f, #67d4ff);
+    background: linear-gradient(102.53deg, #1677ff1a 0.03%, #1677ff26 102.41%);
     padding: 20px 24px;
     margin: 0;
-    border-bottom: 1px solid #67d4ff;
+    border-bottom: 1px solid #1677ff1a;
     display: flex;
     justify-content: space-between;
     align-items: center;

@@ -5,8 +5,8 @@
 // 演训方案数据接口
 export interface TrainingPerformanceVO {
   id?: string
-  drillDataId?: string // 演训数据ID
-  drillDataName?: string // 演训数据名称
+  planId?: string // 演训数据ID
+  exerciseName?: string // 演训数据名称
   planName: string // 筹划方案名称
   collegeCode?: string // 学院代码
   fileType: string //左侧树文档分类

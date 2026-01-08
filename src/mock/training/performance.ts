@@ -51,8 +51,8 @@ const ApplyNode: Record<string, string> = {
 const mockDataList: TrainingPerformanceVO[] = [
   {
     id: '1',
-    drillDataId: 'drill-001',
-    drillDataName: '2024年度联合作战演练',
+    planId: 'drill-001',
+    exerciseName: '2024年度联合作战演练',
     planName: '联合作战演练筹划方案',
     collegeCode: 'LHZZXY',
     fileType: '演训方案',
@@ -70,8 +70,8 @@ const mockDataList: TrainingPerformanceVO[] = [
   },
   {
     id: '2',
-    drillDataId: 'drill-002',
-    drillDataName: '战略级演训项目',
+    planId: 'drill-002',
+    exerciseName: '战略级演训项目',
     planName: '战略级综合演练方案',
     collegeCode: 'GFDX',
     fileType: '作战计划',
@@ -89,8 +89,8 @@ const mockDataList: TrainingPerformanceVO[] = [
   },
   {
     id: '3',
-    drillDataId: 'drill-003',
-    drillDataName: '网络安全演练',
+    planId: 'drill-003',
+    exerciseName: '网络安全演练',
     planName: '网络攻防演练实施方案',
     collegeCode: 'GJAQXY',
     fileType: '导调计划',
@@ -108,8 +108,8 @@ const mockDataList: TrainingPerformanceVO[] = [
   },
   {
     id: '4',
-    drillDataId: 'drill-004',
-    drillDataName: '后勤保障演练',
+    planId: 'drill-004',
+    exerciseName: '后勤保障演练',
     planName: '联合勤务保障方案',
     collegeCode: 'LHQWXY',
     fileType: '作战文书',
@@ -127,8 +127,8 @@ const mockDataList: TrainingPerformanceVO[] = [
   },
   {
     id: '5',
-    drillDataId: 'drill-005',
-    drillDataName: '电磁频谱管控演练',
+    planId: 'drill-005',
+    exerciseName: '电磁频谱管控演练',
     planName: '电磁环境管控方案',
     collegeCode: 'SGLXY',
     fileType: '企图立案',
@@ -146,8 +146,8 @@ const mockDataList: TrainingPerformanceVO[] = [
   },
   {
     id: '6',
-    drillDataId: 'drill-006',
-    drillDataName: '后勤保障演练',
+    planId: 'drill-006',
+    exerciseName: '后勤保障演练',
     planName: '联合勤务保障方案',
     collegeCode: 'SGLXY',
     fileType: '作战文书',
@@ -165,8 +165,8 @@ const mockDataList: TrainingPerformanceVO[] = [
   },
   {
     id: '7',
-    drillDataId: 'drill-007',
-    drillDataName: '太空作战演练',
+    planId: 'drill-007',
+    exerciseName: '太空作战演练',
     planName: '太空作战演练方案',
     collegeCode: 'SGLXY',
     fileType: '企图立案',
@@ -599,20 +599,264 @@ export const exportTrainingPerformance = async (_params: TrainingPerformancePage
 }
 
 /**
- * 模拟获取演训数据列表
+ * 模拟演训数据列表（用于选择弹窗）
  */
-export const getDrillDataList = async (_params?: any) => {
-  await mockDelay(100)
+const mockExerciseDataList = [
+  {
+    id: 'drill-001',
+    exerciseName: '2024年度联合作战演练',
+    supportUnit: '中央军委',
+    organizer: '参谋部',
+    exerciseType: 'LHL',
+    level: 'ZLJ',
+    participatingUnits: '陆海空联合部队',
+    city: '北京',
+    academy: 'GFDX',
+    subject: '联合作战指挥',
+    course: '现代战争理论',
+    content: '多军种联合作战演练，涵盖陆海空天网电六大领域',
+    relatedSystems: '指挥信息系统',
+    implPlan: '分三阶段实施：筹划、演练、总结',
+    groupingInfo: '红蓝双方对抗',
+    keyClasses: '指挥班',
+    participantCount: '5000',
+    updater: '张三',
+    startTime: '2024-01-01',
+    endTime: '2024-01-15',
+    // 用于表单回显
+    exerciseTheme: '联合作战'
+  },
+  {
+    id: 'drill-002',
+    exerciseName: '战略级综合演训项目',
+    supportUnit: '总参谋部',
+    organizer: '训练处',
+    exerciseType: 'ZUOZL',
+    level: 'ZLJ',
+    participatingUnits: '装甲部队',
+    city: '沈阳',
+    academy: 'LHZZXY',
+    subject: '装甲突击',
+    course: '机械化作战',
+    content: '装甲部队机动作战演练',
+    relatedSystems: '战术通信系统',
+    implPlan: '实战化演练',
+    groupingInfo: '多个装甲营',
+    keyClasses: '战术班',
+    participantCount: '2000',
+    updater: '李四',
+    startTime: '2024-03-10',
+    endTime: '2024-03-20',
+    exerciseTheme: '战略演练'
+  },
+  {
+    id: 'drill-003',
+    exerciseName: '网络安全攻防演练',
+    supportUnit: '网络安全局',
+    organizer: '作训科',
+    exerciseType: 'WLL',
+    level: 'ZSJ',
+    participatingUnits: '网络部队',
+    city: '上海',
+    academy: 'GJAQXY',
+    subject: '网络攻防',
+    course: '信息安全',
+    content: '网络空间安全攻防对抗演练',
+    relatedSystems: '网络防护系统',
+    implPlan: '红蓝对抗',
+    groupingInfo: '攻防双方',
+    keyClasses: '技术班',
+    participantCount: '500',
+    updater: '王五',
+    startTime: '2024-04-05',
+    endTime: '2024-04-12',
+    exerciseTheme: '网络安全'
+  },
+  {
+    id: 'drill-004',
+    exerciseName: '后勤保障综合演练',
+    supportUnit: '后勤部',
+    organizer: '网络部',
+    exerciseType: 'HZL',
+    level: 'ZSJ',
+    participatingUnits: '后勤保障部队',
+    city: '广州',
+    academy: 'LHQWXY',
+    subject: '后勤保障',
+    course: '综合保障',
+    content: '后勤保障体系综合演练',
+    relatedSystems: '保障管理系统',
+    implPlan: '全流程保障',
+    groupingInfo: '多个保障分队',
+    keyClasses: '保障班',
+    participantCount: '1500',
+    updater: '赵六',
+    startTime: '2024-05-20',
+    endTime: '2024-05-25',
+    exerciseTheme: '后勤保障'
+  },
+  {
+    id: 'drill-005',
+    exerciseName: '电磁频谱管控演练',
+    supportUnit: '电子对抗部',
+    organizer: '电子对抗处',
+    exerciseType: 'DCL',
+    level: 'ZLJ',
+    participatingUnits: '电子对抗部队',
+    city: '成都',
+    academy: 'SGLXY',
+    subject: '电磁管控',
+    course: '电子对抗',
+    content: '复杂电磁环境下的频谱管控演练',
+    relatedSystems: '电子对抗系统',
+    implPlan: '全频谱对抗',
+    groupingInfo: '电子对抗分队',
+    keyClasses: '对抗班',
+    participantCount: '800',
+    updater: '孙七',
+    startTime: '2024-06-01',
+    endTime: '2024-06-10',
+    exerciseTheme: '电磁管控'
+  },
+  {
+    id: 'drill-006',
+    exerciseName: '太空作战演练',
+    supportUnit: '航天局',
+    organizer: '作战部',
+    exerciseType: 'KZL',
+    level: 'ZLJ',
+    participatingUnits: '航天部队',
+    city: '西昌',
+    academy: 'SGLXY',
+    subject: '太空作战',
+    course: '航天技术',
+    content: '太空作战能力验证演练',
+    relatedSystems: '航天测控系统',
+    implPlan: '分阶段验证',
+    groupingInfo: '航天作战单元',
+    keyClasses: '航天班',
+    participantCount: '600',
+    updater: '周八',
+    startTime: '2024-07-15',
+    endTime: '2024-07-25',
+    exerciseTheme: '太空作战'
+  },
+  {
+    id: 'drill-007',
+    exerciseName: '海上联合演练',
+    supportUnit: '海军司令部',
+    organizer: '训练处',
+    exerciseType: 'HHL',
+    level: 'ZSJ',
+    participatingUnits: '海军陆战队',
+    city: '青岛',
+    academy: 'GJFWXY',
+    subject: '海上作战',
+    course: '海战战术',
+    content: '海上联合作战演练',
+    relatedSystems: '海战指挥系统',
+    implPlan: '海空协同',
+    groupingInfo: '海上编队',
+    keyClasses: '海战班',
+    participantCount: '3000',
+    updater: '吴九',
+    startTime: '2024-08-10',
+    endTime: '2024-08-20',
+    exerciseTheme: '海上作战'
+  },
+  {
+    id: 'drill-008',
+    exerciseName: '跨区机动演练',
+    supportUnit: '陆军司令部',
+    organizer: '训练处',
+    exerciseType: 'ZUOZL',
+    level: 'ZSJ',
+    participatingUnits: '装甲旅',
+    city: '兰州',
+    academy: 'LHZZXY',
+    subject: '机动作战',
+    course: '快速反应',
+    content: '远程机动和快速部署演练',
+    relatedSystems: '机动指挥系统',
+    implPlan: '快速机动',
+    groupingInfo: '机动部队',
+    keyClasses: '机动班',
+    participantCount: '2500',
+    updater: '郑十',
+    startTime: '2024-09-05',
+    endTime: '2024-09-15',
+    exerciseTheme: '机动作战'
+  },
+  {
+    id: 'drill-009',
+    exerciseName: '山地攻防演练',
+    supportUnit: '西部战区',
+    organizer: '作训科',
+    exerciseType: 'ZUOZL',
+    level: 'ZSJ',
+    participatingUnits: '合成营',
+    city: '昆明',
+    academy: 'JSWHXY',
+    subject: '山地作战',
+    course: '复杂地形作战',
+    content: '山地环境下的攻防作战演练',
+    relatedSystems: '野战指挥系统',
+    implPlan: '实地演练',
+    groupingInfo: '山地作战单元',
+    keyClasses: '山地班',
+    participantCount: '1800',
+    updater: '冯十一',
+    startTime: '2024-10-01',
+    endTime: '2024-10-10',
+    exerciseTheme: '山地作战'
+  },
+  {
+    id: 'drill-010',
+    exerciseName: '城市反恐演练',
+    supportUnit: '武警总部',
+    organizer: '特战处',
+    exerciseType: 'ZUOZL',
+    level: 'ZSJ',
+    participatingUnits: '特战旅',
+    city: '北京',
+    academy: 'ZZXY',
+    subject: '反恐作战',
+    course: '特种作战',
+    content: '城市环境反恐作战演练',
+    relatedSystems: '反恐指挥系统',
+    implPlan: '实战化演练',
+    groupingInfo: '特战小组',
+    keyClasses: '特战班',
+    participantCount: '400',
+    updater: '陈十二',
+    startTime: '2024-11-15',
+    endTime: '2024-11-20',
+    exerciseTheme: '反恐作战'
+  }
+]
 
-  return [
-    { id: 'drill-001', name: '2024年度联合作战演练' },
-    { id: 'drill-002', name: '战略级演训项目' },
-    { id: 'drill-003', name: '网络安全演练' },
-    { id: 'drill-004', name: '后勤保障演练' },
-    { id: 'drill-005', name: '电磁频谱管控演练' },
-    { id: 'drill-006', name: '太空作战演练' },
-    { id: 'drill-007', name: '海上联合演练' }
-  ]
+/**
+ * 获取演训数据列表（带分页）- 用于演训数据选择弹窗
+ * POST /getPlan/getExerciseData
+ * @param params { pageNo: 1, pageSize: 10 }
+ */
+export const getExerciseData = async (params: { pageNo?: number; pageSize?: number }) => {
+  await mockDelay(200)
+
+  const pageNo = params.pageNo || 1
+  const pageSize = params.pageSize || 10
+  const startIndex = (pageNo - 1) * pageSize
+  const endIndex = startIndex + pageSize
+  const list = mockExerciseDataList.slice(startIndex, endIndex)
+
+  return {
+    code: 200,
+    data: {
+      records: list,
+      total: mockExerciseDataList.length
+    },
+    msg: 'success'
+  }
 }
 
 /**
@@ -675,7 +919,7 @@ export default {
   getRejectHistory,
   rejectTrainingPerformance,
   exportTrainingPerformance,
-  getDrillDataList,
+  getExerciseData,
   getExamRecordList,
   examApply
 }
